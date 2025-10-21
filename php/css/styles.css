@@ -1,0 +1,52 @@
+.bd-placeholder-img {
+  font-size: 1.125rem;
+  text-anchor: middle;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  user-select: none;
+}
+
+td.lineup-col, .timetable td {
+	font-size: 11px;
+}
+
+@media (min-width: 768px) {
+  .bd-placeholder-img-lg {
+    font-size: 3.5rem;
+  }
+}
+
+
+#player-overview {
+	font-size: 12px;
+}
+
+@media print {
+	#game-4-header, .new-print-page {
+	  page-break-before: always;
+	}
+	.timetable {
+    padding-top: 1cm !important;
+	}
+	.new-page-after /*,.scheme-with-6-players */
+	{
+		page-break-after: always; /* Start a new page after <section> elements */
+	}
+	table, figure, .do_not_break {
+	    page-break-inside: avoid; /* Prevent the table from breaking across pages */
+		}
+		
+
+	.page-break {
+	    page-break-before: always;
+	    margin-top:1cm;
+	  }
+	
+}
+
+.timetable h4 {
+	font-size: 0.85rem;
+}
+.timetable li h6, .timetable li span  {
+	font-size: 0.85rem;
+}

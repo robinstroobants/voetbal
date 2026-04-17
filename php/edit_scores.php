@@ -43,7 +43,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['player_id'])) {
 
 
 // Scores ophalen per speler en positie (laatste score)
-$result = $conn->query("SELECT * FROM players WHERE team = 'Brent' ORDER BY first_name, last_name");
+$result = $conn->query("SELECT * FROM players ORDER BY first_name, last_name");
 $players = [];
 $player_ids = [];
 while ($row = $result->fetch_assoc()) {
@@ -73,15 +73,10 @@ if (!empty($player_ids)) {
 //dpr($scores);
 ?>
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Edit Player scores</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-datepicker@1.10.0/dist/css/bootstrap-datepicker.min.css" rel="stylesheet">
-</head>
-<body class="bg-light">
+<?php 
+$page_title = 'Edit Player scores';
+require_once 'header.php';
+?>
 <div class="container mt-5">
     <h2 class="mb-4">Edit Player Scores</h2>
     <?php foreach($players as $player_id => $player) { ?>
@@ -105,17 +100,4 @@ if (!empty($player_ids)) {
     <?php } ?>
 </div>
 
-<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap-datepicker@1.10.0/dist/js/bootstrap-datepicker.min.js"></script>
-<script>
-    $(function () {
-        $('.datepicker').datepicker({
-            format: 'yyyy-mm-dd',
-            autoclose: true,
-            todayHighlight: true
-        });
-    });
-</script>
-</body>
-</html>
+<?php require_once 'footer.php'; ?>

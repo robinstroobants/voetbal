@@ -1,13 +1,5 @@
 <?php
-$host = 'db';
-$db   = 'lineup_db';
-$user = 'app_user';
-$pass = 'bRng4y8TJLJwUxYHBD6q';
-
-$conn = new mysqli($host, $user, $pass, $db);
-if ($conn->connect_error) {
-    die("Verbinding mislukt: " . $conn->connect_error);
-}
+require_once 'getconn.php';
 
 $result = $conn->query("SELECT first_name, last_name, birthdate FROM players");
 echo "<h1>Spelerslijst</h1><ul>";

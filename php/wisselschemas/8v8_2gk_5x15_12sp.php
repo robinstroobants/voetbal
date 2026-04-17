@@ -77,6 +77,7 @@ $ws[11] = array(
     "duration" => 7.5*60,
     "game_counter" => 2
   ),
+  
   3 => array(
     "start" => 7.5,    
     "lineup" => array(
@@ -127,6 +128,8 @@ $ws[11] = array(
     "duration" => 7.5*60,
     "game_counter" => 3
   ),
+ 
+  
   5 => array(
     "start" => 7.5,    
     "lineup" => array(
@@ -177,6 +180,7 @@ $ws[11] = array(
     "duration" => 7.5*60,
     "game_counter" => 4
   ),
+
   7 => array(
     "start" => 7.5,    
     "lineup" => array(
@@ -209,6 +213,59 @@ $ws[11] = array(
   ),
   
   
+  
+  
+  8 => array(
+    "start" => 0,    
+    "lineup" => array(
+      1  => 0,
+      2  => 2,
+      4  => 7,
+      5  => 10,
+      7  => 11,
+      9  => 3,
+      10  => 5,
+      11  => 6
+    ),
+    "bench" => array(
+      9,4,8,1
+    ),
+    "duration" => 7.5*60,
+    "game_counter" => 5
+  ),
+  
+  9 => array(
+    "start" => 7.5,    
+    "lineup" => array(
+      1  => 1,
+      2  => 8,
+      4  => 9,
+      5  => 10,
+      7  => 4,
+      9  => 3,
+      10  => 5,
+      11  => 6
+    ),
+    "bench" => array(
+      9,4,8,0
+    ),
+    "subs" => array(
+      "in" => array(
+        1 => 1
+        , 2 => 8
+        , 4 => 9
+        , 7 => 4
+      ),
+      "out" => array(
+        1 => 0
+        , 2 => 2
+        , 4 => 7
+        , 7 => 11
+      )
+    ),
+    "duration" => 7.5*60,
+    "game_counter" => 5
+  ),  
 );
 
 
@@ -422,7 +479,58 @@ $ws[272] = array(
   
   
   
+  8 => array(
+    "start" => 0,    
+    "lineup" => array(
+      1  => 1,
+      2  => 4,
+      4  => 6,
+      5  => 11,
+      7  => 9,
+      9  => 3,
+      10  => 7,
+      11  => 8
+    ),
+    "bench" => array(
+      0,2,5,10
+    ),
+    "duration" => 7.5*60,
+    "game_counter" => 5
+  ),
 
+  9 => array(
+    "start" => 7.5,    
+    "lineup" => array(
+      1  => 0,
+      2  => 4,
+      4  => 6,
+      5  => 11,
+      7  => 9,
+      9  => 2,
+      10  => 5,
+      11  => 10
+    ),
+    "bench" => array(
+      1,3,7,8 
+    ),
+    "subs" => array(
+      "in" => array(
+        1 => 1
+        , 9 => 3
+        , 10 => 7
+        , 11 => 8
+      ),
+      "out" => array(
+        1 => 0
+        , 9 => 2
+        , 10 => 5
+        , 11 => 10
+      )
+    ),
+    "duration" => 7.5*60,
+    "game_counter" => 5
+  ),
+  
 );
 
 
@@ -621,7 +729,56 @@ $ws[537] = array(
     "duration" => 7.5*60,
     "game_counter" => 4
   ),  
-
+  8 => array(
+    "start" => 0,    
+    "lineup" => array(
+      1  => 1,
+      2  => 4,
+      4  => 6,
+      5  => 11,
+      7  => 9,
+      9  => 3,
+      10  => 7,
+      11  => 8
+    ),
+    "bench" => array(
+      0,2,5,10
+    ),
+    "duration" => 7.5*60,
+    "game_counter" => 5
+  ),
+  9 => array(
+    "start" => 7.5,    
+    "lineup" => array(
+      1  => 0,
+      2  => 4,
+      4  => 6,
+      5  => 11,
+      7  => 9,
+      9  => 2,
+      10  => 5,
+      11  => 10
+    ),
+    "bench" => array(
+      1,3,7,8 
+    ),
+    "subs" => array(
+      "in" => array(
+        1 => 1
+        , 9 => 3
+        , 10 => 7
+        , 11 => 8
+      ),
+      "out" => array(
+        1 => 0
+        , 9 => 2
+        , 10 => 5
+        , 11 => 10
+      )
+    ),
+    "duration" => 7.5*60,
+    "game_counter" => 5
+  ),
   
 ); 
 

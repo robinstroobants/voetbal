@@ -1,0 +1,27 @@
+Ik wil mijn MSSQL database structuur professionaliseren voor een SaaS model. 
+Genereer een SQL migratie script (T-SQL) voor de volgende wijzigingen:
+1. Maak een tabel 'Users' (id, email, password_hash, role, created_at).
+2. Maak een tabel 'Teams' (id, user_id, name, default_format DEFAULT '8v8').
+3. Voeg een kolom 'team_id' toe aan de bestaande 'Players' tabel en maak een Foreign Key naar 'Teams'.
+4. Maak een tabel 'Matches' (id, team_id, opponent, match_date, format).
+5. Maak een tabel 'Match_Selections' (id, match_id, player_id, status_id). 
+   Status_id: 1 = Voorselectie, 2 = Finale selectie.
+
+Zorg dat de bestaande data in de 'Players' tabel behouden blijft en tijdelijk aan een dummy team wordt gekoppeld indien nodig.
+
+
+
+Refactor de huidige PHP-logica die de teamselecties beheert. 
+Momenteel staan selecties in losse bestanden; dit moet volledig naar de database verhuizen.
+1. Maak een nieuwe PHP class 'MatchManager' aan.
+2. Voeg een methode 'getSelection($matchId)' toe die via PDO de spelers en hun ratings ophaalt uit 'Match_Selections' en 'Players'.
+3. Voeg een methode 'saveSelection($matchId, $playerIds, $status)' toe die de selectie opslaat of updatet in de database.
+4. Zorg dat de bestaande rating-berekening (mijn 8v8 logica) deze database-data gebruikt in plaats van de oude arrays uit de bestanden.
+
+
+Creëer een 'Dashboard' overzicht in PHP.
+1. Bouw een simpele login-check (voor nu mag dit een placeholder sessie zijn die gekoppeld is aan een UserID in de DB).
+2. Toon een lijst van alle Teams gekoppeld aan de ingelogde User.
+3. Wanneer een Team wordt geselecteerd, toon de lijst met 'Matches' voor dat team.
+4. Voeg een knop toe 'Nieuwe Wedstrijd Aanmaken' die een formulier opent waar de gebruiker de tegenstander, datum en het format (bijv. 8v8 of 7v7) kan kiezen.
+5. Gebruik de bestaande styling van de app voor consistentie.

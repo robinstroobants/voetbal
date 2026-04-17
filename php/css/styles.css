@@ -1,52 +1,370 @@
-.bd-placeholder-img {
-  font-size: 1.125rem;
-  text-anchor: middle;
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  user-select: none;
+/* Premium Glassmorphism Theme */
+
+:root {
+    --primary-color: #0d6efd;
+    --bg-gradient-start: #ffffff;
+    --bg-gradient-end: #ffffff;
+    --glass-bg: #ffffff;
+    --glass-border: #000000;
+    --glass-shadow: none;
+    --text-primary: #000000;
+    --text-secondary: #000000;
 }
 
-td.lineup-col, .timetable td {
-	font-size: 11px;
+* {
+    color: #000000 !important;
+    box-shadow: none !important;
+    text-shadow: none !important;
+    transition: none !important;
 }
 
-@media (min-width: 768px) {
-  .bd-placeholder-img-lg {
-    font-size: 3.5rem;
-  }
+body.premium-bg,
+body.bg-light {
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: var(--text-primary);
+    background: var(--bg-gradient-end);
+    background-attachment: fixed;
+    min-height: 100vh;
 }
 
-
-#player-overview {
-	font-size: 12px;
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+.navbar-brand {
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: #212529;
+    font-weight: 600;
 }
 
+/* Glass Navbar */
+.glass-nav {
+    background: #ffffff !important;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border-bottom: 1px solid var(--glass-border);
+}
+
+.glass-nav .nav-link {
+    transition: color 0.3s ease;
+}
+
+.glass-nav .nav-link:hover {
+    color: #0d6efd !important;
+}
+
+/* Base text overrides */
+p,
+label,
+li {
+    color: var(--text-primary);
+}
+
+/* Glassmorphism Cards */
+.card,
+.glass-panel {
+    background: var(--glass-bg) !important;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border: 1px solid var(--glass-border) !important;
+    border-radius: 4px;
+    box-shadow: none;
+    color: var(--text-primary) !important;
+    transition: none;
+}
+
+.bg-light {
+    background-color: #f8f9fa !important;
+}
+
+.card:hover,
+.glass-panel:hover {
+    transform: none;
+    box-shadow: none;
+    border-color: var(--glass-border) !important;
+}
+
+/* Form Controls Restyling for Dark Mode */
+.form-control,
+.form-select,
+.datepicker {
+    background: #ffffff !important;
+    border: 1px solid #ced4da !important;
+    color: #212529 !important;
+    border-radius: 4px;
+}
+
+.form-control:focus {
+    box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25) !important;
+    border-color: #86b7fe !important;
+}
+
+/* Tables */
+table.table,
+.table {
+    color: var(--text-primary) !important;
+    border-color: var(--glass-border);
+}
+
+.table td,
+.table th {
+    border-color: var(--glass-border);
+    background: transparent !important;
+    vertical-align: middle;
+}
+
+.table-hover tbody tr:hover {
+    background: rgba(0, 0, 0, 0.075) !important;
+}
+
+/* Specific component overrides */
+.list-group-item {
+    background: transparent !important;
+    color: var(--text-primary);
+    border-color: var(--glass-border) !important;
+}
+
+.text-muted {
+    color: var(--text-secondary) !important;
+}
+
+.badge.bg-primary {
+    background: var(--primary-color) !important;
+    color: #ffffff !important;
+    font-size: 12px !important;
+}
+
+.btn-primary {
+    background: var(--primary-color) !important;
+    color: #ffffff !important;
+    border: none !important;
+    border-radius: 4px;
+    padding: 0.5rem 1.5rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+    background: #0b5ed7 !important;
+    transform: none;
+}
+
+.btn-wedstrijd {
+    background: #e9ecef !important;
+    color: #212529 !important;
+    border: 1px solid #dee2e6 !important;
+    font-weight: 600;
+    transition: all 0.2s ease;
+}
+
+.btn-wedstrijd:hover {
+    background: #dee2e6 !important;
+}
+
+/* Fix text in specific wrappers */
+.text-primary {
+    color: var(--primary-color) !important;
+}
+
+.timetable.do_not_break>div {
+    padding: 10px 5px 5px 5px !important;
+}
+
+.timetable .col {
+    padding: 0 !important;
+}
+
+/* ----------------------------------- */
+/* PRINT STYLES                        */
+/* ----------------------------------- */
 @media print {
-	#game-4-header, .new-print-page {
-	  page-break-before: always;
-	}
-	.timetable {
-    padding-top: 1cm !important;
-	}
-	.new-page-after /*,.scheme-with-6-players */
-	{
-		page-break-after: always; /* Start a new page after <section> elements */
-	}
-	table, figure, .do_not_break {
-	    page-break-inside: avoid; /* Prevent the table from breaking across pages */
-		}
-		
+    @page {
+        margin-top: 1cm;
+        margin-bottom: 1cm;
+    }
 
-	.page-break {
-	    page-break-before: always;
-	    margin-top:1cm;
-	  }
-	
+    body,
+    body.premium-bg {
+        background: transparent !important;
+        color: #000 !important;
+        font-size: 10pt !important;
+        /* Base font smaller */
+        min-height: auto !important;
+        height: auto !important;
+        display: block !important;
+    }
+
+    /* Fallback for Safari/Chrome ignoring @page margins */
+    main>.container {
+        padding-top: 0 !important;
+        display: block !important;
+    }
+
+    .row {
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+    }
+
+    .new-print-page {
+        page-break-before: always !important;
+        padding-top: 0 !important;
+        display: block !important;
+    }
+
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6,
+    p,
+    label,
+    li,
+    .text-primary {
+        color: #000 !important;
+    }
+
+    /* Small font sizes and trim margins for headings to save vertical space */
+    h4 {
+        font-size: 11pt !important;
+        margin: 2px 0 !important;
+    }
+
+    h5 {
+        font-size: 13pt !important;
+        margin: 5px 0 !important;
+    }
+
+    h6 {
+        font-size: 10pt !important;
+        margin: 0 !important;
+    }
+
+    p,
+    li {
+        font-size: 9pt !important;
+        margin-bottom: 2px !important;
+    }
+
+    /* Hide elements not needed in print */
+    .glass-nav,
+    .btn,
+    .d-print-none,
+    .no-print {
+        display: none !important;
+    }
+
+    /* Remove glass effects, keep it clean/black-and-white */
+    .card,
+    .timetable>div,
+    .bg-light,
+    table.table,
+    .table td,
+    .table th,
+    .list-group-item {
+        background: transparent !important;
+        backdrop-filter: none !important;
+        -webkit-backdrop-filter: none !important;
+        box-shadow: none !important;
+        color: #000 !important;
+    }
+
+    /* Only add borders to the individual player stat boxes, NOT the large match table */
+    .timetable.do_not_break>div {
+        border: 2px solid #000 !important;
+        border-radius: 0 !important;
+        page-break-inside: avoid;
+        padding: 10px 5px 5px 5px !important;
+        margin: 4px !important;
+    }
+
+    table.table,
+    .table th,
+    .table td {
+        border-color: #000 !important;
+        border: 1px solid #000 !important;
+        padding: 2px 4px !important;
+        /* Compact table cells */
+        font-size: 9pt !important;
+        /* Reduce text in lineup tables */
+    }
+
+    /* Print-friendly list items (save ink) */
+    .list-group-item {
+        border: none !important;
+        border-bottom: 1px solid #ddd !important;
+        padding: 2px 0 !important;
+    }
+
+    /* Page Breaks */
+    .new-print-page {
+        page-break-before: always !important;
+    }
+
+    /* Force stats table to next page */
+    .timetable:first-of-type {
+        page-break-before: always !important;
+    }
+
+    /* Badges as simple outlined text */
+    .badge.bg-primary {
+        background: transparent !important;
+        color: #000 !important;
+        border: 1px solid #000 !important;
+        font-size: 12px !important;
+        padding: 2px 5px !important;
+        margin-top: 5px !important;
+    }
+
+    /* Compact lineup */
+    .lineup-col {
+        line-height: 1.1 !important;
+    }
+
+    .pos-num {
+        font-size: 7pt !important;
+        font-weight: bold !important;
+        color: #555 !important;
+    }
+
+    /* Forceer de zichtbaarheid van de actieve tab */
+    .tab-content>.tab-pane {
+        display: none !important;
+        visibility: hidden !important;
+        height: 0 !important;
+        overflow: hidden !important;
+    }
+
+    .tab-content>.active {
+        display: block !important;
+        visibility: visible !important;
+        height: auto !important;
+        opacity: 1 !important;
+    }
+
+    /* Zorg dat de Bootstrap 'fade' animatie de print niet verpest */
+    .fade {
+        opacity: 1 !important;
+        transition: none !important;
+    }
+
+    /* Zorg dat de main container en main tags zichtbaar zijn */
+    main,
+    .tab-content {
+        display: block !important;
+    }
+
 }
 
-.timetable h4 {
-	font-size: 0.85rem;
+/* Global fallback for pos-num if not printing */
+.lineup-col {
+    line-height: 1.2;
 }
-.timetable li h6, .timetable li span  {
-	font-size: 0.85rem;
+
+.pos-num {
+    font-size: 0.8em;
+    font-weight: bold;
+    opacity: 0.7;
 }

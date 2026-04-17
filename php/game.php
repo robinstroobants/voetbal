@@ -57,7 +57,9 @@ class Game
     public $least_played = array();
     
     private $squad = array();
-    public $playerinfo = array(
+    public $playerinfo = array();
+    /*
+    array(
        "Cédric" => array("name" => "Nestor", "birthdate" => "2016-03-16")
        ,"Miel" => array("name" => "T'Syen", "pos" => array(9,7,11,2,5), "birthdate" => "2015-07-30")
        ,"Jack" => array("name" => "Stroobants", "pos" => array(9,7,11,2,5), "birthdate" => "2015-08-06")
@@ -88,7 +90,7 @@ class Game
 
 
     );
- 
+ */
     public array $playerscores = [];
     
     
@@ -97,8 +99,9 @@ class Game
       
       
       //tijdelijk tot het uit de db komt
-      global $player_scores;
+      global $player_scores,$global_playerinfo;
       $this->setPlayerScores($player_scores);
+      $this->setPlayerInfo($global_playerinfo);
 
 
           
@@ -110,7 +113,6 @@ class Game
       
       $this->onlyBestSelection = $onlyBestSelection;
       $this->shuffleType = $shuffle_type;
-      
       $this->initSquad($spelers);
 
       $format_parts = explode('_',$format);
@@ -156,7 +158,12 @@ class Game
       $this->setRunQuality();
     }
     
-  
+    public function setPlayerInfo(array $info): void {
+      $this->playerinfo = $info;
+      //dpr($this->playerinfo);
+      
+    }
+    
     public function setPlayerScores(array $scores): void {
         $this->playerscores = $scores;
     }
@@ -168,7 +175,7 @@ class Game
     private function getEvents($players,$format = "5sp4x15"){
       global $events;
       //pecho($format);
-      //dpr($events,$format);
+      //dpr($players,$format);
       $returnVal = $events[$format][$players];
       return $returnVal;
     }
@@ -285,15 +292,28 @@ class Game
           }
         }
       }
-      //aantal_punten moest real madrid spelen
-      $minuten_te_spelen = $this->game_duration * $this->nr_of_games;
-      $max_points_possible = $this->playercount * $minuten_te_spelen * 100;
+      
+      
+      $minuten_te_spelen=0;
+      $max_points_possible=0;
+      foreach($this->events as $event){
+          $minuten_te_spelen += $event["duration"] / 60;
+          $max_points_possible += $this->playercount * ($event["duration"]/60) * 100;
+      }
+      
+      //$minuten_te_spelen = $this->game_duration * $this->nr_of_games;
+      //$max_points_possible = $this->playercount * $minuten_te_spelen * 100;
       
       //pecho(" $this->playercount * $minuten_te_spelen * 100 ");
       $this->score = round($score);
       $this->rating = round(($score/$max_points_possible)*100,2);
-      //pecho($max_points_possible . " -- " . $score);
-      //pecho($this->rating);die();
+      
+      /*pecho("nr_of_games --> " . $this->nr_of_games);
+      pecho("minuten_te_spelen --> " . $minuten_te_spelen);
+      pecho("max_points_possible: $this->playercount spelers * $minuten_te_spelen min * 100 punten --> " . $max_points_possible);
+      pecho($max_points_possible . " -- " . $score);
+      pecho(8*75);
+      pecho($this->rating);*/
     }
        
     
@@ -356,7 +376,6 @@ class Game
     }
     
     private function initSquad($spelers) {
-      //pr($spelers,__LINE__);
       
       $player_scores = $this->playerscores;
       $all_players = array();
@@ -372,8 +391,7 @@ class Game
       $playernames = array();
       $playerfullnames = array();
       $squad = array();
-      
-      
+      //dpr($all_players);
       // code herschreven dat shuffle in index gebeurd....
       foreach($spelers as $naam){
         foreach($all_players as $player){
@@ -429,7 +447,7 @@ class Game
           array_diff($spelers, $playernames),
           array_diff($playernames, $spelers)
       );
-
+      
       if (!empty($mismatches)) {
           echo "Speler gevonden zonder settings ==> :\n";
           var_dump($mismatches);
@@ -923,11 +941,28 @@ function calctime($aantal_seconden){
 function build_playtime_stats(array $pt_all_games, array $player_scores): array {
     $stats = [];
     $totalDuration = 0;
-
+    ksort($pt_all_games);
     // --- STAP 1: Verzamel alle data per speler per wedstrijd ---
-    foreach ($pt_all_games as $g) {
+    foreach ($pt_all_games as $game_key => $g) {
         $d = $g['duration'] ?? 0;
         $totalDuration += $d;
+        // --- NIEUW: Parse de $game_key ---
+        // Splits de key op de eerste underscore (_)
+        $parts = explode('_', $game_key, 2);
+        $date_part = $parts[0] ?? '';
+        $game_title = $parts[1] ?? null; // Titel is alles na de '_'
+        
+        $game_dt = null;
+        // Controleer of het date-part 6 karakters lang is (YYMMDD)
+        if (strlen($date_part) === 6) {
+            $yy = substr($date_part, 0, 2);
+            $mm = substr($date_part, 2, 2);
+            $dd = substr($date_part, 4, 2);
+        
+            // Maak een YYYY-MM-DD string, uitgaande van de 21e eeuw (20xx)
+            $game_dt = "20{$yy}-{$mm}-{$dd}";
+        }
+        
 
         // Loop door de spelers van de huidige wedstrijd
         foreach (($g['players'] ?? []) as $p => $t) {
@@ -936,13 +971,33 @@ function build_playtime_stats(array $pt_all_games, array $player_scores): array 
                 $stats[$p] = [
                     'available' => 0,
                     'played' => 0,
-                    'positions' => [] // NIEUW: array voor positiedata
+                    'positions' => [],
+                    'last_playtime' => 0,
+                    "last_game_title" => null,
+                    "last_game_key" => null,
+                    "last_game_dt" => null,
+                    "previous_game_title" => null,
+                    "previous_game_dt" => null,
+                    "time_per_game" => array()
                 ];
             }
+            if (!isset($stats[$p]["time_per_game"][$game_key])) {
+              $stats[$p]['time_per_game'][$game_key] = 0;
+            }
+            
             
             // Tel de beschikbare en gespeelde tijd op (zoals voorheen)
             $stats[$p]['available'] += $d;
             $stats[$p]['played']    += (int)$t;
+            $stats[$p]['time_per_game'][$game_key] += (int)$t;
+            $stats[$p]['last_playtime'] = (int)$t;
+            $stats[$p]['previous_game_title'] = $stats[$p]['last_game_title'];
+            $stats[$p]['previous_game_dt'] = $stats[$p]['last_game_dt'];
+            
+            $stats[$p]['previous_game_key'] = $stats[$p]['last_game_key'];
+            $stats[$p]['last_game_key'] = $game_key;
+            $stats[$p]['last_game_title'] = $game_title;
+            $stats[$p]['last_game_dt'] = $game_dt;
             
             // NIEUW: Loop door de 'playtime' data van deze speler in deze wedstrijd
             if (isset($g['playtime'][$p])) {
@@ -991,29 +1046,5 @@ function build_playtime_stats(array $pt_all_games, array $player_scores): array 
     return $stats;
 }
 
-/*
-function build_playtime_stats(array $pt_all_games, array $player_scores): array {
-    $stats = [];
-    $totalDuration = 0;
-    foreach ($pt_all_games as $g) {
-        $d = $g['duration'] ?? 0;
-        $totalDuration += $d;
-        foreach (($g['players'] ?? []) as $p => $t) {
-            if (!isset($stats[$p])) $stats[$p] = ['available'=>0,'played'=>0];
-            $stats[$p]['available'] += $d;
-            $stats[$p]['played']    += (int)$t;
-        }
-    }
-    
-    foreach (array_keys($player_scores) as $p) {
-        if (!isset($stats[$p])) $stats[$p] = ['available'=>$totalDuration,'played'=>0];
-    }
-    foreach ($stats as &$s) {
-        $s['percentage'] = $s['available'] ? round(100*$s['played']/$s['available'],2) : 0;
-    }
-    unset($s);
-    uasort($stats, fn($a,$b)=>$b['played']<=>$a['played']);
-    return $stats;
-}
- */
+
 ?>

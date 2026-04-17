@@ -1,13 +1,6 @@
 <?php
 // Connect to the database
-$host = 'db';
-$db = 'lineup_db';
-$user = 'app_user';
-$pass = 'bRng4y8TJLJwUxYHBD6q';
-$conn = new mysqli($host, $user, $pass, $db);
-if ($conn->connect_error) {
-    die("Connection failed: " . $conn->connect_error);
-}
+require_once 'getconn.php';
 
 if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["player_id"])) {
     $id = intval($_POST["player_id"]);
@@ -16,15 +9,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["player_id"])) {
     $birthdate = trim($_POST["birthdate"]);
     $shortname = $conn->real_escape_string($_POST["shortname"]);
 
-    // Controleer of birthdate leeg is
-    if ($birthdate === '') {
-        $birthdate_sql = "NULL";
-    } else {
-        $birthdate_sql = "'" . $conn->real_escape_string($birthdate) . "'";
-    }
+    $birthdate_val = ($birthdate === '') ? null : $birthdate;
 
-    $sql = "UPDATE players SET first_name='$first_name', last_name='$last_name', shortname='$shortname', birthdate=$birthdate_sql WHERE id=$id";
-    $conn->query($sql);
+    $stmt = $conn->prepare("UPDATE players SET first_name=?, last_name=?, shortname=?, birthdate=? WHERE id=?");
+    $stmt->bind_param("ssssi", $first_name, $last_name, $shortname, $birthdate_val, $id);
+    $stmt->execute();
+    $stmt->close();
 }
 
 
@@ -32,15 +22,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["player_id"])) {
 $result = $conn->query("SELECT * FROM players ORDER BY first_name, last_name");
 ?>
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Edit Players</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-datepicker@1.10.0/dist/css/bootstrap-datepicker.min.css" rel="stylesheet">
-</head>
-<body class="bg-light">
+<?php 
+$page_title = 'Edit Players';
+require_once 'header.php';
+?>
 <div class="container mt-5">
     <h2 class="mb-4">Edit Player Information</h2>
     <?php while ($row = $result->fetch_assoc()): ?>
@@ -72,17 +57,4 @@ $result = $conn->query("SELECT * FROM players ORDER BY first_name, last_name");
     <?php endwhile; ?>
 </div>
 
-<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap-datepicker@1.10.0/dist/js/bootstrap-datepicker.min.js"></script>
-<script>
-    $(function () {
-        $('.datepicker').datepicker({
-            format: 'yyyy-mm-dd',
-            autoclose: true,
-            todayHighlight: true
-        });
-    });
-</script>
-</body>
-</html>
+<?php require_once 'footer.php'; ?>

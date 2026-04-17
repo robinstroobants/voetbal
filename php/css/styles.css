@@ -11,13 +11,6 @@
     --text-secondary: #000000;
 }
 
-* {
-    color: #000000 !important;
-    box-shadow: none !important;
-    text-shadow: none !important;
-    transition: none !important;
-}
-
 body.premium-bg,
 body.bg-light {
     font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -35,7 +28,6 @@ h5,
 h6,
 .navbar-brand {
     font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    color: #212529;
     font-weight: 600;
 }
 

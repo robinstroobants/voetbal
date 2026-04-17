@@ -3,8 +3,8 @@ FROM php:8.2-apache
 # Use the default production configuration
 RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
 
-# Install mysqli and opcache
-RUN docker-php-ext-install mysqli opcache
+# Install mysqli, pdo_mysql and opcache
+RUN docker-php-ext-install mysqli pdo_mysql opcache
 
 # Configure opcache
 RUN { \

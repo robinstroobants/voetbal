@@ -70,36 +70,67 @@
   $events = array();
   $wisselschema_index = array();
 
-  $wedstrijd = $_GET['wedstrijd'] ?? '';
+  require_once 'getconn.php';
+  require_once 'MatchManager.php';
 
+  $matchManager = new MatchManager($pdo);
+  
+  $wedstrijd_input = $_GET['wedstrijd'] ?? '';
+  $gameId = (int)$wedstrijd_input;
 
   // ------------------------------------------------------------
-  // [2] Selectiebestand bepalen en laden
+  // [2] Bepaal Game
   // ------------------------------------------------------------
-  // Bepaalt op basis van GET-parameter of laatste bestand welke selectie wordt gebruikt.
-  // Stap 1: Bepaal het juiste selectiebestand
-  if (empty($wedstrijd)) {
-      $selection_files = glob(__DIR__ . '/selecties/*.php');
-      if (!empty($selection_files)) {
-          array_multisort(array_map('filemtime', $selection_files), SORT_DESC, $selection_files);
-          $latest_file = $selection_files[0];
-          $wedstrijd = basename($latest_file, '.php');
-      }
+  if ($gameId === 0) {
+      $stmt = $pdo->query("SELECT id FROM games ORDER BY game_date DESC LIMIT 1");
+      $gameId = (int)$stmt->fetchColumn();
   }
-  $selectie_path = __DIR__ . "/selecties/" . $wedstrijd . ".php";
 
+  $matchData = $matchManager->getSelection($gameId);
 
   // ------------------------------------------------------------
-  // [3] Selectiebestand inlezen en format ophalen
+  // [3] Laad Match Info in Lokale Variabelen
   // ------------------------------------------------------------
-  // Laadt het selectiebestand, haalt het wedstrijdformaat en de selectie-array op.
-  // Stap 2: Laad het selectiebestand en haal $format en $sel op
-  if (file_exists($selectie_path)) {
-      if ($building_lineup == 1) {
-          echo "Selectiebestand: " . $selectie_path . "<br/>";
+  if (!empty($matchData)) {
+      $format = $matchData['format'];
+      $doelmannen = $matchData['doelmannen'];
+      $selectie = $matchData['selectie'];
+      
+      // ------------------------------------------------------------
+      // [DB] Ophalen Opgeslagen Lineups (Voorselecties / Final)
+      // ------------------------------------------------------------
+      $stmtLineups = $pdo->prepare("SELECT * FROM game_lineups WHERE game_id = ? ORDER BY score DESC");
+      $stmtLineups->execute([$gameId]);
+      $saved_lineups = $stmtLineups->fetchAll(PDO::FETCH_ASSOC);
+
+      $locked_lineup = null;
+      foreach ($saved_lineups as $sl) {
+          if ($sl['is_final']) {
+              $locked_lineup = $sl;
+              break;
+          }
       }
 
-      include $selectie_path;
+      if ($locked_lineup) {
+          $shuffle_type = "coach";
+          $te_gebruiken_schema = $locked_lineup['schema_id'];
+          // Forceer exacte opgeslagen permutatie (player IDs sequence)
+          $sel = explode(',', $locked_lineup['player_order']);
+      } else {
+          // Zet de spelers alfabetisch klaar voor random generator
+          $sel = array_filter(array_map('trim', explode(',', $selectie)));
+          if (!empty(trim($doelmannen))) {
+              $gk_arr = array_filter(array_map('trim', explode(',', $doelmannen)));
+              $sel = array_merge($gk_arr, $sel);
+          }
+          if (!isset($shuffle_type)) $shuffle_type = "random"; 
+      }
+
+      $player_scores = $matchData['player_scores']; // Vervangt playerscores.php
+      $global_playerinfo = $matchData['player_info'] ?? []; // Vervangt playerscores.php global_playerinfo data
+      
+      $date_str = date('ymd', strtotime($matchData['game']['game_date']));
+      $wedstrijd = $date_str . "_" . str_replace(' ','', $matchData['game']['opponent']);
 
       // VALIDATIE: in 'coach' modus is een specifiek schema absoluut vereist
       if (isset($shuffle_type) && $shuffle_type === "coach") {
@@ -112,28 +143,18 @@
           }
       }
 
-      if (isset($format) && isset($sel) && is_array($sel)) {
+      if (isset($format) && is_array($sel)) {
           $aantal = count($sel);
 
           if ($building_lineup == 1) {
               echo "Format: " . htmlspecialchars($format) . "<br/>";
               echo "Aantal spelers: " . $aantal . "<br/>";
           }
-
-
-  require_once("playerscores.php");
-  
-  
-  //echo $format . " -- " . $aantal;
           
   // ------------------------------------------------------------
   // [4] Wisselschema zoeken en laden
   // ------------------------------------------------------------
-  // Zoekt het juiste wisselschema-bestand op basis van format en aantal spelers.
-          // Stap 3: Zoek en laad het juiste wisselschema-bestand
           $wissel_file = __DIR__ . "/wisselschemas/" . $format . "_" . $aantal . "sp.php";
-
-          //echo $wissel_file;die();
 
           if ($building_lineup == 1) {
               echo "Zoekbestand: " . $wissel_file . "<br/>";
@@ -146,9 +167,14 @@
               include $wissel_file;
               $beschikbare_schemas = array_keys(isset($ws) ? $ws : []);
           } else {
-              if ($building_lineup == 1) {
-                  echo "⚠️ Geen wisselschema gevonden voor format: " . htmlspecialchars($format) . " met " . $aantal . " spelers.<br/>";
-              }
+              $wisselschema_meta = []; // Fallback initialization
+              echo "<div style='padding:20px; background:#fff3cd; border:1px solid #ffeeba; color:#856404; margin:15px; border-radius:5px;'>";
+              echo "<h4>⚠️ Beperkte / Te kleine selectie</h4>";
+              echo "Geen rekenkundig wisselschema gevonden voor formaat <strong>" . htmlspecialchars($format) . "</strong> met <strong>" . $aantal . " spelers</strong>.<br/>";
+              echo "Voeg meer spelers toe aan je spelers selectie of kies een ander match-format.";
+              echo "</div>";
+              $top_selected_options = []; // Stop early
+              return; // We stoppen de generatie, weergave in index is blanco
           }
       } else {
           if ($building_lineup == 1) {
@@ -161,102 +187,86 @@
       }
   }
 
+  // ------------------------------------------------------------
+  // [5] Vorige/Volgende wedstrijd navigatie ophalen via Date
+  // ------------------------------------------------------------
+  $gd = $matchData['game']['game_date'] ?? null;
+  if ($gd) {
+    $stmtPrev = $pdo->prepare("SELECT id, opponent, game_date FROM games WHERE game_date < :gd ORDER BY game_date DESC LIMIT 1");
+    $stmtPrev->execute(['gd' => $gd]);
+    $prevGame = $stmtPrev->fetch(PDO::FETCH_ASSOC);
+    $vorige_key = $prevGame ? $prevGame['id'] : null;
 
-   require_once("speelminuten.php");
+    $stmtNext = $pdo->prepare("SELECT id, opponent, game_date FROM games WHERE game_date > :gd ORDER BY game_date ASC LIMIT 1");
+    $stmtNext->execute(['gd' => $gd]);
+    $nextGame = $stmtNext->fetch(PDO::FETCH_ASSOC);
+    $volgende_key = $nextGame ? $nextGame['id'] : null;
+  } else {
+    $vorige_key = null;
+    $volgende_key = null;
+  }
 
-   $keys = array_keys($pt_all_games);
-   $index = array_search($wedstrijd, $keys);
+  $current_url = $_SERVER['REQUEST_URI'];
+  $base_url = strtok($current_url, '?');
+  $query_params = $_GET;
 
-   // Initieer beide als null
-   $vorige_wedstrijd = null;
-   $huidige_wedstrijd = null;
-   $volgende_wedstrijd = null;
-   if ($index === false) {
-        // Wedstrijd niet gevonden: enkel vorige wedstrijd is het eerste (nieuwste)
-        // CHECK: We controleren eerst of er wel keys zijn (of er historie is)
-        if (!empty($keys)) {
-            $vorige_wedstrijd_key = $keys[0];
-            $vorige_wedstrijd = $pt_all_games[$vorige_wedstrijd_key];
-        }
-        // Geen volgende wedstrijd
-    } else {
-        
-       // Wedstrijd gevonden
-       // Vorige wedstrijd = eerstvolgende in array (oudere)
-       if (isset($keys[$index + 1])) {
-           $vorige_wedstrijd_key = $keys[$index + 1];
-           $vorige_wedstrijd = $pt_all_games[$vorige_wedstrijd_key];
-       }
-
-       // Volgende wedstrijd = vorige in array (nieuwere)
-       if ($index > 0 && isset($keys[$index - 1])) {
-           $volgende_wedstrijd_key = $keys[$index - 1];
-           $volgende_wedstrijd = $pt_all_games[$volgende_wedstrijd_key];
-       }
-   }
-   
-
-   if (isset($vorige_wedstrijd_key)){
-     // Datumdeel uit key halen
-     list($datum_raw, $wedstrijd_naam) = explode('_', $vorige_wedstrijd_key, 2);
-     // Datumformaten genereren vanuit YYMMDD
-     $jaar = '20' . substr($datum_raw, 0, 2); // '25' → '2025'
-     $maand = substr($datum_raw, 2, 2);       // '09'
-     $dag = substr($datum_raw, 4, 2);         // '27'
-     $datum_full = "$jaar-$maand-$dag";       // '2025-09-27'
-     $datum_short = "$dag/$maand";            // '27/09'
-     // Uitbreiden van array
-     $vorige_wedstrijd['key'] = $vorige_wedstrijd_key;
-     $vorige_wedstrijd['date_short'] = $datum_short;
-     $vorige_wedstrijd['date_full'] = $datum_full;
-   }
-  
-   //pr($vorige_wedstrijd,$vorige_wedstrijd_key);
-   //dpr($volgende_wedstrijd,__LINE__);
- 
-   /* code om vorige / volgende wedstrijd te tonen */
-   $current_url = $_SERVER['REQUEST_URI'];
-   $base_url = strtok($current_url, '?'); // Verwijdert querystring
-   $query_params = $_GET;
-
-   // Zoek de keys
-   $keys = array_keys($pt_all_games);
-   $index = array_search($wedstrijd, $keys);
-
-   // Bepaal vorige en volgende keys
-   $vorige_key = isset($keys[$index + 1]) ? $keys[$index + 1] : null;
-   $volgende_key = isset($keys[$index - 1]) ? $keys[$index - 1] : null;
- 
-   // Helper om URL te bouwen
-   function build_url($base, $params) {
+  function build_url($base, $params) {
        return $base . '?' . http_build_query($params);
-   }
-   /* EINDE code om vorige / volgende wedstrijd te tonen */
- 
+  }
 
+  // Speelminuten object ophalen uit de databank
+  $pt_all_games = $matchManager->getHistoricalPlaytime();
 
+  // Bouw een reverse lookup (ID -> Shortname)
+  $idToShortname = [];
+  if (isset($global_playerinfo) && is_array($global_playerinfo)) {
+      foreach ($global_playerinfo as $short => $data) {
+          if (isset($data['id'])) {
+              $idToShortname[$data['id']] = $short;
+          }
+      }
+  }
 
-  // ------------------------------------------------------------
-  // settings min/max uit selectiebestand halen
-  // ------------------------------------------------------------
+  $vorige_wedstrijd = null;
+  $volgende_wedstrijd = null;
+  $huidige_wedstrijd = null;
+  $vorige_wedstrijd_key = null;
 
-  $no_max_players = str_replace(" ,", ",", $no_max_players ?? '');
-  $no_max_players = str_replace(" ,",",", $no_max_players); 
-  $no_min_players = str_replace(", ", ",", $no_min_players ?? '');
-  $no_min_players = str_replace(" ,",",", $no_min_players); 
+  if (isset($prevGame) && $prevGame) {
+      $prev_date = date('ymd', strtotime($prevGame['game_date']));
+      $prev_opp = str_replace(' ', '', $prevGame['opponent']);
+      $vorige_wedstrijd_key = $prev_date . "_" . $prev_opp;
+      
+      if (isset($pt_all_games[$vorige_wedstrijd_key])) {
+          $vorige_wedstrijd = $pt_all_games[$vorige_wedstrijd_key];
+          
+          // MAP IDs naar Shortnames voor compatibility met verdere no_min/no_max logica
+          if (isset($vorige_wedstrijd['players'])) {
+              $mapped_prev = [];
+              foreach ($vorige_wedstrijd['players'] as $id => $time) {
+                  if (isset($idToShortname[$id])) {
+                      $mapped_prev[$idToShortname[$id]] = $time;
+                  }
+              }
+              $vorige_wedstrijd['players'] = $mapped_prev;
+          }
+      }
+  }
 
-  
-
+  if (empty($matchData)) {
+      $top_selected_options = [];
+      return; 
+  }
 
   $QTOTALS = array();
   $onlyBestSelection = 1;
   
   $playtime = array();
-  $format = $game_formats[$wedstrijd];
   $timestamp_title = 0;
 
   $all_points = array();
-  $squad = $selecties[$wedstrijd];
+  // We gebruiken rechtstreeks de door MatchManager opgebouwde arrays
+  $squad = $sel;
   $total_players = count($squad);
   
   IF ($debug){
@@ -315,12 +325,12 @@
   }
 
   // Huidige mapping naar arrays voor de wisselschema-checks
-  if (strlen($no_max_players) > 0){
+  if (strlen($no_max_players ?? '') > 0){
       $no_max[$wedstrijd] = explode(",", $no_max_players);
   } else {
       $no_max[$wedstrijd] = array();
   }
-  if (strlen($no_min_players) > 0){
+  if (strlen($no_min_players ?? '') > 0){
       $no_min[$wedstrijd] = explode(",", $no_min_players);
   } else {
       $no_min[$wedstrijd] = array();
@@ -429,16 +439,26 @@
 
   if ($shuffle_type == "coach"){
       $list_of_players = $squad;
+      // We moeten het juiste schema inladen via de global variabelen voordat Game wordt geïnitialiseerd
+      // Normaliter deed de iterator dat, maar in coach mode moeten we dit eenmalig manueel doen.
+      if (isset($te_gebruiken_schema)) {
+          $wissel_file = __DIR__ . "/wisselschemas/" . $format . "_" . count($list_of_players) . "sp.php";
+          if (file_exists($wissel_file)) {
+              include $wissel_file; // Loads the schema into $ws maybe? Wait, $wissel_file is loaded on line 165!
+          }
+      }
+
       $result = new Game($list_of_players,$onlyBestSelection,$format);
       $total_points = $result->score;
       $max_points = $total_points;
       $selected["run"] = $tries;
-      $selected["ws_id"] = $wisselschema_index[$format] ?? 0;
+      $selected["ws_id"] = $te_gebruiken_schema ?? ($wisselschema_index[$format] ?? 0);
       $selected["total_points"] = $total_points;
       $selected["rating"] = $result->rating;
       $selected["volgorde"] = implode(',', $list_of_players);
       $selected["team"] = $result;
       $lineup = $result;
+      $top_selected_options = array($selected);
   } else {
       // --- BEGIN BACKTRACKING OPTIMIZATION ---
       $top_lineups = []; // Voor het vasthouden van de absolute top over ALLE schemas
@@ -730,18 +750,41 @@
         echo "</div>";
         die();
   } else {
-    //Voeg toe aan pt_stats    
-    if (!in_array($wedstrijd,array_keys($pt_all_games))){
+    // We roepen de historie aan en injecteren de huidige generatie 
+    // erbij in zodat optellingen/percentages on-the-fly zichtbaar zijn.
+    if (!isset($pt_all_games)) {
+        $pt_all_games = [];
+    }
+    
+    // Voeg de huidige gegenereerde opstelling toe aan de statistieken 
+    // tenzij die wedstrijd zelf al in de historiek gecapteerd werd.
+    if (!in_array($wedstrijd, array_keys($pt_all_games))){
+      
+      $db_time_played = [];
+      $db_time_in_position = [];
+      foreach ($lineup->time_played as $shortname => $time) {
+          $id = $global_playerinfo[$shortname]['id'] ?? $shortname;
+          $db_time_played[$id] = $time;
+          $db_time_in_position[$id] = $lineup->time_in_position[$shortname] ?? [];
+      }
+        
       $pt_all_games[$wedstrijd] = array(
         "duration" => $lineup->total_duration * 60,
-        "players" => $lineup->time_played,
-        "playtime" => $lineup->time_in_position
-          
+        "players" => $db_time_played,
+        "playtime" => $db_time_in_position
       );
     }
     
-    $huidige_wedstrijd = $pt_all_games[$wedstrijd];
-    $pt_stats = build_playtime_stats($pt_all_games, $player_scores);
+    $huidige_wedstrijd = $pt_all_games[$wedstrijd] ?? null;
+    
+    // $player_scores omzetten naar IDs voor de stats loop
+    $db_player_scores = [];
+    foreach ($player_scores as $shortname => $score) {
+        $id = $global_playerinfo[$shortname]['id'] ?? $shortname;
+        $db_player_scores[$id] = $score;
+    }
+    
+    $pt_stats = build_playtime_stats($pt_all_games, $db_player_scores);
     
     // Datumdeel uit key halen
     list($datum_raw, $wedstrijd_naam) = explode('_', $wedstrijd, 2);

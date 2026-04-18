@@ -144,9 +144,18 @@
       
       <?php if ($shuffle_type !== 'coach'): ?>
           <div class="d-print-none text-center mb-4 mt-2">
-              <button class="btn btn-sm btn-outline-success" onclick="savePreselection(<?= $gameId ?>, <?= $selected['ws_id'] ?>, '<?= implode(',', array_keys($lineup->playerindex)) ?>', <?= $t_opt['rating'] ?>)">
+              <button class="btn btn-sm btn-outline-success" onclick="savePreselection(this, <?= $gameId ?>, <?= $selected['ws_id'] ?>, '<?= implode(',', array_keys($lineup->playerindex)) ?>', <?= $t_opt['rating'] ?>)">
                   <i class="fa-solid fa-floppy-disk"></i> Bewaar #<?= $tab_idx + 1 ?> in Voorselecties
               </button>
+              <a href="schema_editor.php?game_id=<?= $gameId ?>&schema_id=<?= $selected['ws_id'] ?>&volgorde=<?= urlencode(implode(',', array_keys($lineup->playerindex))) ?>" class="btn btn-sm btn-outline-warning ms-2">
+                  <i class="fa-solid fa-pen-ruler"></i> Bewerk dit Schema
+              </a>
+          </div>
+      <?php else: ?>
+          <div class="d-print-none text-center mb-4 mt-2">
+              <a href="schema_editor.php?game_id=<?= $gameId ?>&schema_id=<?= $selected['ws_id'] ?>&volgorde=<?= urlencode(implode(',', array_keys($lineup->playerindex))) ?>" class="btn btn-sm btn-outline-warning">
+                  <i class="fa-solid fa-pen-ruler"></i> Bewerk Huidig Schema
+              </a>
           </div>
       <?php endif; ?>
       
@@ -735,7 +744,11 @@
     </div> <!-- End container -->
 
     <script>
-    function savePreselection(gameId, schemaId, playerOrder, score) {
+    function savePreselection(btnElem, gameId, schemaId, playerOrder, score) {
+        var defaultHtml = btnElem.innerHTML;
+        btnElem.innerHTML = '<i class="feather-check"></i> Aan het opslaan...';
+        btnElem.disabled = true;
+
         var fd = new FormData();
         fd.append('action', 'save_preselection');
         fd.append('game_id', gameId);
@@ -747,9 +760,14 @@
         .then(r => r.json())
         .then(data => {
             if(data.status === 'success') {
-                window.location.reload();
+                btnElem.innerHTML = '<i class="feather-check"></i> Opgeslagen (Voorselectie)';
+                btnElem.classList.remove('btn-outline-success');
+                btnElem.classList.add('btn-success');
+                // Optioneel na paar seconden herstellen, of zo laten
             } else {
                 alert("Fout: " + data.message);
+                btnElem.innerHTML = defaultHtml;
+                btnElem.disabled = false;
             }
         });
     }

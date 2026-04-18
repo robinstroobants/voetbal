@@ -38,6 +38,27 @@ $stmt = $pdo->query("
 ");
 $games = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+// Groepeer de matchen dynamisch op Seizoen (juli-juni) en de jeugdreeks-fases (Fase 1/2) 
+$groupedGames = [];
+foreach ($games as $game) {
+    $time = strtotime($game['game_date']);
+    $year = (int)date('Y', $time);
+    $month = (int)date('n', $time);
+    
+    if ($month >= 7) {
+        $season = "Seizoen " . $year . "-" . ($year + 1);
+        $phase = "Najaarsronde (Fase 1)"; // Jul - Dec
+    } else {
+        $season = "Seizoen " . ($year - 1) . "-" . $year;
+        $phase = "Voorjaarsronde (Fase 2)"; // Jan - Jun
+    }
+    
+    if (!isset($groupedGames[$season])) $groupedGames[$season] = [];
+    if (!isset($groupedGames[$season][$phase])) $groupedGames[$season][$phase] = [];
+    
+    $groupedGames[$season][$phase][] = $game;
+}
+
 // Simpele hardcoded format lijst
 $available_formats = [
     '8v8_4x15',
@@ -59,62 +80,85 @@ require_once 'header.php';
         </button>
     </div>
 
-    <!-- Games Overzicht -->
-    <div class="card shadow-sm border-0">
-        <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
-                    <thead class="table-light">
-                        <tr>
-                            <th class="ps-4">Datum</th>
-                            <th>Tegenstander</th>
-                            <th>Selectie</th>
-                            <th class="text-end pe-4">Acties</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php if(empty($games)): ?>
-                            <tr>
-                                <td colspan="4" class="text-center py-4 text-muted">Amai, geen wedstrijden gevonden! Tijd om er eentje te plannen.</td>
-                            </tr>
-                        <?php endif; ?>
-                        
-                        <?php foreach($games as $game): ?>
-                        <tr>
-                            <td class="ps-4 fw-medium"><?= date('d/m/Y', strtotime($game['game_date'])) ?></td>
-                            <td><?= htmlspecialchars($game['opponent']) ?></td>
-                            <td>
-                                <?php if($game['selection_count'] > 0): ?>
-                                    <span class="badge bg-success rounded-pill"><?= $game['selection_count'] ?> Spelers</span>
-                                <?php else: ?>
-                                    <span class="badge bg-warning text-dark rounded-pill">0 Spelers</span>
-                                <?php endif; ?>
-                            </td>
-                            <td class="text-end pe-4">
-                                <a href="edit_selection.php?game_id=<?= $game['id'] ?>" class="btn btn-sm btn-outline-success me-1" title="Beheer Selectie">
-                                    <i class="fa-solid fa-users-gear"></i>
-                                </a>
-                                <a href="lineup.php?wedstrijd=<?= $game['id'] ?>" class="btn btn-sm btn-outline-primary me-1 <?= $game['selection_count'] == 0 ? 'disabled' : '' ?>" title="Bereken Opstelling">
-                                    <i class="fa-solid fa-calculator"></i> Opstelling
-                                </a>
-                                <button class="btn btn-sm btn-outline-secondary me-1" title="Bewerk Data" 
-                                        onclick='openGameModal(<?= json_encode($game) ?>)'>
-                                    <i class="fa-solid fa-pen"></i>
-                                </button>
-                                <form method="post" class="d-inline" onsubmit="return confirm('Wedstrijd verwijderen? Dit wist ook alle direct gekoppelde selecties.');">
-                                    <input type="hidden" name="action" value="delete">
-                                    <input type="hidden" name="game_id" value="<?= $game['id'] ?>">
-                                    <button type="submit" class="btn btn-sm btn-outline-danger" title="Verwijder">
-                                        <i class="fa-solid fa-trash"></i>
-                                    </button>
-                                </form>
-                            </td>
-                        </tr>
-                        <?php endforeach; ?>
-                    </tbody>
-                </table>
+    <!-- Games Overzicht Gegroepeerd -->
+    <div class="accordion" id="seasonAccordion">
+        <?php if(empty($games)): ?>
+            <div class="alert alert-light text-center border">
+                Amai, geen wedstrijden gevonden! Tijd om er eentje te plannen.
+            </div>
+        <?php endif; ?>
+
+        <?php 
+        $season_counter = 0;
+        foreach($groupedGames as $season => $phases): 
+            $is_first_season = ($season_counter === 0);
+        ?>
+        <div class="accordion-item mb-3 border-0 shadow-sm rounded overflow-hidden">
+            <h2 class="accordion-header" id="heading<?= $season_counter ?>">
+                <button class="accordion-button <?= $is_first_season ? '' : 'collapsed' ?> bg-white fw-bold fs-5 text-primary border-bottom" type="button" data-bs-toggle="collapse" data-bs-target="#collapse<?= $season_counter ?>" aria-expanded="<?= $is_first_season ? 'true' : 'false' ?>" aria-controls="collapse<?= $season_counter ?>">
+                    <i class="fa-solid fa-trophy me-2"></i> <?= htmlspecialchars($season) ?>
+                </button>
+            </h2>
+            <div id="collapse<?= $season_counter ?>" class="accordion-collapse collapse <?= $is_first_season ? 'show' : '' ?>" aria-labelledby="heading<?= $season_counter ?>" data-bs-parent="#seasonAccordion">
+                <div class="accordion-body p-0 bg-white">
+                    
+                    <?php 
+                    // Voorjaar ligt later en komt dus boven Najaar bij DESC sorting
+                    foreach(['Voorjaarsronde (Fase 2)', 'Najaarsronde (Fase 1)'] as $phase): 
+                        if(!empty($phases[$phase])):
+                    ?>
+                    <div class="bg-light py-2 px-4 border-bottom fw-semibold text-secondary d-flex align-items-center">
+                        <i class="fa-regular fa-calendar-days me-2"></i> <?= $phase ?>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0 border-bottom">
+                            <tbody>
+                                <?php foreach($phases[$phase] as $game): ?>
+                                <tr>
+                                    <td class="ps-4 fw-medium text-muted" style="width: 15%"><?= date('d/m/Y', strtotime($game['game_date'])) ?></td>
+                                    <td class="fw-bold text-dark" style="width: 35%"><?= htmlspecialchars($game['opponent']) ?></td>
+                                    <td style="width: 25%">
+                                        <?php if($game['selection_count'] > 0): ?>
+                                            <span class="badge bg-success rounded-pill px-3 py-2 shadow-sm"><?= $game['selection_count'] ?> Spelers</span>
+                                        <?php else: ?>
+                                            <span class="badge bg-warning text-dark rounded-pill px-3 py-2 shadow-sm">Geen Selectie</span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td class="text-end pe-4" style="width: 25%">
+                                        <a href="edit_selection.php?game_id=<?= $game['id'] ?>" class="btn btn-sm btn-outline-success me-1" title="Beheer Selectie">
+                                            <i class="fa-solid fa-users-gear"></i>
+                                        </a>
+                                        <a href="lineup.php?wedstrijd=<?= $game['id'] ?>" class="btn btn-sm btn-outline-primary me-1 <?= $game['selection_count'] == 0 ? 'disabled' : '' ?>" title="Bereken Opstelling">
+                                            <i class="fa-solid fa-calculator"></i> Opstelling
+                                        </a>
+                                        <button class="btn btn-sm btn-outline-secondary me-1" title="Bewerk Data" 
+                                                onclick='openGameModal(<?= json_encode($game) ?>)'>
+                                            <i class="fa-solid fa-pen"></i>
+                                        </button>
+                                        <form method="post" class="d-inline" onsubmit="return confirm('Wedstrijd verwijderen? Dit wist ook alle direct gekoppelde selecties.');">
+                                            <input type="hidden" name="action" value="delete">
+                                            <input type="hidden" name="game_id" value="<?= $game['id'] ?>">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Verwijder">
+                                                <i class="fa-solid fa-trash"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                    <?php 
+                        endif;
+                    endforeach; 
+                    ?>
+                </div>
             </div>
         </div>
+        <?php 
+            $season_counter++;
+            endforeach; 
+        ?>
     </div>
 </div>
 
@@ -152,8 +196,8 @@ require_once 'header.php';
                   <label class="form-label text-muted small fw-bold">MIN. POSITIES PER SPELER</label>
                   <select class="form-select" name="min_pos" id="modal_min_pos" required>
                       <option value="0">Geen minimum</option>
-                      <option value="2">Minstens 2 posities</option>
-                      <option value="3">Minstens 3 posities</option>
+                      <option value="2">Minstens 2 posities (20000+ serie)</option>
+                      <option value="3">Minstens 3 posities (30000+ serie)</option>
                   </select>
                   <div class="form-text">Bepaalt of het algoritme enkel schemas toelaat waar elke speler op X unieke posities speelt.</div>
               </div>

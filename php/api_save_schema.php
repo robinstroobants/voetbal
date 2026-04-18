@@ -1,0 +1,253 @@
+<?php
+header('Content-Type: application/json');
+require_once 'getconn.php';
+require_once 'MatchManager.php';
+require_once 'game.php';
+
+$raw = file_get_contents('php://input');
+$data = json_decode($raw, true);
+
+if (!$data) {
+    die(json_encode(['success' => false, 'error' => 'Geen payload ontvangen']));
+}
+
+$gameId = (int)$data['game_id'];
+$format = $data['format'];
+$aantal = (int)$data['aantal'];
+$originalId = (int)$data['original_schema_id'];
+$blocks = $data['blocks'];
+$force_update = !empty($data['force_settings_update']);
+
+$wissel_file = __DIR__ . "/wisselschemas/" . $format . "_" . $aantal . "sp.php";
+if (!file_exists($wissel_file)) {
+    die(json_encode(['success' => false, 'error' => 'Bronschema structuur niet gevonden op schijf.']));
+}
+
+include $wissel_file;
+
+if (!isset($ws[$originalId])) {
+    die(json_encode(['success' => false, 'error' => 'Origineel schema onbekend!']));
+}
+
+$old_schema = $ws[$originalId];
+$new_schema = [];
+
+$gk_count_schema = 0;
+if (preg_match('/_(\d+)gk_/', basename($wissel_file), $m)) {
+    $gk_count_schema = (int)$m[1];
+}
+
+foreach ($blocks as $idx => $b_data) {
+    $shift_idx = (int)$b_data['shift'];
+    
+    // Copy the base parameters (duration, game_counter, start) from the original
+    $new_block = $old_schema[$shift_idx];
+    
+    // Update lineup en bench met the dragged data
+    $new_block['lineup'] = $b_data['lineup'];
+    // Make sure bench exists as array
+    $new_block['bench'] = $b_data['bench'] ?? [];
+    
+    // Ensure keys in lineup are integers
+    $clean_lineup = [];
+    foreach($new_block['lineup'] as $pos => $sidx) {
+        $clean_lineup[(int)$pos] = (int)$sidx;
+    }
+    $new_block['lineup'] = $clean_lineup;
+    ksort($new_block['lineup']);
+    
+    // Auto-calculate subs by diffing with the previous block, if it's an odd block (mid-quarter)
+    if ($shift_idx > 0 && ($shift_idx % 2 == 1)) {
+        $prev_lineup = $new_schema[$shift_idx - 1]['lineup'];
+        $subs_in = [];
+        $subs_out = [];
+        
+        // Who went out?
+        foreach ($prev_lineup as $pos => $pid) {
+            if (!isset($clean_lineup[$pos]) || $clean_lineup[$pos] != $pid) {
+                // If the player isn't in this position anymore, he must have gone out or swapped.
+                // Assuming standard mid-quarter subs mean leaving the field
+                $subs_out[$pos] = $pid;
+            }
+        }
+        
+        // Who came in?
+        foreach ($clean_lineup as $pos => $pid) {
+            if (!isset($prev_lineup[$pos]) || $prev_lineup[$pos] != $pid) {
+                $subs_in[$pos] = $pid;
+            }
+        }
+        
+        if (!empty($subs_in) || !empty($subs_out)) {
+            $new_block['subs'] = [
+                'in' => $subs_in,
+                'out' => $subs_out
+            ];
+        } else {
+            // Remove subs rule if none exist anymore!
+            unset($new_block['subs']);
+        }
+    }
+    
+    $new_schema[$shift_idx] = $new_block;
+}
+
+// Nu berekenen we de min_pos categorie in the back ground
+$min_pos = 999;
+$playerPosCount = [];
+
+foreach ($new_schema as $idx => $part) {
+    if (!is_numeric($idx) || empty($part['lineup'])) continue;
+    foreach ($part['lineup'] as $pos => $pid) {
+        if ($pid >= $gk_count_schema) { // Veldspeler
+            $playerPosCount[$pid][$pos] = true;
+        }
+    }
+}
+
+if (empty($playerPosCount)) {
+    $min_pos = 1;
+} else {
+    foreach ($playerPosCount as $pid => $arr) {
+        if (count($arr) < $min_pos) $min_pos = count($arr);
+    }
+}
+
+$cat = $min_pos;
+if ($cat < 1) $cat = 1;
+
+// 1. Min Posities Check (Vergelijk tegen game.min_pos)
+$stmtGame = $pdo->prepare("SELECT min_pos FROM games WHERE id = ?");
+$stmtGame->execute([$gameId]);
+$game_min_pos = (int)$stmtGame->fetchColumn();
+
+if ($cat < $game_min_pos && !$force_update) {
+    die(json_encode([
+        'success' => false,
+        'requires_confirm' => true,
+        'confirm_msg' => 'Je nieuwe schema degradeert sommigen tot exact ' . $cat . ' unieke positie(s). De wedstrijd had echter een drempel van minimaal ' . $game_min_pos . ' ingesteld. Wil je deze wedstrijd-instelling automatisch verlagen naar ' . ($cat > 1 ? $cat : "Geen minimum") . ' en het schema definitief opslaan?'
+    ]));
+}
+
+// 2. Duplicate Check
+function schemas_are_identical($sch1, $sch2) {
+    if (count($sch1) !== count($sch2)) return false;
+    foreach ($sch1 as $idx => $s1) {
+        $s2 = $sch2[$idx] ?? null;
+        if (!$s2) return false;
+        
+        $l1 = $s1['lineup'] ?? []; ksort($l1);
+        $l2 = $s2['lineup'] ?? []; ksort($l2);
+        if ($l1 != $l2) return false;
+        
+        $b1 = $s1['bench'] ?? []; sort($b1);
+        $b2 = $s2['bench'] ?? []; sort($b2);
+        if ($b1 != $b2) return false;
+    }
+    return true;
+}
+
+$duplicate_id = null;
+foreach ($ws as $k => $sch) {
+    if (schemas_are_identical($new_schema, $sch)) {
+        $duplicate_id = $k;
+        break;
+    }
+}
+
+if ($duplicate_id !== null) {
+    // Schema bestaat al, we slaan niet nieuw op, we refereren enkel!
+    if ($force_update && $cat < $game_min_pos) {
+        $update_pos = $cat > 1 ? $cat : 0;
+        $pdo->prepare("UPDATE games SET min_pos = ? WHERE id = ?")->execute([$update_pos, $gameId]);
+    }
+    
+    // Bereken echte score voor validatie
+    $volgorde = $data['volgorde'];
+    $list_of_players = explode(',', $volgorde);
+    
+    global $events;
+    $events = [];
+    $events[$duplicate_id] = $ws[$duplicate_id];
+    
+    $matchManager = new MatchManager($pdo);
+    $matchData = $matchManager->getSelection($gameId);
+    
+    // Forceren in de system globals voor game.php constructor scope
+    $GLOBALS['player_scores'] = isset($matchData['player_scores']) && is_array($matchData['player_scores']) ? $matchData['player_scores'] : [];
+    $GLOBALS['global_playerinfo'] = isset($matchData['player_info']) && is_array($matchData['player_info']) ? $matchData['player_info'] : [];
+    
+    $gameObj = new Game($list_of_players, true, $format, 'none');
+    $gameObj->setPlayerInfo($matchData['player_info']);
+    $gameObj->setPlayerScores($matchData['player_scores']);
+    $gameObj->setEvents($duplicate_id);
+    $gameObj->setRunQuality();
+    $calculated_score = $gameObj->score;
+    
+    $stmtInsert = $pdo->prepare("INSERT INTO game_lineups (game_id, schema_id, player_order, score, is_final) VALUES (?, ?, ?, ?, 0)");
+    $stmtInsert->execute([$gameId, $duplicate_id, $volgorde, $calculated_score]);
+    
+    echo json_encode(['success' => true, 'new_id' => $duplicate_id, 'is_duplicate' => true]);
+    exit;
+}
+
+// 3. Nieuw ID Saven als theorie
+$catBounded = $cat > 3 ? 3 : $cat;
+$startId = $catBounded * 10000;
+$endId = $startId + 9999;
+
+$max_in_cat = $startId;
+foreach (array_keys($ws) as $k) {
+    if ($k >= $startId && $k <= $endId && $k > $max_in_cat) {
+        $max_in_cat = $k;
+    }
+}
+
+$new_id = $max_in_cat + 1;
+$ws[$new_id] = $new_schema;
+
+// Sla terug op in PHP structuur
+$file_content = "<?php\n\$ws_fname = '" . str_replace("sp.php","",basename($wissel_file)) . "';\n";
+$file_content .= "\$ws = " . var_export($ws, true) . ";\n";
+
+if (file_put_contents($wissel_file, $file_content) === false) {
+    die(json_encode(['success' => false, 'error' => 'Kon bestand niet schrijven: ' . basename($wissel_file)]));
+}
+
+// Opschonen database
+if ($force_update && $cat < $game_min_pos) {
+    $update_pos = $cat > 1 ? $cat : 0;
+    $pdo->prepare("UPDATE games SET min_pos = ? WHERE id = ?")->execute([$update_pos, $gameId]);
+}
+
+// Bereken score voor de opslag
+$volgorde = $data['volgorde'];
+$list_of_players = explode(',', $volgorde);
+
+global $events;
+$events = [];
+$events[$new_id] = $new_schema;
+
+$matchManager = new MatchManager($pdo);
+$matchData = $matchManager->getSelection($gameId);
+
+// Forceren in de system globals voor game.php constructor scope
+$GLOBALS['player_scores'] = isset($matchData['player_scores']) && is_array($matchData['player_scores']) ? $matchData['player_scores'] : [];
+$GLOBALS['global_playerinfo'] = isset($matchData['player_info']) && is_array($matchData['player_info']) ? $matchData['player_info'] : [];
+
+$gameObj = new Game($list_of_players, true, $format, 'none');
+$gameObj->setPlayerInfo($matchData['player_info']);
+$gameObj->setPlayerScores($matchData['player_scores']);
+// Ensure game_duration matches what setEvents expects natively:
+if (preg_match('/_(\d+)x(\d+)$/', $format, $m)) {
+    $gameObj->game_duration = (int)$m[2];
+    $gameObj->nr_of_games = (int)$m[1];
+}
+$gameObj->setEvents($new_id);
+$gameObj->setRunQuality();
+$calculated_score = $gameObj->score;
+
+$stmtInsert = $pdo->prepare("INSERT INTO game_lineups (game_id, schema_id, player_order, score, is_final) VALUES (?, ?, ?, ?, 0)");
+$stmtInsert->execute([$gameId, $new_id, $volgorde, $calculated_score]);
+
+echo json_encode(['success' => true, 'new_id' => $new_id, 'is_duplicate' => false]);

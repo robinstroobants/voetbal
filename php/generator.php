@@ -672,14 +672,36 @@
               $game_result = new Game($list_of_players, $onlyBestSelection, $format);
               $total_points = $game_result->score;
               
-              // Geheugenoptimalisatie: we devalueren game objects direct tenzij ze kans maken op de Top 5
-              $min_top_score = empty($top_lineups) ? -1 : min(array_column($top_lineups, 'total_points'));
-              
               $ws_id_current = $wisselschema_index[$format] ?? $schema_id;
+              
+              $cat_current = 30000;
+              if ($ws_id_current < 20000) $cat_current = 10000;
+              elseif ($ws_id_current < 30000) $cat_current = 20000;
 
-              if (count($top_lineups) < 5 || $total_points > $min_top_score) {
+              // Bepaal de quota limieten voor de verschillende reeksen
+              $game_min_pos_check = (int)($matchData['game']['min_pos'] ?? 0);
+              $cat_limits = [
+                  10000 => ($game_min_pos_check == 0) ? 2 : 0,
+                  20000 => ($game_min_pos_check == 0) ? 2 : (($game_min_pos_check == 2) ? 3 : 0),
+                  30000 => ($game_min_pos_check == 0) ? 2 : (($game_min_pos_check == 2) ? 3 : 6)
+              ];
+              
+              if ($cat_limits[$cat_current] == 0) continue; // Onnodig om op te slaan, past niet in de instellingen quota
+
+              // Zoek de momentele minimum score van DEZE reeks 10k/20k/30k
+              $current_cat_scores = [];
+              foreach ($top_lineups as $tl) {
+                  $wz = (int)$tl['ws_id'];
+                  $cz = 30000;
+                  if ($wz < 20000) $cz = 10000;
+                  elseif ($wz < 30000) $cz = 20000;
+                  if ($cz == $cat_current) $current_cat_scores[] = $tl['total_points'];
+              }
+              $min_cat_score = (count($current_cat_scores) < $cat_limits[$cat_current]) ? -1 : min($current_cat_scores);
+
+              if ($total_points > $min_cat_score) {
                   $top_lineups[] = [
-                      "run" => $tries, // Total nodes evaluated for this matrix
+                      "run" => $tries, 
                       "ws_id" => $ws_id_current,
                       "total_points" => $total_points,
                       "rating" => $game_result->rating,
@@ -692,24 +714,31 @@
                       return $b['total_points'] <=> $a['total_points'];
                   });
                   
-                  // Diversiteitsfilter: Maximaal 2 representaties van exact hetzelfde wisselschema
+                  // Stricte Quota Filter & Diversiteitsfilter
                   $filtered_lineups = [];
                   $schema_counts = [];
+                  $cat_counts = [10000 => 0, 20000 => 0, 30000 => 0];
+                  
                   foreach ($top_lineups as $item) {
-                      $w_id = $item['ws_id'];
-                      if (!isset($schema_counts[$w_id])) {
-                          $schema_counts[$w_id] = 0;
-                      }
-                      if ($schema_counts[$w_id] < 2) {
-                          $filtered_lineups[] = $item;
-                          $schema_counts[$w_id]++;
-                      }
+                      $w_id = (int)$item['ws_id'];
+                      $cat = 30000;
+                      if ($w_id < 20000) $cat = 10000;
+                      elseif ($w_id < 30000) $cat = 20000;
+                      
+                      // Eis: nooit hetzelfde schema dubbel gebruiken!
+                      if (isset($schema_counts[$w_id]) && $schema_counts[$w_id] >= 1) continue;
+                      
+                      // Eis: quota niet overschrijden
+                      if ($cat_counts[$cat] >= $cat_limits[$cat]) continue;
+                      
+                      $schema_counts[$w_id] = 1;
+                      $cat_counts[$cat]++;
+                      $filtered_lineups[] = $item;
+                      
+                      if (count($filtered_lineups) >= 6) break; // Maximum array lengte
                   }
                   
                   $top_lineups = $filtered_lineups;
-                  
-                  // Knip direct af op 5 na de diversiteitsfilter om geheugen te besparen
-                  $top_lineups = array_slice($top_lineups, 0, 5);
               }
           }
       } // -- END FOREACH SCHEMA LOOP

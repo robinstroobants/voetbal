@@ -100,8 +100,8 @@ class Game
       
       //tijdelijk tot het uit de db komt
       global $player_scores,$global_playerinfo;
-      $this->setPlayerScores($player_scores);
-      $this->setPlayerInfo($global_playerinfo);
+      $this->setPlayerScores($player_scores ?? []);
+      $this->setPlayerInfo($global_playerinfo ?? []);
 
 
           

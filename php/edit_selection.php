@@ -19,22 +19,7 @@ if (!$game) {
 
 $manager = new MatchManager($pdo);
 
-// Verwerk save formulier
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'save_selection') {
-    $selectedPlayers = $_POST['players'] ?? []; // Array of checked player IDs
-    $goalkeepers = $_POST['goalkeepers'] ?? []; // Array of checked goalkeeper IDs
-    
-    // Safety check: a goalkeeper must also be part of the selected players to save cleanly
-    // But saveSelection doesn't strictly care as long as we pass playerIds as the base
-    $allSelected = array_unique(array_merge($selectedPlayers, $goalkeepers));
-    
-    // Status ID 2 is "Finale Selectie"
-    $manager->saveSelection($gameId, $allSelected, 2, $goalkeepers);
-    
-    $success_msg = "Selectie succesvol opgeslagen!";
-}
-
-// Haal huidige selecties uit db op voor weergave
+// 1. Haal huidige selecties uit db op voor weergave
 $stmtSel = $pdo->prepare("SELECT player_id, is_goalkeeper FROM game_selections WHERE game_id = :id");
 $stmtSel->execute(['id' => $gameId]);
 $currentSelRows = $stmtSel->fetchAll(PDO::FETCH_ASSOC);
@@ -46,6 +31,48 @@ foreach ($currentSelRows as $row) {
     if ($row['is_goalkeeper'] == 1) {
         $currentGoalkeeperMap[$row['player_id']] = true;
     }
+}
+
+// 2. Check hoeveel game_lineups er zijn voor deze match
+$stmtCheck = $pdo->prepare("SELECT COUNT(*) FROM game_lineups WHERE game_id = ?");
+$stmtCheck->execute([$gameId]);
+$lineupsCount = (int)$stmtCheck->fetchColumn();
+
+// 3. Verwerk save formulier
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'save_selection') {
+    $selectedPlayers = $_POST['players'] ?? []; // Array of checked player IDs
+    $goalkeepers = $_POST['goalkeepers'] ?? []; // Array of checked goalkeeper IDs
+    
+    $allSelected = array_unique(array_merge($selectedPlayers, $goalkeepers));
+    
+    // Kijk of the selectie afwijkt in PHP
+    $selection_changed = false;
+    $newSelectedMap = array_flip($allSelected);
+    $newGkMap = array_flip($goalkeepers);
+
+    if (count($currentSelectedMap) !== count($newSelectedMap) || count($currentGoalkeeperMap) !== count($newGkMap)) {
+        $selection_changed = true;
+    } else {
+        foreach ($newSelectedMap as $id => $val) {
+            if (!isset($currentSelectedMap[$id])) { $selection_changed = true; break; }
+        }
+        if (!$selection_changed) {
+            foreach ($newGkMap as $id => $val) {
+                if (!isset($currentGoalkeeperMap[$id])) { $selection_changed = true; break; }
+            }
+        }
+    }
+    
+    // Opslaan db status
+    $manager->saveSelection($gameId, $allSelected, 2, $goalkeepers);
+    
+    if ($selection_changed && $lineupsCount > 0) {
+        $pdo->prepare("DELETE FROM game_lineups WHERE game_id = ?")->execute([$gameId]);
+    }
+    
+    // Redirect direct naar de opstellingengenerator na opslaan
+    header("Location: lineup.php?wedstrijd=" . $gameId);
+    exit;
 }
 
 // Haal alle actieve spelers op
@@ -66,13 +93,8 @@ require_once 'header.php';
         </div>
         <div>
             <a href="manage_games.php" class="btn btn-outline-secondary me-2"><i class="fa-solid fa-arrow-left me-2"></i>Terug</a>
-            <a href="lineup.php?wedstrijd=<?= $gameId ?>" class="btn btn-outline-primary"><i class="fa-solid fa-calculator me-2"></i>Naar Algoritme</a>
         </div>
     </div>
-
-    <?php if(!empty($success_msg)): ?>
-        <div class="alert alert-success"><i class="fa-solid fa-check me-2"></i> <?= $success_msg ?></div>
-    <?php endif; ?>
 
     <form method="post" class="card shadow-sm border-0">
         <input type="hidden" name="action" value="save_selection">
@@ -121,6 +143,7 @@ require_once 'header.php';
 </div>
 
 <script>
+let initialCheckboxes = [];
 function updateCounts() {
     let count = document.querySelectorAll('.player-checkbox:checked').length;
     document.getElementById('count_badge').innerText = count + ' geselecteerd';
@@ -138,7 +161,28 @@ function syncPlayer(gkCheckbox, pId) {
 }
 
 // Init count on page load
-document.addEventListener("DOMContentLoaded", updateCounts);
+document.addEventListener("DOMContentLoaded", function() {
+    updateCounts();
+    document.querySelectorAll('input[type="checkbox"]').forEach(c => {
+        initialCheckboxes.push({ element: c, checked: c.checked });
+    });
+});
+
+document.querySelector('form').addEventListener('submit', function(e) {
+    let isChanged = false;
+    initialCheckboxes.forEach(item => {
+        if (item.element.checked !== item.checked) isChanged = true;
+    });
+    
+    <?php if ($lineupsCount > 0): ?>
+    if (isChanged) {
+        if (!confirm("Let op: Er zijn al opgeslagen voorselecties of een finale opstelling voor deze wedstrijd gegenereerd!\n\nDoor de selectie te wijzigen, vervallen al deze opstellingen en zullen ze definitief gewist worden.\n\nWeet je zeker dat je wilt doorgaan?")) {
+            e.preventDefault();
+            return false;
+        }
+    }
+    <?php endif; ?>
+});
 </script>
 
 <?php require_once 'footer.php'; ?>

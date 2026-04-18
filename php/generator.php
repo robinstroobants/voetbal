@@ -96,6 +96,19 @@
       $doelmannen = $matchData['doelmannen'];
       $selectie = $matchData['selectie'];
       
+      // Calculate amount of goalies dynamically
+      $gk_count = 0;
+      if (!empty($doelmannen)) {
+          $gk_count = count(array_filter(array_map('trim', explode(',', $doelmannen))));
+      }
+
+      // Inject the goalie count into the format if it doesn't already have one
+      if (strpos($format, 'gk') === false) {
+          if (preg_match('/^(\d+v\d+)_(\d+x\d+)$/', $format, $matches)) {
+              $format = $matches[1] . '_' . $gk_count . 'gk_' . $matches[2];
+          }
+      }
+      
       // ------------------------------------------------------------
       // [DB] Ophalen Opgeslagen Lineups (Voorselecties / Final)
       // ------------------------------------------------------------
@@ -104,18 +117,25 @@
       $saved_lineups = $stmtLineups->fetchAll(PDO::FETCH_ASSOC);
 
       $locked_lineup = null;
+      $preview_lineup = null;
+      $preview_id = $_GET['preview'] ?? null;
+
       foreach ($saved_lineups as $sl) {
+          if ($preview_id && $sl['id'] == $preview_id) {
+              $preview_lineup = $sl;
+          }
           if ($sl['is_final']) {
               $locked_lineup = $sl;
-              break;
           }
       }
 
-      if ($locked_lineup) {
+      $active_lineup = $preview_lineup ?? $locked_lineup;
+
+      if ($active_lineup) {
           $shuffle_type = "coach";
-          $te_gebruiken_schema = $locked_lineup['schema_id'];
+          $te_gebruiken_schema = $active_lineup['schema_id'];
           // Forceer exacte opgeslagen permutatie (player IDs sequence)
-          $sel = explode(',', $locked_lineup['player_order']);
+          $sel = explode(',', $active_lineup['player_order']);
       } else {
           // Zet de spelers alfabetisch klaar voor random generator
           $sel = array_filter(array_map('trim', explode(',', $selectie)));
@@ -166,6 +186,48 @@
               }
               include $wissel_file;
               $beschikbare_schemas = array_keys(isset($ws) ? $ws : []);
+              
+              // Filter schemas op basis van min_pos instelling uit de DB
+              $min_pos_requirement = (int)($matchData['game']['min_pos'] ?? 0);
+              if ($min_pos_requirement > 0 && isset($ws) && is_array($ws)) {
+                  $filtered_schemas = [];
+                  foreach ($beschikbare_schemas as $s_id) {
+                      $schema = $ws[$s_id];
+                      $playerPosCount = [];
+                      foreach ($schema as $idx => $part) {
+                          if (!is_numeric($idx) || empty($part['lineup'])) continue;
+                          foreach ($part['lineup'] as $pos => $pid) {
+                              if ($pid >= $gk_count) { // Doelmannen uitsluiten (index 0 tot gk_count-1)
+                                  $playerPosCount[$pid][$pos] = true;
+                              }
+                          }
+                      }
+                      
+                      $valid = true;
+                      if (!empty($playerPosCount)) {
+                          foreach ($playerPosCount as $pid => $arr) {
+                              if (count($arr) < $min_pos_requirement) {
+                                  $valid = false;
+                                  break;
+                              }
+                          }
+                      }
+                      if ($valid) {
+                          $filtered_schemas[] = $s_id;
+                      }
+                  }
+                  
+                  if (!empty($filtered_schemas)) {
+                      $beschikbare_schemas = $filtered_schemas;
+                  } else {
+                      echo "<div style='padding:20px; background:#f8d7da; border:1px solid #f5c6cb; color:#721c24; margin:15px; border-radius:5px;'>";
+                      echo "<h4>⚠️ Geen Wisselschemas Voldoen Aan De Regels</h4>";
+                      echo "Geen enkel opgeslagen wisselschema kan <strong>minimaal " . $min_pos_requirement . " posities per speler</strong> garanderen voor het algoritme. Verlaag de vereiste in 'Wedstrijd Bewerken'.<br/>";
+                      echo "</div>";
+                      $top_selected_options = [];
+                      return;
+                  }
+              }
           } else {
               $wisselschema_meta = []; // Fallback initialization
               echo "<div style='padding:20px; background:#fff3cd; border:1px solid #ffeeba; color:#856404; margin:15px; border-radius:5px;'>";
@@ -444,7 +506,8 @@
       if (isset($te_gebruiken_schema)) {
           $wissel_file = __DIR__ . "/wisselschemas/" . $format . "_" . count($list_of_players) . "sp.php";
           if (file_exists($wissel_file)) {
-              include $wissel_file; // Loads the schema into $ws maybe? Wait, $wissel_file is loaded on line 165!
+              include $wissel_file; 
+              $events[$format][count($list_of_players)] = $ws[$te_gebruiken_schema] ?? [];
           }
       }
 
@@ -468,9 +531,9 @@
       // Itereer nu OPEENVOLGEND OVER ALLE SCHEMAS 
       foreach ($beschikbare_schemas as $schema_id) {
           $te_gebruiken_schema = $schema_id;
-          if (file_exists($wissel_file)) {
-              include $wissel_file; // LAAD SPECIFIEKE META-REGELS (min/max posities) VOOR DIT SCHEMA IN
-          }
+          
+          // Update The Global Events Array Used by game.php 
+          $events[$format][count($squad)] = $ws[$schema_id] ?? [];
 
           // DYNAMISCH CALCULEREN: Sommige oudere schemas (zoals '9999') vergeten door te geven wélke positie indexen de minste/meeste minuten hebben.
           // Hier berekenen we het wiskundig perfect in een fractie van een milliseconde voor álles!

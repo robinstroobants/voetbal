@@ -12,14 +12,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $opponent = trim($_POST['opponent']);
         $gameDate = $_POST['game_date'];
         $format = $_POST['format'];
+        $minPos = isset($_POST['min_pos']) ? (int)$_POST['min_pos'] : 0;
         // team_id = 1 as default for now
         
         if ($gameId) {
-            $stmt = $pdo->prepare("UPDATE games SET opponent = :opp, game_date = :gd, format = :fmt WHERE id = :id");
-            $stmt->execute(['opp' => $opponent, 'gd' => $gameDate, 'fmt' => $format, 'id' => $gameId]);
+            $stmt = $pdo->prepare("UPDATE games SET opponent = :opp, game_date = :gd, format = :fmt, min_pos = :mpos WHERE id = :id");
+            $stmt->execute(['opp' => $opponent, 'gd' => $gameDate, 'fmt' => $format, 'mpos' => $minPos, 'id' => $gameId]);
         } else {
-            $stmt = $pdo->prepare("INSERT INTO games (team_id, opponent, game_date, format) VALUES (1, :opp, :gd, :fmt)");
-            $stmt->execute(['opp' => $opponent, 'gd' => $gameDate, 'fmt' => $format]);
+            $stmt = $pdo->prepare("INSERT INTO games (team_id, opponent, game_date, format, min_pos) VALUES (1, :opp, :gd, :fmt, :mpos)");
+            $stmt->execute(['opp' => $opponent, 'gd' => $gameDate, 'fmt' => $format, 'mpos' => $minPos]);
         }
     }
     // Voorkom form resubmission bij refresh
@@ -37,18 +38,16 @@ $stmt = $pdo->query("
 ");
 $games = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Simpele hardcoded format lijst gebaseerd op het veelgebruikte patroon
+// Simpele hardcoded format lijst
 $available_formats = [
-    '8v8_0gk_4x15', 
-    '8v8_1gk_4x15',
-    '8v8_2gk_4x15',
-    '8v8_1gk_3x20',
-    '8v8_1gk_6x15',
-    '8v8_1gk_7x15',
-    '8v8_2gk_5x15'
+    '8v8_4x15',
+    '8v8_3x20',
+    '8v8_6x15',
+    '8v8_7x15',
+    '8v8_5x15'
 ];
 
-$page_title = 'Games Management';
+$page_title = 'Game Management';
 require_once 'header.php';
 ?>
 
@@ -69,16 +68,14 @@ require_once 'header.php';
                         <tr>
                             <th class="ps-4">Datum</th>
                             <th>Tegenstander</th>
-                            <th>Formaat</th>
                             <th>Selectie</th>
-                            <th>Score</th>
                             <th class="text-end pe-4">Acties</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php if(empty($games)): ?>
                             <tr>
-                                <td colspan="6" class="text-center py-4 text-muted">Amai, geen wedstrijden gevonden! Tijd om er eentje te plannen.</td>
+                                <td colspan="4" class="text-center py-4 text-muted">Amai, geen wedstrijden gevonden! Tijd om er eentje te plannen.</td>
                             </tr>
                         <?php endif; ?>
                         
@@ -86,7 +83,6 @@ require_once 'header.php';
                         <tr>
                             <td class="ps-4 fw-medium"><?= date('d/m/Y', strtotime($game['game_date'])) ?></td>
                             <td><?= htmlspecialchars($game['opponent']) ?></td>
-                            <td><span class="badge bg-secondary"><?= htmlspecialchars($game['format']) ?></span></td>
                             <td>
                                 <?php if($game['selection_count'] > 0): ?>
                                     <span class="badge bg-success rounded-pill"><?= $game['selection_count'] ?> Spelers</span>
@@ -94,19 +90,12 @@ require_once 'header.php';
                                     <span class="badge bg-warning text-dark rounded-pill">0 Spelers</span>
                                 <?php endif; ?>
                             </td>
-                            <td>
-                                <?php if($game['final_score']): ?>
-                                    <span class="badge bg-info text-dark rounded-pill"><?= round($game['final_score'], 1) ?>%</span>
-                                <?php else: ?>
-                                    <span class="text-muted small">-</span>
-                                <?php endif; ?>
-                            </td>
                             <td class="text-end pe-4">
                                 <a href="edit_selection.php?game_id=<?= $game['id'] ?>" class="btn btn-sm btn-outline-success me-1" title="Beheer Selectie">
-                                    <i class="fa-solid fa-users-gear"></i> Selectie
+                                    <i class="fa-solid fa-users-gear"></i>
                                 </a>
                                 <a href="lineup.php?wedstrijd=<?= $game['id'] ?>" class="btn btn-sm btn-outline-primary me-1 <?= $game['selection_count'] == 0 ? 'disabled' : '' ?>" title="Bereken Opstelling">
-                                    <i class="fa-solid fa-calculator"></i>
+                                    <i class="fa-solid fa-calculator"></i> Opstelling
                                 </a>
                                 <button class="btn btn-sm btn-outline-secondary me-1" title="Bewerk Data" 
                                         onclick='openGameModal(<?= json_encode($game) ?>)'>
@@ -159,6 +148,15 @@ require_once 'header.php';
                       <?php endforeach; ?>
                   </select>
               </div>
+              <div class="mb-3">
+                  <label class="form-label text-muted small fw-bold">MIN. POSITIES PER SPELER</label>
+                  <select class="form-select" name="min_pos" id="modal_min_pos" required>
+                      <option value="0">Geen minimum</option>
+                      <option value="2">Minstens 2 posities</option>
+                      <option value="3">Minstens 3 posities</option>
+                  </select>
+                  <div class="form-text">Bepaalt of het algoritme enkel schemas toelaat waar elke speler op X unieke posities speelt.</div>
+              </div>
           </div>
           
           <div class="modal-footer">
@@ -183,15 +181,36 @@ function openGameModal(game = null) {
         document.getElementById('gameModalLabel').innerText = 'Wedstrijd Bewerken';
         document.getElementById('modal_game_id').value = game.id;
         document.getElementById('modal_opponent').value = game.opponent;
-        document.getElementById('modal_game_date').value = game.game_date;
+        // Strip trailing time information out of the date payload to make it HTML date-input compliant
+        document.getElementById('modal_game_date').value = game.game_date ? game.game_date.split(' ')[0] : '';
         document.getElementById('modal_format').value = game.format;
+        document.getElementById('modal_min_pos').value = game.min_pos || '0';
     } else {
-        document.getElementById('gameModalLabel').innerText = 'Nieuwe Wedstrijd Planen';
+        document.getElementById('gameModalLabel').innerText = 'Nieuwe Wedstrijd Plannen';
         document.getElementById('modal_game_date').value = new Date().toISOString().split('T')[0];
+        document.getElementById('modal_min_pos').value = '0';
     }
     
     modal.show();
 }
+
+<?php if (isset($_GET['edit_game'])): 
+    $editId = (int)$_GET['edit_game'];
+    $editTarget = null;
+    foreach ($games as $g) {
+        if ((int)$g['id'] === $editId) {
+            $editTarget = $g;
+            break;
+        }
+    }
+    if ($editTarget):
+?>
+document.addEventListener("DOMContentLoaded", function() {
+    setTimeout(function() {
+        openGameModal(<?= json_encode($editTarget) ?>);
+    }, 150); // Small delay to ensure bootstrap is ready
+});
+<?php endif; endif; ?>
 </script>
 
 <?php require_once 'footer.php'; ?>

@@ -13,7 +13,7 @@ class MatchManager {
      */
     public function getSelection(int $gameId): array {
         // 1. Haal basis match informatie op
-        $stmtGame = $this->pdo->prepare("SELECT opponent, game_date, format FROM games WHERE id = :id");
+        $stmtGame = $this->pdo->prepare("SELECT opponent, game_date, format, min_pos FROM games WHERE id = :id");
         $stmtGame->execute(['id' => $gameId]);
         $game = $stmtGame->fetch(PDO::FETCH_ASSOC);
 
@@ -206,7 +206,8 @@ class MatchManager {
         }
 
         $stmt = $this->pdo->query("
-            SELECT l.game_id, l.schema_id, l.player_order, g.game_date, g.opponent, g.format 
+            SELECT l.game_id, l.schema_id, l.player_order, g.game_date, g.opponent, g.format,
+                   (SELECT COUNT(*) FROM game_selections gs WHERE gs.game_id = g.id AND gs.is_goalkeeper = 1) as gk_count
             FROM game_lineups l 
             JOIN games g ON l.game_id = g.id 
             WHERE l.is_final = 1
@@ -235,6 +236,15 @@ class MatchManager {
             
             $count = count($players);
             $format = $row['format'];
+            
+            // Calculate goalies to determine literal lookup format
+            $gk_count = (int)($row['gk_count'] ?? 0);
+            
+            if (strpos($format, 'gk') === false) {
+                if (preg_match('/^(\d+v\d+)_(\d+x\d+)$/', $format, $matches)) {
+                    $format = $matches[1] . '_' . $gk_count . 'gk_' . $matches[2];
+                }
+            }
             $schema_id = $row['schema_id'];
 
             $wissel_file = __DIR__ . "/wisselschemas/" . $format . "_" . $count . "sp.php";

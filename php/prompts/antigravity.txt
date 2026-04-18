@@ -28,3 +28,10 @@ Creëer een 'Dashboard' overzicht in PHP.
 3. Wanneer een Team wordt geselecteerd, toon de lijst met 'Matches' voor dat team.
 4. Voeg een knop toe 'Nieuwe Wedstrijd Aanmaken' die een formulier opent waar de gebruiker de tegenstander, datum en het format (bijv. 8v8 of 7v7) kan kiezen.
 5. Gebruik de bestaande styling van de app voor consistentie.
+
+
+
+
+
+kan jij nu op basis van die logica een wisselschema genereren dat mij een zo hoog mogelijke score zou geven als we de selectie van wedstrijd met id 47 (Nijlen) nemen. Je hoeft geen rekening te houden met min 3 posities. houdt de 5 beste bij en je mag deze schemas een index geven boven de 20000
+

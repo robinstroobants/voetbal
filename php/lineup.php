@@ -36,6 +36,15 @@
           <?php endif; ?>
       </div>
       
+      <div class="d-print-none text-center mb-4 mt-2">
+          <a href="manage_games.php?edit_game=<?= $gameId ?>" class="btn btn-outline-secondary btn-sm">
+              <i class="fa-solid fa-pen me-1"></i> Wijzig Match
+          </a>
+          <a href="edit_selection.php?game_id=<?= $gameId ?>" class="btn btn-outline-success btn-sm ms-2">
+              <i class="fa-solid fa-users-gear me-1"></i> Wijzig Selectie
+          </a>
+      </div>
+      
       <?php if (!empty($saved_lineups) && !$locked_lineup): ?>
       <div class="card mb-4 border-primary d-print-none shadow-sm">
           <div class="card-header bg-primary text-white">
@@ -64,6 +73,9 @@
                               ?>
                           </td>
                           <td class="text-end align-middle">
+                              <a href="<?= build_url($base_url, ['wedstrijd' => $gameId, 'preview' => $sl['id']]) ?>" class="btn btn-sm btn-info text-white">
+                                  <i class="fa-solid fa-eye"></i> Bekijk
+                              </a>
                               <button class="btn btn-sm btn-success" onclick="setFinalLineup(<?= $gameId ?>, <?= $sl['id'] ?>)">
                                   <i class="fa-solid fa-check"></i> Maak Definitief
                               </button>
@@ -98,14 +110,30 @@
           <?php endforeach; ?>
           
           <?php if ($shuffle_type === 'coach'): ?>
-              <!-- In coach mode we have a single tab and an unlock button -->
-              <li class="nav-item d-print-none" role="presentation">
-                  <button class="btn btn-warning ms-3 btn-sm mt-1" onclick="unlockLineups(<?= $gameId ?>)">
-                      <i class="fa-solid fa-lock-open"></i> Ontgrendel Wedstrijd (Genereer Opnieuw)
-                  </button>
-              </li>
+              <?php if (isset($preview_lineup) && $preview_lineup): ?>
+                  <li class="nav-item d-print-none" role="presentation">
+                      <a href="<?= build_url($base_url, ['wedstrijd' => $gameId]) ?>" class="btn btn-secondary ms-3 btn-sm mt-1">
+                          <i class="fa-solid fa-xmark"></i> Sluit Preview
+                      </a>
+                      <button class="btn btn-success ms-2 btn-sm mt-1" onclick="setFinalLineup(<?= $gameId ?>, <?= $preview_lineup['id'] ?>)">
+                          <i class="fa-solid fa-check"></i> Maak Definitief
+                      </button>
+                  </li>
+              <?php else: ?>
+                  <li class="nav-item d-print-none" role="presentation">
+                      <button class="btn btn-warning ms-3 btn-sm mt-1" onclick="unlockLineups(<?= $gameId ?>)">
+                          <i class="fa-solid fa-lock-open"></i> Ontgrendel Wedstrijd (Genereer Opnieuw)
+                      </button>
+                  </li>
+              <?php endif; ?>
           <?php endif; ?>
       </ul>
+      
+      <?php if (isset($preview_lineup) && $preview_lineup): ?>
+          <div class="alert alert-info text-center d-print-none">
+              <i class="fa-solid fa-eye"></i> Je bekijkt momenteel een opgeslagen voorselectie in preview modus. Klik op 'Maak Definitief' hierboven om deze op te slaan als finale selectie.
+          </div>
+      <?php endif; ?>
       
       <div class="tab-content" id="lineupTabsContent">
       <?php foreach ($top_selected_options as $tab_idx => $t_opt): 

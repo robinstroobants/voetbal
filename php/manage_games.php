@@ -14,13 +14,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $format = $_POST['format'];
         $minPos = isset($_POST['min_pos']) ? (int)$_POST['min_pos'] : 0;
         // team_id = 1 as default for now
+        $coachId = !empty($_POST['coach_id']) ? (int)$_POST['coach_id'] : null;
         
         if ($gameId) {
-            $stmt = $pdo->prepare("UPDATE games SET opponent = :opp, game_date = :gd, format = :fmt, min_pos = :mpos WHERE id = :id");
-            $stmt->execute(['opp' => $opponent, 'gd' => $gameDate, 'fmt' => $format, 'mpos' => $minPos, 'id' => $gameId]);
+            $stmt = $pdo->prepare("UPDATE games SET opponent = :opp, game_date = :gd, format = :fmt, min_pos = :mpos, coach_id = :cid WHERE id = :id");
+            $stmt->execute(['opp' => $opponent, 'gd' => $gameDate, 'fmt' => $format, 'mpos' => $minPos, 'cid' => $coachId, 'id' => $gameId]);
         } else {
-            $stmt = $pdo->prepare("INSERT INTO games (team_id, opponent, game_date, format, min_pos) VALUES (1, :opp, :gd, :fmt, :mpos)");
-            $stmt->execute(['opp' => $opponent, 'gd' => $gameDate, 'fmt' => $format, 'mpos' => $minPos]);
+            $stmt = $pdo->prepare("INSERT INTO games (team_id, opponent, game_date, format, min_pos, coach_id) VALUES (1, :opp, :gd, :fmt, :mpos, :cid)");
+            $stmt->execute(['opp' => $opponent, 'gd' => $gameDate, 'fmt' => $format, 'mpos' => $minPos, 'cid' => $coachId]);
         }
     }
     // Voorkom form resubmission bij refresh
@@ -30,10 +31,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Haal wedstrijden op
 $stmt = $pdo->query("
-    SELECT g.*, 
+    SELECT g.*, c.name AS coach_name,
         (SELECT COUNT(*) FROM game_selections gs WHERE gs.game_id = g.id) as selection_count,
         (SELECT score FROM game_lineups gl WHERE gl.game_id = g.id AND gl.is_final = 1 LIMIT 1) as final_score
     FROM games g 
+    LEFT JOIN coaches c ON g.coach_id = c.id
     ORDER BY g.game_date DESC
 ");
 $games = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -67,6 +69,17 @@ $available_formats = [
     '8v8_7x15',
     '8v8_5x15'
 ];
+
+// Haal beschikbare coaches op
+$stmtC = $pdo->query("SELECT * FROM coaches ORDER BY name ASC");
+$coachesData = $stmtC->fetchAll(PDO::FETCH_ASSOC);
+
+// Definieer een palet aan onderscheidende kleuren
+$badgeColors = ['bg-info text-dark', 'bg-danger', 'bg-success', 'bg-warning text-dark', 'bg-primary', 'bg-dark text-white'];
+$coachColorMap = [];
+foreach ($coachesData as $index => $cData) {
+    $coachColorMap[$cData['name']] = $badgeColors[$index % count($badgeColors)];
+}
 
 $page_title = 'Game Management';
 require_once 'header.php';
@@ -116,8 +129,15 @@ require_once 'header.php';
                                 <?php foreach($phases[$phase] as $game): ?>
                                 <tr>
                                     <td class="ps-4 fw-medium text-muted" style="width: 15%"><?= date('d/m/Y', strtotime($game['game_date'])) ?></td>
-                                    <td class="fw-bold text-dark" style="width: 35%"><?= htmlspecialchars($game['opponent']) ?></td>
-                                    <td style="width: 25%">
+                                    <td class="fw-bold text-dark">
+                                        <?php if($game['coach_name']): 
+                                            $cColor = isset($coachColorMap[$game['coach_name']]) ? $coachColorMap[$game['coach_name']] : 'bg-secondary text-white';
+                                        ?>
+                                            <span class="badge <?= $cColor ?> rounded-pill me-1"><?= htmlspecialchars($game['coach_name']) ?></span>
+                                        <?php endif; ?>
+                                        <?= htmlspecialchars($game['opponent']) ?>
+                                    </td>
+                                    <td>
                                         <?php if($game['selection_count'] > 0): ?>
                                             <span class="badge bg-success rounded-pill px-3 py-2 shadow-sm"><?= $game['selection_count'] ?> Spelers</span>
                                         <?php else: ?>
@@ -201,6 +221,15 @@ require_once 'header.php';
                   </select>
                   <div class="form-text">Bepaalt of het algoritme enkel schemas toelaat waar elke speler op X unieke posities speelt.</div>
               </div>
+              <div class="mb-3">
+                  <label class="form-label text-muted small fw-bold">TEAM VERANTWOORDELIJKE (Optioneel)</label>
+                  <select class="form-select" name="coach_id" id="modal_coach_id">
+                      <option value="">-- Geen coach geselecteerd --</option>
+                      <?php foreach ($coachesData as $cd): ?>
+                          <option value="<?= $cd['id'] ?>">Team <?= htmlspecialchars($cd['name']) ?></option>
+                      <?php endforeach; ?>
+                  </select>
+              </div>
           </div>
           
           <div class="modal-footer">
@@ -229,10 +258,12 @@ function openGameModal(game = null) {
         document.getElementById('modal_game_date').value = game.game_date ? game.game_date.split(' ')[0] : '';
         document.getElementById('modal_format').value = game.format;
         document.getElementById('modal_min_pos').value = game.min_pos || '0';
+        document.getElementById('modal_coach_id').value = game.coach_id || '';
     } else {
         document.getElementById('gameModalLabel').innerText = 'Nieuwe Wedstrijd Plannen';
         document.getElementById('modal_game_date').value = new Date().toISOString().split('T')[0];
         document.getElementById('modal_min_pos').value = '0';
+        document.getElementById('modal_coach_id').value = '';
     }
     
     modal.show();

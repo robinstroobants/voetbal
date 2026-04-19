@@ -42,6 +42,12 @@ $pos_ranks_result = $conn->query("SELECT position_id, player_id FROM position_ra
 while ($pr = $pos_ranks_result->fetch_assoc()) {
     $pos_ranks[$pr['position_id']][] = $pr['player_id'];
 }
+// 4. Goalie Scores inladen
+$gk_scores = [];
+$gk_res = $conn->query("SELECT player_id, score FROM gk_scores");
+while ($g = $gk_res->fetch_assoc()) {
+    $gk_scores[$g['player_id']] = $g['score'];
+}
 ?>
 
 <!DOCTYPE html>
@@ -81,10 +87,13 @@ while ($pr = $pos_ranks_result->fetch_assoc()) {
         <!-- Tabs Navigatie -->
         <ul class="nav nav-pills mb-4 gap-2" id="rankingTabs" role="tablist">
             <li class="nav-item" role="presentation">
-                <button class="nav-link active fw-bold" id="team-tab" data-bs-toggle="pill" data-bs-target="#team-rank" type="button" role="tab"><i class="fa-solid fa-users me-2"></i>Algemene Team Rank</button>
+                <button class="nav-link active fw-bold" id="team-tab" data-bs-toggle="pill" data-bs-target="#team-rank" type="button" role="tab"><i class="fa-solid fa-users me-2"></i>Veldspelers Rank</button>
             </li>
             <li class="nav-item" role="presentation">
-                <button class="nav-link fw-bold" id="pos-tab" data-bs-toggle="pill" data-bs-target="#pos-rank" type="button" role="tab"><i class="fa-solid fa-map-location-dot me-2"></i>Positie Ranks (Drag)</button>
+                <button class="nav-link fw-bold" id="pos-tab" data-bs-toggle="pill" data-bs-target="#pos-rank" type="button" role="tab"><i class="fa-solid fa-map-location-dot me-2"></i>Positie Ranks</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link fw-bold" id="gk-tab" data-bs-toggle="pill" data-bs-target="#gk-rank" type="button" role="tab"><i class="fa-solid fa-hands-bubbles me-2"></i>Doelmannen Matrix</button>
             </li>
         </ul>
 
@@ -122,7 +131,9 @@ while ($pr = $pos_ranks_result->fetch_assoc()) {
                     <div class="col-md-4">
                         <label class="form-label fw-bold text-primary">Kies de veldpositie:</label>
                         <select id="positionSelect" class="form-select form-select-lg border-primary">
-                            <?php foreach ($positions as $pos): ?>
+                            <?php foreach ($positions as $pos): 
+                                if ($pos == 1) continue; // Skip keeper pos in general tab
+                            ?>
                                 <option value="<?= $pos ?>">Positie <?= $pos ?></option>
                             <?php endforeach; ?>
                         </select>
@@ -133,16 +144,64 @@ while ($pr = $pos_ranks_result->fetch_assoc()) {
                     <div class="col-md-6">
                         <h5 class="text-danger"><i class="fa-solid fa-ban me-2"></i>Speelt hier NOOIT (Score=0)</h5>
                         <p class="text-muted small">Deze spelers mogen hier nooit spelen.</p>
-                        <ul id="unassignedList" class="list-group sortable-list">
-                            <!-- Populated via JS -->
-                        </ul>
+                        <ul id="unassignedList" class="list-group sortable-list"></ul>
                     </div>
                     <div class="col-md-6">
                         <h5 class="text-success"><i class="fa-solid fa-check-double me-2"></i>Rank op deze positie</h5>
                         <p class="text-muted small">Sleep spelers hierin (Bovenaan = absolute specialisten).</p>
-                        <ul id="assignedList" class="list-group sortable-list bg-white border-primary">
-                            <!-- Populated via JS -->
-                        </ul>
+                        <ul id="assignedList" class="list-group sortable-list bg-white border-primary"></ul>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- TAB 3: GOALKEEPER OVERRIDES -->
+            <div class="tab-pane fade" id="gk-rank" role="tabpanel">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h5 class="text-primary"><i class="fa-solid fa-user-shield me-2"></i>Vaste Doelmannen</h5>
+                        <p class="text-muted small">Fineregel de exacte matrixscore voor Positie 1 (50-100 punten).</p>
+                        <?php foreach ($players as $pid => $p): 
+                            if ($p['is_doelman'] == 1):
+                                $score = isset($gk_scores[$pid]) ? $gk_scores[$pid] : 95;
+                        ?>
+                            <div class="card p-3 mb-3 border-0 shadow-sm">
+                                <label class="fw-bold fs-5 mb-2"><?= htmlspecialchars($p['first_name'] . ' ' . $p['last_name']) ?> <span class="badge bg-primary float-end" id="gk_score_val_<?= $pid ?>"><?= $score ?>/100</span></label>
+                                <input type="range" class="form-range gk-slider" data-id="<?= $pid ?>" min="50" max="100" step="1" value="<?= $score ?>">
+                            </div>
+                        <?php endif; endforeach; ?>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <h5 class="text-warning"><i class="fa-solid fa-hands-bubbles me-2"></i>Extra Handschoenen (Veldspelers)</h5>
+                        <p class="text-muted small">Wijs fieldplayers aan als backup doelman (0-90 punten).</p>
+                        
+                        <div id="rsrv-list">
+                            <?php foreach ($players as $pid => $p): 
+                                if ($p['is_doelman'] == 0 && isset($gk_scores[$pid]) && $gk_scores[$pid] > 0):
+                                    $score = $gk_scores[$pid];
+                            ?>
+                                <div class="card p-3 mb-3 border-0 shadow-sm rsrv-card" id="rsrv_card_<?= $pid ?>">
+                                    <label class="fw-bold mb-2"><?= htmlspecialchars($p['first_name'] . ' ' . $p['last_name']) ?> 
+                                        <button class="btn btn-sm btn-link text-danger float-end p-0 remove-rsrv" data-id="<?= $pid ?>"><i class="fa-solid fa-trash"></i></button>
+                                        <span class="badge bg-warning text-dark float-end me-3" id="gk_score_val_<?= $pid ?>"><?= $score ?>/100</span>
+                                    </label>
+                                    <input type="range" class="form-range gk-slider" data-id="<?= $pid ?>" min="0" max="90" step="1" value="<?= $score ?>">
+                                </div>
+                            <?php endif; endforeach; ?>
+                        </div>
+
+                        <hr>
+                        <div class="d-flex gap-2">
+                            <select id="rsrv_add_select" class="form-select border-warning">
+                                <option value="">+ Voeg backup keeper toe...</option>
+                                <?php foreach ($players as $pid => $p): 
+                                    if ($p['is_doelman'] == 0 && empty($gk_scores[$pid])):
+                                ?>
+                                    <option value="<?= $pid ?>" data-name="<?= htmlspecialchars($p['first_name'] . ' ' . $p['last_name']) ?>"><?= htmlspecialchars($p['first_name'] . ' ' . $p['last_name']) ?></option>
+                                <?php endif; endforeach; ?>
+                            </select>
+                            <button class="btn btn-warning" id="btnAddRsrv"><i class="fa-solid fa-plus"></i></button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -230,7 +289,7 @@ while ($pr = $pos_ranks_result->fetch_assoc()) {
 
             // Bepaal welke speler in welke bak zit
             Object.values(playersData).forEach(p => {
-                if (p.is_doelman == 1 && pos != 1) return; // Doelmannen alleen tonen bij Positie 1
+                if (p.is_doelman == 1) return; // Doelmannen worden in hun EIGEN tab behandeld!
                 
                 const name = p.first_name + ' ' + p.last_name;
                 const li = document.createElement('li');
@@ -315,6 +374,68 @@ while ($pr = $pos_ranks_result->fetch_assoc()) {
                 }
             });
         }
+        
+        // ----------------------------------------------------
+        // LOGIC: GOALKEEPERS & RESERVES (TAB 3)
+        // ----------------------------------------------------
+        document.body.addEventListener('input', function(e) {
+            if(e.target.classList.contains('gk-slider')) {
+                const pid = e.target.getAttribute('data-id');
+                const val = e.target.value;
+                document.getElementById('gk_score_val_' + pid).innerText = val + '/100';
+            }
+        });
+        
+        document.body.addEventListener('change', function(e) {
+            if(e.target.classList.contains('gk-slider')) {
+                const pid = e.target.getAttribute('data-id');
+                const val = e.target.value;
+                postData('api_save_gk_scores.php', { player_id: pid, score: val });
+            }
+        });
+
+        document.body.addEventListener('click', function(e) {
+            if(e.target.closest('.remove-rsrv')) {
+                const btn = e.target.closest('.remove-rsrv');
+                const pid = btn.getAttribute('data-id');
+                postData('api_save_gk_scores.php', { player_id: pid, score: 0 });
+                document.getElementById('rsrv_card_' + pid).remove();
+                // Add back to select
+                const select = document.getElementById('rsrv_add_select');
+                const player = playersData[pid];
+                const opt = document.createElement('option');
+                opt.value = pid;
+                opt.innerText = player.first_name + ' ' + player.last_name;
+                select.appendChild(opt);
+            }
+        });
+
+        document.getElementById('btnAddRsrv').addEventListener('click', function() {
+            const select = document.getElementById('rsrv_add_select');
+            const pid = select.value;
+            if(!pid) return;
+            const textName = select.options[select.selectedIndex].text;
+            
+            // Build card
+            const container = document.getElementById('rsrv-list');
+            const card = document.createElement('div');
+            card.className = "card p-3 mb-3 border-0 shadow-sm rsrv-card";
+            card.id = "rsrv_card_" + pid;
+            card.innerHTML = `
+                <label class="fw-bold mb-2">${textName} 
+                    <button class="btn btn-sm btn-link text-danger float-end p-0 remove-rsrv" data-id="${pid}"><i class="fa-solid fa-trash"></i></button>
+                    <span class="badge bg-warning text-dark float-end me-3" id="gk_score_val_${pid}">50/100</span>
+                </label>
+                <input type="range" class="form-range gk-slider" data-id="${pid}" min="0" max="90" step="1" value="50">
+            `;
+            container.appendChild(card);
+            
+            // Remove from select
+            select.options[select.selectedIndex].remove();
+            
+            // Save initial 50
+            postData('api_save_gk_scores.php', { player_id: pid, score: 50 });
+        });
 
         // ----------------------------------------------------
         // LOGIC: GENERATE MATRIX (API)

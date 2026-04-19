@@ -41,11 +41,8 @@ try {
                 continue; 
             }
 
-            // Aparte afhandeling voor vaste doelmannen
+            // Vaste doelmannen slaan het complexe veld-algoritme (team rank & pos rank loops) over
             if (isset($player['is_doelman']) && $player['is_doelman'] == 1) {
-                if ($posId == 1) {
-                    $new_scores[$pid][$posId] = max(50, 100 - (($pr['pos_rank'] - 1) * 5));
-                }
                 continue;
             }
 
@@ -87,11 +84,25 @@ try {
     // Haal een complete lijst van alle unieke posities op die geselecteerd waren of bestaan
     $all_known_positions = array_keys($positions);
 
-    foreach ($players_data as $pid => $player) {
+    // Fetch Goalie Slider Scores
+    $gk_scores = $pdo->query("SELECT player_id, score FROM gk_scores")->fetchAll(PDO::FETCH_KEY_PAIR);
 
+    foreach ($players_data as $pid => $player) {
         foreach ($all_known_positions as $posId) {
-            // Als speler GEEN score opgebouwd heeft voor deze pos (staat niet in pos_ranking), geef '0' (Mag niet spelen)
+            // Basis score uit field-player algoritme
             $score = $new_scores[$pid][$posId] ?? 0;
+            
+            // Overrule score voor Positie 1 met de slider value
+            if ($posId == 1) {
+                if (isset($gk_scores[$pid])) {
+                    $score = (int)$gk_scores[$pid];
+                } elseif (isset($player['is_doelman']) && $player['is_doelman'] == 1) {
+                    $score = 95; // Standaardwaarde als nog niet opgeslagen
+                } else {
+                    $score = 0; // Veldspeler zonder "extra handschoen" slider krijgt 0
+                }
+            }
+
             $stmt->execute([$pid, $posId, $score]);
         }
     }

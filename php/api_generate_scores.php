@@ -37,10 +37,16 @@ try {
         foreach ($ranks as $pr) {
             $pid = $pr['player_id'];
             $player = $players_data[$pid] ?? null;
-            
-            // Filter doelmannen uit veldspeler-wiskunde
-            if (!$player || (isset($player['is_doelman']) && $player['is_doelman'] == 1)) {
+            if (!$player) {
                 continue; 
+            }
+
+            // Aparte afhandeling voor vaste doelmannen
+            if (isset($player['is_doelman']) && $player['is_doelman'] == 1) {
+                if ($posId == 1) {
+                    $new_scores[$pid][$posId] = max(50, 100 - (($pr['pos_rank'] - 1) * 5));
+                }
+                continue;
             }
 
             // --- Regel 1: Positie Ranking (Top = ~85, zakt langzaam)
@@ -82,9 +88,6 @@ try {
     $all_known_positions = array_keys($positions);
 
     foreach ($players_data as $pid => $player) {
-        if ($player['is_doelman'] == 1) {
-            continue; // Doelmannen worden met rust gelaten.
-        }
 
         foreach ($all_known_positions as $posId) {
             // Als speler GEEN score opgebouwd heeft voor deze pos (staat niet in pos_ranking), geef '0' (Mag niet spelen)

@@ -3,10 +3,14 @@ require_once 'getconn.php';
 $page_title = 'Team & Positie Rankings';
 
 // Haal alle spelers op die GEEN vaste doelman zijn
-$players_result = $conn->query("SELECT id, first_name, last_name, is_doelman FROM players WHERE is_doelman = 0 OR is_doelman IS NULL");
+$players_result = $conn->query("SELECT id, first_name, last_name, is_doelman FROM players");
 $players = [];
+$team_ranking_valid_players = []; // Voor initiële weergave in tabblad 1
 while ($p = $players_result->fetch_assoc()) {
     $players[$p['id']] = $p;
+    if ($p['is_doelman'] == 0 || $p['is_doelman'] === null) {
+        $team_ranking_valid_players[] = $p['id'];
+    }
 }
 
 // 1. Team Ranking inladen
@@ -91,6 +95,11 @@ while ($pr = $pos_ranks_result->fetch_assoc()) {
                 <div class="row">
                     <div class="col-md-6 offset-md-3">
                         <div class="alert alert-info py-2"><i class="fa-solid fa-circle-info me-2"></i>Sleep de spelers en zet ze op volgorde van absolute sterspeler naar minst sterk.</div>
+                        <?php
+                        $team_ranking = array_intersect($team_ranking, $team_ranking_valid_players);
+                        $missing = array_diff($team_ranking_valid_players, $team_ranking);
+                        $team_ranking = array_merge($team_ranking, $missing);
+                        ?>
                         <ul id="teamRankingList" class="list-group sortable-list">
                             <?php foreach ($team_ranking as $index => $pid): 
                                 $p = $players[$pid]; 
@@ -221,6 +230,8 @@ while ($pr = $pos_ranks_result->fetch_assoc()) {
 
             // Bepaal welke speler in welke bak zit
             Object.values(playersData).forEach(p => {
+                if (p.is_doelman == 1 && pos != 1) return; // Doelmannen alleen tonen bij Positie 1
+                
                 const name = p.first_name + ' ' + p.last_name;
                 const li = document.createElement('li');
                 li.className = 'list-group-item d-flex align-items-center fw-medium';

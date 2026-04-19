@@ -84,7 +84,7 @@ require_once 'header.php';
                     </td>
                     <td>
                         <span class="view-mode"><?= !empty($row['birthdate']) ? htmlspecialchars($row['birthdate']) : '-' ?></span>
-                        <input type="date" name="birthdate" class="form-control form-control-sm edit-mode d-none" value="<?= !empty($row['birthdate']) ? htmlspecialchars($row['birthdate']) : ''; ?>">
+                        <input type="text" name="birthdate" class="form-control form-control-sm edit-mode d-none" value="<?= !empty($row['birthdate']) ? htmlspecialchars($row['birthdate']) : ''; ?>" data-provide="datepicker" data-date-format="yyyy-mm-dd" data-date-autoclose="true" data-date-container="body">
                     </td>
                     <td class="text-center">
                         <span class="view-mode badge <?= (!empty($row['is_doelman'])) ? 'bg-primary' : 'bg-secondary' ?>"><?= (!empty($row['is_doelman'])) ? 'Doelman' : 'Veld' ?></span>

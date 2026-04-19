@@ -27,7 +27,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["player_id"])) {
 }
 
 // Fetch players
-$result = $conn->query("SELECT *, UNIX_TIMESTAMP(updated_at) as updated_ts FROM players ORDER BY first_name, last_name");
+$result = $conn->query("SELECT * FROM players ORDER BY first_name, last_name");
 ?>
 
 <?php 
@@ -86,8 +86,9 @@ require_once 'header.php';
                             <input type="text" form="<?= $f_id ?>" name="favorite_positions" class="form-control form-control-sm border-primary fav-pos-input" placeholder="Bv. 7,11,2" value="<?= !empty($row['favorite_positions']) ? htmlspecialchars($row['favorite_positions']) : ''; ?>">
                         </div>
                     </td>
-                    <td data-sort="<?= (int)$row['updated_ts'] ?>">
-                        <span class="small text-muted"><?= !empty($row['updated_at']) ? date("Y-m-d H:i", strtotime($row['updated_at'])) : '-' ?></span>
+                    <?php $updated_ts = isset($row['updated_at']) ? strtotime($row['updated_at']) : 0; ?>
+                    <td data-sort="<?= $updated_ts ?>">
+                        <span class="small text-muted fw-medium"><?= !empty($row['updated_at']) ? date("Y-m-d H:i", strtotime($row['updated_at'])) : '-' ?></span>
                     </td>
                     <td class="text-end" style="min-width: 90px; cursor: pointer;">
                         <span class="view-mode text-muted small fst-italic"><i class="fa-solid fa-pen"></i></span>

@@ -2,28 +2,40 @@
 // Connect to the database
 require_once 'getconn.php';
 
-if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["player_id"])) {
-    $id = intval($_POST["player_id"]);
-    $first_name = $conn->real_escape_string($_POST["first_name"]);
-    $last_name = $conn->real_escape_string($_POST["last_name"]);
-    $birthdate = trim($_POST["birthdate"]);
-    $fav_pos = $conn->real_escape_string($_POST["favorite_positions"]);
-    $is_doelman = isset($_POST["is_doelman"]) ? 1 : 0;
+// Ajax Save
+if (isset($_SERVER['CONTENT_TYPE']) && strpos($_SERVER['CONTENT_TYPE'], 'application/json') !== false) {
+    header('Content-Type: application/json');
+    $json = file_get_contents('php://input');
+    $data = json_decode($json, true);
 
-    $birthdate_val = ($birthdate === '') ? null : $birthdate;
-    $fav_pos_val = ($fav_pos === '') ? null : $fav_pos;
+    if (isset($data["player_id"])) {
+        $id = intval($data["player_id"]);
+        $first_name = $conn->real_escape_string($data["first_name"] ?? '');
+        $last_name = $conn->real_escape_string($data["last_name"] ?? '');
+        $birthdate = trim($data["birthdate"] ?? '');
+        $fav_pos = $conn->real_escape_string($data["favorite_positions"] ?? '');
+        $is_doelman = !empty($data["is_doelman"]) ? 1 : 0;
 
-    // updated_at is automatically refreshed via ON UPDATE CURRENT_TIMESTAMP
-    $stmt = $conn->prepare("UPDATE players SET first_name=?, last_name=?, birthdate=?, favorite_positions=?, is_doelman=? WHERE id=?");
-    if ($stmt) {
-        $stmt->bind_param("ssssii", $first_name, $last_name, $birthdate_val, $fav_pos_val, $is_doelman, $id);
-        $stmt->execute();
-        $stmt->close();
+        $birthdate_val = ($birthdate === '') ? null : $birthdate;
+        $fav_pos_val = ($fav_pos === '') ? null : $fav_pos;
+
+        // updated_at is automatically refreshed via ON UPDATE CURRENT_TIMESTAMP
+        $stmt = $conn->prepare("UPDATE players SET first_name=?, last_name=?, birthdate=?, favorite_positions=?, is_doelman=? WHERE id=?");
+        if ($stmt) {
+            $stmt->bind_param("ssssii", $first_name, $last_name, $birthdate_val, $fav_pos_val, $is_doelman, $id);
+            $stmt->execute();
+            $stmt->close();
+        }
+        
+        $res = $conn->query("SELECT updated_at, UNIX_TIMESTAMP(updated_at) as ts FROM players WHERE id=$id");
+        $row = $res->fetch_assoc();
+        
+        $ts_val = isset($row['ts']) ? (int)$row['ts'] : 0;
+        $date_str = !empty($row['updated_at']) ? date("Y-m-d H:i", strtotime($row['updated_at'])) : date("Y-m-d H:i");
+        
+        echo json_encode(['success' => true, 'updated_at' => $date_str, 'ts' => $ts_val]);
+        exit;
     }
-    
-    // Redirect to prevent form-resubmission popups on refresh, returning exactly to the page
-    header("Location: edit_players.php");
-    exit;
 }
 
 // Fetch players
@@ -64,26 +76,26 @@ require_once 'header.php';
                 <tr>
                     <td>
                         <span class="view-mode"><?= !empty($row['first_name']) ? htmlspecialchars($row['first_name']) : '-' ?></span>
-                        <input type="text" form="<?= $f_id ?>" name="first_name" class="form-control form-control-sm edit-mode d-none" value="<?= !empty($row['first_name']) ? htmlspecialchars($row['first_name']) : ''; ?>">
+                        <input type="text" name="first_name" class="form-control form-control-sm edit-mode d-none" value="<?= !empty($row['first_name']) ? htmlspecialchars($row['first_name']) : ''; ?>">
                     </td>
                     <td>
                         <span class="view-mode"><?= !empty($row['last_name']) ? htmlspecialchars($row['last_name']) : '-' ?></span>
-                        <input type="text" form="<?= $f_id ?>" name="last_name" class="form-control form-control-sm edit-mode d-none" value="<?= !empty($row['last_name']) ? htmlspecialchars($row['last_name']) : ''; ?>">
+                        <input type="text" name="last_name" class="form-control form-control-sm edit-mode d-none" value="<?= !empty($row['last_name']) ? htmlspecialchars($row['last_name']) : ''; ?>">
                     </td>
                     <td>
                         <span class="view-mode"><?= !empty($row['birthdate']) ? htmlspecialchars($row['birthdate']) : '-' ?></span>
-                        <input type="text" form="<?= $f_id ?>" name="birthdate" class="form-control form-control-sm datepicker edit-mode d-none" value="<?= !empty($row['birthdate']) ? htmlspecialchars($row['birthdate']) : ''; ?>">
+                        <input type="date" name="birthdate" class="form-control form-control-sm edit-mode d-none" value="<?= !empty($row['birthdate']) ? htmlspecialchars($row['birthdate']) : ''; ?>">
                     </td>
                     <td class="text-center">
                         <span class="view-mode badge <?= (!empty($row['is_doelman'])) ? 'bg-primary' : 'bg-secondary' ?>"><?= (!empty($row['is_doelman'])) ? 'Doelman' : 'Veld' ?></span>
                         <div class="form-check form-switch pt-1 d-inline-block edit-mode d-none">
-                            <input class="form-check-input doelman-toggle" form="<?= $f_id ?>" type="checkbox" name="is_doelman" value="1" <?= (!empty($row['is_doelman'])) ? 'checked' : ''; ?>>
+                            <input class="form-check-input doelman-toggle" type="checkbox" name="is_doelman" value="1" <?= (!empty($row['is_doelman'])) ? 'checked' : ''; ?>>
                         </div>
                     </td>
                     <td>
                         <span class="view-mode"><?= !empty($row['favorite_positions']) ? htmlspecialchars($row['favorite_positions']) : '-' ?></span>
                         <div class="fav-pos-container edit-mode d-none">
-                            <input type="text" form="<?= $f_id ?>" name="favorite_positions" class="form-control form-control-sm border-primary fav-pos-input" placeholder="Bv. 7,11,2" value="<?= !empty($row['favorite_positions']) ? htmlspecialchars($row['favorite_positions']) : ''; ?>">
+                            <input type="text" name="favorite_positions" class="form-control form-control-sm border-primary fav-pos-input" placeholder="Bv. 7,11,2" value="<?= !empty($row['favorite_positions']) ? htmlspecialchars($row['favorite_positions']) : ''; ?>">
                         </div>
                     </td>
                     <?php $updated_ts = isset($row['updated_at']) ? strtotime($row['updated_at']) : 0; ?>
@@ -92,10 +104,7 @@ require_once 'header.php';
                     </td>
                     <td class="text-end" style="min-width: 90px; cursor: pointer;">
                         <span class="view-mode text-muted small fst-italic"><i class="fa-solid fa-pen"></i></span>
-                        <form method="post" id="<?= $f_id ?>" style="display:inline;">
-                            <input type="hidden" name="player_id" value="<?= $row['id'] ?>">
-                            <button type="submit" class="btn btn-primary btn-sm save-btn d-none"><i class="fa-solid fa-check"></i></button>
-                        </form>
+                        <button type="button" class="btn btn-primary btn-sm save-btn d-none" data-id="<?= $row['id'] ?>"><i class="fa-solid fa-check"></i></button>
                     </td>
                 </tr>
                 <?php endwhile; ?>
@@ -149,14 +158,62 @@ document.addEventListener("DOMContentLoaded", function() {
         if (!e.target.closest('.save-btn')) {
             let tr = $(this);
             if (!tr.hasClass('editing')) {
-                // (Optioneel: Andere rijen dichtklappen kan hier door .removeClass('editing') etc)
-                // $('#playersTable tbody tr.editing').removeClass('editing').find('.edit-mode, .save-btn').addClass('d-none').end().find('.view-mode').removeClass('d-none');
-                
                 tr.addClass('editing');
                 tr.find('.view-mode').addClass('d-none');
                 tr.find('.edit-mode, .save-btn').removeClass('d-none');
             }
         }
+    });
+
+    // Ajax Save Logic
+    $('#playersTable tbody').on('click', '.save-btn', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const tr = $(this).closest('tr');
+        const id = $(this).data('id');
+        
+        const data = {
+            player_id: id,
+            first_name: tr.find('input[name="first_name"]').val(),
+            last_name: tr.find('input[name="last_name"]').val(),
+            birthdate: tr.find('input[name="birthdate"]').val(),
+            favorite_positions: tr.find('input[name="favorite_positions"]').val(),
+            is_doelman: tr.find('input[name="is_doelman"]').is(':checked') ? 1 : 0
+        };
+        
+        const btn = $(this);
+        btn.html('<i class="fa-solid fa-spinner fa-spin"></i>');
+        
+        fetch('edit_players.php', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        }).then(r => r.json()).then(res => {
+            if(res.success) {
+                // Update view models
+                tr.find('.view-mode').eq(0).text(data.first_name || '-');
+                tr.find('.view-mode').eq(1).text(data.last_name || '-');
+                tr.find('.view-mode').eq(2).text(data.birthdate || '-');
+                tr.find('.view-mode').eq(3).removeClass('bg-primary bg-secondary').addClass(data.is_doelman ? 'bg-primary' : 'bg-secondary').text(data.is_doelman ? 'Doelman' : 'Veld');
+                tr.find('.view-mode').eq(4).text(data.favorite_positions || '-');
+                
+                // Update timestamp
+                tr.find('td:nth-child(6) span.small').text(res.updated_at);
+                
+                // Close editing mode
+                tr.removeClass('editing');
+                tr.find('.edit-mode, .save-btn').addClass('d-none');
+                tr.find('.view-mode').removeClass('d-none');
+                btn.html('<i class="fa-solid fa-check"></i>');
+                
+                // Also update datatables internal cell data for sorting and perform a redraw
+                let dt = $('#playersTable').DataTable();
+                tr.find('td:nth-child(6)').attr('data-sort', res.ts);
+                dt.cell(tr, 5).data(tr.find('td:nth-child(6)').html()).invalidate();
+                dt.draw(false); // false means 'keep current paging'
+            }
+        });
     });
 
     // Initialiseer DataTables met State Saving

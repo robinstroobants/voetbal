@@ -59,12 +59,12 @@ require_once 'header.php';
           <div class="col-md-1">
               <label class="form-label text-muted small mb-1">Doelman</label>
               <div class="form-check form-switch pt-1 ms-1">
-                  <input class="form-check-input" type="checkbox" name="is_doelman" value="1" <?php echo (!empty($row['is_doelman'])) ? 'checked' : ''; ?>>
+                  <input class="form-check-input doelman-toggle" type="checkbox" name="is_doelman" value="1" <?php echo (!empty($row['is_doelman'])) ? 'checked' : ''; ?>>
               </div>
           </div>
-          <div class="col-md-2">
+          <div class="col-md-2 fav-pos-container">
               <label class="form-label text-muted small mb-1 text-primary"><i class="fa-solid fa-star me-1"></i>Fav. Posities (top -> flop)</label>
-              <input type="text" name="favorite_positions" class="form-control form-control-sm border-primary" placeholder="Bv. 8,10,4" value="<?php echo !empty($row['favorite_positions']) ? htmlspecialchars($row['favorite_positions']) : ''; ?>">
+              <input type="text" name="favorite_positions" class="form-control form-control-sm border-primary fav-pos-input" placeholder="Bv. 8,10,4" value="<?php echo !empty($row['favorite_positions']) ? htmlspecialchars($row['favorite_positions']) : ''; ?>">
           </div>
         
           <div class="col-md-1 d-flex align-items-end mt-4">
@@ -76,3 +76,32 @@ require_once 'header.php';
 </div>
 
 <?php require_once 'footer.php'; ?>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const toggles = document.querySelectorAll('.doelman-toggle');
+    
+    toggles.forEach(toggle => {
+        const row = toggle.closest('.row');
+        const favContainer = row.querySelector('.fav-pos-container');
+        const favInput = favContainer.querySelector('.fav-pos-input');
+        
+        function updateVisibility() {
+            if (toggle.checked) {
+                // Verberg de favoriete posities sectie indien het een doelman is
+                favContainer.style.visibility = 'hidden';
+                // Optioneel: We resetten de waarde zodat deze niet per ongeluk als field speler data opslaat
+                favInput.value = '';
+            } else {
+                favContainer.style.visibility = 'visible';
+            }
+        }
+        
+        // Luister naar wijzigingen
+        toggle.addEventListener('change', updateVisibility);
+        
+        // Initial setup on page load
+        updateVisibility();
+    });
+});
+</script>

@@ -32,6 +32,6 @@ Creëer een 'Dashboard' overzicht in PHP.
 
 
 
-
-kan jij nu op basis van die logica een wisselschema genereren dat mij een zo hoog mogelijke score zou geven als we de selectie van wedstrijd met id 47 (Nijlen) nemen. Je hoeft geen rekening te houden met min 3 posities. houdt de 5 beste bij en je mag deze schemas een index geven boven de 20000
+ok, nu je het speelschema kent zou ik graag enkele wisselschemas genereren die mij een zo hoog mogelijke score zou geven als we de selectie van wedstrijd met id 47 (Nijlen) nemen. 
+Je hoeft geen rekening te houden met min 3 posities. houdt de 5 beste bij en je mag deze schemas een index geven boven de 50000. is php overigens de beste/snelste manier om dat te genereren of doen we dat beter in python?
 

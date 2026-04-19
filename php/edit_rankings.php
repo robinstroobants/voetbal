@@ -3,7 +3,7 @@ require_once 'getconn.php';
 $page_title = 'Team & Positie Rankings';
 
 // Haal alle spelers op die GEEN vaste doelman zijn
-$players_result = $conn->query("SELECT id, first_name, last_name, is_doelman FROM players");
+$players_result = $conn->query("SELECT id, first_name, last_name, is_doelman FROM players ORDER BY first_name ASC, last_name ASC");
 $players = [];
 $team_ranking_valid_players = []; // Voor initiële weergave in tabblad 1
 while ($p = $players_result->fetch_assoc()) {
@@ -159,7 +159,7 @@ while ($g = $gk_res->fetch_assoc()) {
                 <div class="row">
                     <div class="col-md-6">
                         <h5 class="text-primary"><i class="fa-solid fa-user-shield me-2"></i>Vaste Doelmannen</h5>
-                        <p class="text-muted small">Fineregel de exacte score voor Positie 1.</p>
+                        <p class="text-muted small">Regel de exacte score voor Positie 1.</p>
                         
                         <?php 
                         $hasGoalie = false;

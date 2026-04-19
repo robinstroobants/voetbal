@@ -63,31 +63,37 @@ require_once 'header.php';
                 ?>
                 <tr>
                     <td>
-                        <input type="text" form="<?= $f_id ?>" name="first_name" class="form-control form-control-sm" value="<?= !empty($row['first_name']) ? htmlspecialchars($row['first_name']) : ''; ?>">
+                        <span class="view-mode"><?= !empty($row['first_name']) ? htmlspecialchars($row['first_name']) : '-' ?></span>
+                        <input type="text" form="<?= $f_id ?>" name="first_name" class="form-control form-control-sm edit-mode d-none" value="<?= !empty($row['first_name']) ? htmlspecialchars($row['first_name']) : ''; ?>">
                     </td>
                     <td>
-                        <input type="text" form="<?= $f_id ?>" name="last_name" class="form-control form-control-sm" value="<?= !empty($row['last_name']) ? htmlspecialchars($row['last_name']) : ''; ?>">
+                        <span class="view-mode"><?= !empty($row['last_name']) ? htmlspecialchars($row['last_name']) : '-' ?></span>
+                        <input type="text" form="<?= $f_id ?>" name="last_name" class="form-control form-control-sm edit-mode d-none" value="<?= !empty($row['last_name']) ? htmlspecialchars($row['last_name']) : ''; ?>">
                     </td>
                     <td>
-                        <input type="text" form="<?= $f_id ?>" name="birthdate" class="form-control form-control-sm datepicker" value="<?= !empty($row['birthdate']) ? htmlspecialchars($row['birthdate']) : ''; ?>">
+                        <span class="view-mode"><?= !empty($row['birthdate']) ? htmlspecialchars($row['birthdate']) : '-' ?></span>
+                        <input type="text" form="<?= $f_id ?>" name="birthdate" class="form-control form-control-sm datepicker edit-mode d-none" value="<?= !empty($row['birthdate']) ? htmlspecialchars($row['birthdate']) : ''; ?>">
                     </td>
                     <td class="text-center">
-                        <div class="form-check form-switch pt-1 d-inline-block">
+                        <span class="view-mode badge <?= (!empty($row['is_doelman'])) ? 'bg-primary' : 'bg-secondary' ?>"><?= (!empty($row['is_doelman'])) ? 'Doelman' : 'Veld' ?></span>
+                        <div class="form-check form-switch pt-1 d-inline-block edit-mode d-none">
                             <input class="form-check-input doelman-toggle" form="<?= $f_id ?>" type="checkbox" name="is_doelman" value="1" <?= (!empty($row['is_doelman'])) ? 'checked' : ''; ?>>
                         </div>
                     </td>
                     <td>
-                        <div class="fav-pos-container">
+                        <span class="view-mode"><?= !empty($row['favorite_positions']) ? htmlspecialchars($row['favorite_positions']) : '-' ?></span>
+                        <div class="fav-pos-container edit-mode d-none">
                             <input type="text" form="<?= $f_id ?>" name="favorite_positions" class="form-control form-control-sm border-primary fav-pos-input" placeholder="Bv. 7,11,2" value="<?= !empty($row['favorite_positions']) ? htmlspecialchars($row['favorite_positions']) : ''; ?>">
                         </div>
                     </td>
                     <td data-sort="<?= (int)$row['updated_ts'] ?>">
-                        <span class="small text-muted"><?= !empty($row['updated_at']) ? date("d/m H:i", strtotime($row['updated_at'])) : '-' ?></span>
+                        <span class="small text-muted"><?= !empty($row['updated_at']) ? date("Y-m-d H:i", strtotime($row['updated_at'])) : '-' ?></span>
                     </td>
-                    <td class="text-end">
+                    <td class="text-end" style="min-width: 90px; cursor: pointer;">
+                        <span class="view-mode text-muted small fst-italic"><i class="fa-solid fa-pen"></i></span>
                         <form method="post" id="<?= $f_id ?>" style="display:inline;">
                             <input type="hidden" name="player_id" value="<?= $row['id'] ?>">
-                            <button type="submit" class="btn btn-primary btn-sm"><i class="fa-solid fa-check me-1"></i>Opslaan</button>
+                            <button type="submit" class="btn btn-primary btn-sm save-btn d-none"><i class="fa-solid fa-check"></i></button>
                         </form>
                     </td>
                 </tr>
@@ -135,11 +141,29 @@ document.addEventListener("DOMContentLoaded", function() {
 
     // Initialiseer visibility op alle initiele toggles
     document.querySelectorAll('.doelman-toggle').forEach(t => updateVisibility(t));
+    
+    // Zorg ervoor dat klikken op een rij inline edit mode aanzet
+    $('#playersTable tbody').on('click', 'tr', function(e) {
+        // Als we niet op de save-knop zelf klikken, activeer focus
+        if (!e.target.closest('.save-btn')) {
+            let tr = $(this);
+            if (!tr.hasClass('editing')) {
+                // (Optioneel: Andere rijen dichtklappen kan hier door .removeClass('editing') etc)
+                // $('#playersTable tbody tr.editing').removeClass('editing').find('.edit-mode, .save-btn').addClass('d-none').end().find('.view-mode').removeClass('d-none');
+                
+                tr.addClass('editing');
+                tr.find('.view-mode').addClass('d-none');
+                tr.find('.edit-mode, .save-btn').removeClass('d-none');
+            }
+        }
+    });
 
     // Initialiseer DataTables met State Saving
     $('#playersTable').DataTable({
         stateSave: true, // Zorgt dat de geselecteerde sortering onthouden blijft over page-reloads heen
         responsive: true,
+        pageLength: 24, // Standaard 24 rijen zichtbaar
+        lengthMenu: [[12, 24, 48, -1], [12, 24, 48, "Alles"]],
         language: {
             url: '//cdn.datatables.net/plug-ins/1.13.6/i18n/nl-NL.json'
         },

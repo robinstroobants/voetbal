@@ -2,6 +2,13 @@
 // Default page title
 $page_title = $page_title ?? 'Voetbal App';
 ?>
+<?php
+// Forceer NGINX (zoals SiteGround SuperCacher) en browsers om The Matrix Nooit te cachen!
+header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+header("Cache-Control: post-check=0, pre-check=0", false);
+header("Pragma: no-cache");
+header("Expires: 0"); // Proxies blockeren
+?>
 <!DOCTYPE html>
 <html lang="nl">
 <head>

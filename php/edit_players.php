@@ -63,8 +63,8 @@ require_once 'header.php';
               </div>
           </div>
           <div class="col-md-2 fav-pos-container">
-              <label class="form-label text-muted small mb-1 text-primary"><i class="fa-solid fa-star me-1"></i>Fav. Posities (top -> flop)</label>
-              <input type="text" name="favorite_positions" class="form-control form-control-sm border-primary fav-pos-input" placeholder="Bv. 8,10,4" value="<?php echo !empty($row['favorite_positions']) ? htmlspecialchars($row['favorite_positions']) : ''; ?>">
+              <label class="form-label text-muted small mb-1 text-primary"><i class="fa-solid fa-star me-1"></i>Fav. Posities</label>
+              <input type="text" name="favorite_positions" class="form-control form-control-sm border-primary fav-pos-input" placeholder="Bv. 7,11,2" value="<?php echo !empty($row['favorite_positions']) ? htmlspecialchars($row['favorite_positions']) : ''; ?>">
           </div>
         
           <div class="col-md-1 d-flex align-items-end mt-4">

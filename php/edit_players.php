@@ -17,14 +17,19 @@ if (isset($_SERVER['CONTENT_TYPE']) && strpos($_SERVER['CONTENT_TYPE'], 'applica
         $is_doelman = !empty($data["is_doelman"]) ? 1 : 0;
 
         $birthdate_val = ($birthdate === '') ? null : $birthdate;
-        $fav_pos_val = ($fav_pos === '') ? null : $fav_pos;
+        $fav_pos_val = $fav_pos; // Geen NULL force, gewoon lege string toestaan voor VARCHAR
 
-        // updated_at is automatically refreshed via ON UPDATE CURRENT_TIMESTAMP
         $stmt = $conn->prepare("UPDATE players SET first_name=?, last_name=?, birthdate=?, favorite_positions=?, is_doelman=? WHERE id=?");
         if ($stmt) {
             $stmt->bind_param("ssssii", $first_name, $last_name, $birthdate_val, $fav_pos_val, $is_doelman, $id);
-            $stmt->execute();
+            if (!$stmt->execute()) {
+                echo json_encode(['success' => false, 'error' => $stmt->error]);
+                exit;
+            }
             $stmt->close();
+        } else {
+            echo json_encode(['success' => false, 'error' => $conn->error]);
+            exit;
         }
         
         // Haal de geupdate speler op (zonder veilige crash indien updated_at nog niet bestaat)
@@ -217,6 +222,10 @@ document.addEventListener("DOMContentLoaded", function() {
                 tr.find('td:nth-child(6)').attr('data-sort', res.ts);
                 dt.cell(tr, 5).data(tr.find('td:nth-child(6)').html()).invalidate();
                 dt.draw(false); // false means 'keep current paging'
+            } else {
+                console.error("Server Fout:", res.error);
+                btn.html('<i class="fa-solid fa-triangle-exclamation text-warning"></i>');
+                alert("Bewaren mislukt in database! Error: " + (res.error || "Onbekend"));
             }
         }).catch(err => {
             console.error("AJAX Error:", err);

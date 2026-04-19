@@ -22,13 +22,8 @@ if (isset($_SERVER['CONTENT_TYPE']) && strpos($_SERVER['CONTENT_TYPE'], 'applica
         $stmt = $conn->prepare("UPDATE players SET first_name=?, last_name=?, birthdate=?, favorite_positions=?, is_doelman=? WHERE id=?");
         if ($stmt) {
             $stmt->bind_param("ssssii", $first_name, $last_name, $birthdate_val, $fav_pos_val, $is_doelman, $id);
-            try {
-                if (!$stmt->execute()) {
-                    echo json_encode(['success' => false, 'error' => $stmt->error]);
-                    exit;
-                }
-            } catch (Exception $e) {
-                echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+            if (!$stmt->execute()) {
+                echo json_encode(['success' => false, 'error' => $stmt->error]);
                 exit;
             }
             $stmt->close();

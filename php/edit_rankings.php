@@ -159,21 +159,32 @@ while ($g = $gk_res->fetch_assoc()) {
                 <div class="row">
                     <div class="col-md-6">
                         <h5 class="text-primary"><i class="fa-solid fa-user-shield me-2"></i>Vaste Doelmannen</h5>
-                        <p class="text-muted small">Fineregel de exacte matrixscore voor Positie 1 (50-100 punten).</p>
-                        <?php foreach ($players as $pid => $p): 
+                        <p class="text-muted small">Fineregel de exacte score voor Positie 1.</p>
+                        
+                        <?php 
+                        $hasGoalie = false;
+                        foreach ($players as $pid => $p): 
                             if ($p['is_doelman'] == 1):
+                                $hasGoalie = true;
                                 $score = isset($gk_scores[$pid]) ? $gk_scores[$pid] : 95;
                         ?>
                             <div class="card p-3 mb-3 border-0 shadow-sm">
                                 <label class="fw-bold fs-5 mb-2"><?= htmlspecialchars($p['first_name'] . ' ' . $p['last_name']) ?> <span class="badge bg-primary float-end" id="gk_score_val_<?= $pid ?>"><?= $score ?>/100</span></label>
                                 <input type="range" class="form-range gk-slider" data-id="<?= $pid ?>" min="50" max="100" step="1" value="<?= $score ?>">
                             </div>
-                        <?php endif; endforeach; ?>
+                        <?php endif; endforeach; 
+                        
+                        if (!$hasGoalie): ?>
+                            <div class="alert alert-warning border-warning">
+                                <i class="fa-solid fa-triangle-exclamation me-2"></i><strong>Geen Vaste Doelman gevonden!</strong><br>
+                                Je hebt het vinkje 'Vaste Doelman' nog bij niemand aangezet. Ga naar <a href="edit_players.php" class="fw-bold text-dark">Spelers Bewerken</a> om je doelman(nen) aan te duiden!
+                            </div>
+                        <?php endif; ?>
                     </div>
                     
                     <div class="col-md-6">
                         <h5 class="text-warning"><i class="fa-solid fa-hands-bubbles me-2"></i>Extra Handschoenen (Veldspelers)</h5>
-                        <p class="text-muted small">Wijs fieldplayers aan als backup doelman (0-90 punten).</p>
+                        <p class="text-muted small">Duid veldspelers aan als backup doelman.</p>
                         
                         <div id="rsrv-list">
                             <?php foreach ($players as $pid => $p): 

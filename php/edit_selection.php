@@ -121,7 +121,7 @@ require_once 'header.php';
                         <input class="form-check-input me-3 player-checkbox" type="checkbox" name="players[]" value="<?= $pId ?>" <?= $isSelected ? 'checked' : '' ?> onchange="updateCounts()">
                         <div>
                             <strong><?= htmlspecialchars($player['first_name'] . ' ' . $player['last_name']) ?></strong>
-                            <div class="text-muted small"><?= htmlspecialchars($player['shortname']) ?></div>
+                            <div class="text-muted small"><?= htmlspecialchars($player['first_name']) ?></div>
                         </div>
                     </div>
                     <div style="width: 150px; text-align: center;" onclick="event.stopPropagation();">

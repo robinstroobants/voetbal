@@ -3,7 +3,7 @@ require_once 'getconn.php';
 $page_title = 'Team & Positie Rankings';
 
 // Haal alle spelers op die GEEN vaste doelman zijn
-$players_result = $conn->query("SELECT id, first_name, last_name, shortname, is_doelman FROM players WHERE is_doelman = 0 OR is_doelman IS NULL");
+$players_result = $conn->query("SELECT id, first_name, last_name, is_doelman FROM players WHERE is_doelman = 0 OR is_doelman IS NULL");
 $players = [];
 while ($p = $players_result->fetch_assoc()) {
     $players[$p['id']] = $p;
@@ -94,7 +94,7 @@ while ($pr = $pos_ranks_result->fetch_assoc()) {
                         <ul id="teamRankingList" class="list-group sortable-list">
                             <?php foreach ($team_ranking as $index => $pid): 
                                 $p = $players[$pid]; 
-                                $name = !empty($p['shortname']) ? $p['shortname'] : $p['first_name'] . ' ' . $p['last_name'];
+                                $name = $p['first_name'] . ' ' . $p['last_name'];
                             ?>
                             <li class="list-group-item d-flex align-items-center fw-bold" data-id="<?= $pid ?>">
                                 <i class="fa-solid fa-grip-vertical drag-handle me-3"></i>
@@ -221,7 +221,7 @@ while ($pr = $pos_ranks_result->fetch_assoc()) {
 
             // Bepaal welke speler in welke bak zit
             Object.values(playersData).forEach(p => {
-                const name = p.shortname ? p.shortname : p.first_name + ' ' + p.last_name;
+                const name = p.first_name + ' ' + p.last_name;
                 const li = document.createElement('li');
                 li.className = 'list-group-item d-flex align-items-center fw-medium';
                 li.setAttribute('data-id', p.id);
@@ -240,7 +240,7 @@ while ($pr = $pos_ranks_result->fetch_assoc()) {
             assignedIds.forEach((pid, index) => {
                 const p = playersData[pid];
                 if(p) {
-                    const name = p.shortname ? p.shortname : p.first_name + ' ' + p.last_name;
+                    const name = p.first_name + ' ' + p.last_name;
                     const li = document.createElement('li');
                     li.className = 'list-group-item d-flex align-items-center fw-bold border-primary';
                     li.setAttribute('data-id', p.id);

@@ -7,16 +7,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && isset($_POST["player_id"])) {
     $first_name = $conn->real_escape_string($_POST["first_name"]);
     $last_name = $conn->real_escape_string($_POST["last_name"]);
     $birthdate = trim($_POST["birthdate"]);
-    $shortname = $conn->real_escape_string($_POST["shortname"]);
     $fav_pos = $conn->real_escape_string($_POST["favorite_positions"]);
     $is_doelman = isset($_POST["is_doelman"]) ? 1 : 0;
 
     $birthdate_val = ($birthdate === '') ? null : $birthdate;
     $fav_pos_val = ($fav_pos === '') ? null : $fav_pos;
 
-    $stmt = $conn->prepare("UPDATE players SET first_name=?, last_name=?, shortname=?, birthdate=?, favorite_positions=?, is_doelman=? WHERE id=?");
+    $stmt = $conn->prepare("UPDATE players SET first_name=?, last_name=?, birthdate=?, favorite_positions=?, is_doelman=? WHERE id=?");
     if ($stmt) {
-        $stmt->bind_param("sssssii", $first_name, $last_name, $shortname, $birthdate_val, $fav_pos_val, $is_doelman, $id);
+        $stmt->bind_param("ssssii", $first_name, $last_name, $birthdate_val, $fav_pos_val, $is_doelman, $id);
         $stmt->execute();
         $stmt->close();
     }
@@ -44,13 +43,9 @@ require_once 'header.php';
               <label class="form-label text-muted small mb-1">Voornaam</label>
               <input type="text" name="first_name" class="form-control form-control-sm" value="<?php echo !empty($row['first_name']) ? htmlspecialchars($row['first_name']) : ''; ?>">
           </div>
-          <div class="col-md-2">
+          <div class="col-md-3">
               <label class="form-label text-muted small mb-1">Achternaam</label>
               <input type="text" name="last_name" class="form-control form-control-sm" value="<?php echo !empty($row['last_name']) ? htmlspecialchars($row['last_name']) : ''; ?>">
-          </div>
-          <div class="col-md-2">
-              <label class="form-label text-muted small mb-1">Shortname</label>
-              <input type="text" name="shortname" class="form-control form-control-sm" value="<?php echo !empty($row['shortname']) ? htmlspecialchars($row['shortname']) : ''; ?>">
           </div>
           <div class="col-md-2">
               <label class="form-label text-muted small mb-1">Geboortedatum</label>

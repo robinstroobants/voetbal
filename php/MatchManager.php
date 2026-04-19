@@ -24,7 +24,7 @@ class MatchManager {
         // 2. Query de selectie (status_id = 2 voor finale selectie, of alle)
         // Optioneel: We voegen een veld is_goalkeeper toe aan game_selections (of joinen met players info)
         $sqlSelection = "
-            SELECT p.id as player_id, p.shortname, p.first_name, p.last_name, p.birthdate, gs.status_id, gs.is_goalkeeper
+            SELECT p.id as player_id, p.first_name, p.last_name, p.birthdate, gs.status_id, gs.is_goalkeeper
             FROM game_selections gs
             INNER JOIN players p ON gs.player_id = p.id
             WHERE gs.game_id = :gameId
@@ -39,7 +39,7 @@ class MatchManager {
 
         // 3. Haal de rating/scores op voor exact deze spelers op het moment (game_date) van de match.
         $sqlScores = "
-            SELECT ps.player_id, p.shortname, ps.position, ps.score 
+            SELECT ps.player_id, ps.position, ps.score 
             FROM player_scores ps
             INNER JOIN players p ON ps.player_id = p.id
             INNER JOIN (
@@ -140,7 +140,6 @@ class MatchManager {
             $displayName = $displayNames[$playerId] ?? trim($p['first_name']);
 
             $playerInfoMap[$playerId] = [
-                'shortname' => $p['shortname'],
                 'first_name' => $p['first_name'],
                 'last_name' => $p['last_name'],
                 'name' => trim($p['first_name'] . ' ' . $p['last_name']),
@@ -197,13 +196,6 @@ class MatchManager {
      * Berekeningen gebeuren dynamisch door de wisselschemas uit te voeren met de opgeslagen speler-volgorde.
      */
     public function getHistoricalPlaytime(): array {
-        // Maak een lookup in de andere richting: Shortname -> ID
-        $stmtPlayers = $this->pdo->query("SELECT id, shortname FROM players");
-        $shortnameToId = [];
-        while ($pRow = $stmtPlayers->fetch(PDO::FETCH_ASSOC)) {
-            // Bewaar ID met string cast om type conflicts te vermijden
-            $shortnameToId[$pRow['shortname']] = (string)$pRow['id'];
-        }
 
         $stmt = $this->pdo->query("
             SELECT l.game_id, l.schema_id, l.player_order, g.game_date, g.opponent, g.format,
@@ -221,17 +213,10 @@ class MatchManager {
             $opponent_clean = str_replace(' ', '', $row['opponent']);
             $game_key = $date_str . "_" . $opponent_clean;
 
-            // De DB bevat momenteel shortnames ('Miel,Jack,Thibo')
-            $str_players = explode(',', $row['player_order']);
-            
-            // Map shortnames om naar pure dbID's 
+            // Map string-ids om naar pure dbID's 
             $players = [];
             foreach ($str_players as $name) {
-                if (isset($shortnameToId[$name])) {
-                    $players[] = $shortnameToId[$name];
-                } else {
-                    $players[] = $name; // Fallback als de speler niet gevonden is
-                }
+                $players[] = $name;
             }
             
             $count = count($players);

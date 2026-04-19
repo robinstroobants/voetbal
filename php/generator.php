@@ -279,15 +279,7 @@
   // Speelminuten object ophalen uit de databank
   $pt_all_games = $matchManager->getHistoricalPlaytime();
 
-  // Bouw een reverse lookup (ID -> Shortname)
-  $idToShortname = [];
-  if (isset($global_playerinfo) && is_array($global_playerinfo)) {
-      foreach ($global_playerinfo as $short => $data) {
-          if (isset($data['id'])) {
-              $idToShortname[$data['id']] = $short;
-          }
-      }
-  }
+
 
   $vorige_wedstrijd = null;
   $volgende_wedstrijd = null;
@@ -302,13 +294,10 @@
       if (isset($pt_all_games[$vorige_wedstrijd_key])) {
           $vorige_wedstrijd = $pt_all_games[$vorige_wedstrijd_key];
           
-          // MAP IDs naar Shortnames voor compatibility met verdere no_min/no_max logica
           if (isset($vorige_wedstrijd['players'])) {
               $mapped_prev = [];
               foreach ($vorige_wedstrijd['players'] as $id => $time) {
-                  if (isset($idToShortname[$id])) {
-                      $mapped_prev[$idToShortname[$id]] = $time;
-                  }
+                  $mapped_prev[$id] = $time;
               }
               $vorige_wedstrijd['players'] = $mapped_prev;
           }
@@ -861,10 +850,10 @@
       
       $db_time_played = [];
       $db_time_in_position = [];
-      foreach ($lineup->time_played as $shortname => $time) {
-          $id = $global_playerinfo[$shortname]['id'] ?? $shortname;
+      foreach ($lineup->time_played as $player_id => $time) {
+          $id = $player_id;
           $db_time_played[$id] = $time;
-          $db_time_in_position[$id] = $lineup->time_in_position[$shortname] ?? [];
+          $db_time_in_position[$id] = $lineup->time_in_position[$player_id] ?? [];
       }
         
       $pt_all_games[$wedstrijd] = array(
@@ -878,8 +867,8 @@
     
     // $player_scores omzetten naar IDs voor de stats loop
     $db_player_scores = [];
-    foreach ($player_scores as $shortname => $score) {
-        $id = $global_playerinfo[$shortname]['id'] ?? $shortname;
+    foreach ($player_scores as $player_id => $score) {
+        $id = $player_id;
         $db_player_scores[$id] = $score;
     }
     

@@ -5,7 +5,7 @@
   function getPlayerName($id) {
       global $global_playerinfo;
       if (isset($global_playerinfo[$id])) {
-          return htmlspecialchars($global_playerinfo[$id]['display_name'] ?? $global_playerinfo[$id]['shortname']);
+          return htmlspecialchars($global_playerinfo[$id]['display_name'] ?? $global_playerinfo[$id]['first_name']);
       }
       return htmlspecialchars($id);
   }
@@ -216,8 +216,8 @@
               $part_score = 0;
               $part_max = 0;
               // Score voor dit partje berekenen:
-              foreach($lineup->events[$game_idx]["lineup"] as $_pos => $_shortname){
-                $part_score += $lineup->events[$game_idx]["duration"] * $player_scores[$_shortname][$_pos];
+              foreach($lineup->events[$game_idx]["lineup"] as $_pos => $_playerid){
+                $part_score += $lineup->events[$game_idx]["duration"] * ($player_scores[$_playerid][$_pos] ?? 0);
                 $part_max += $lineup->events[$game_idx]["duration"] * 100;
               }
               if ($building_lineup){

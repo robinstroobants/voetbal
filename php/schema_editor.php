@@ -45,10 +45,10 @@ if (!isset($ws[$schemaId])) {
 $schema = $ws[$schemaId];
 
 // Helper for playernames
-$stmtPlayers = $pdo->query("SELECT id, first_name, last_name, shortname FROM players");
+$stmtPlayers = $pdo->query("SELECT id, first_name, last_name FROM players");
 $playersMap = [];
 while($row = $stmtPlayers->fetch(PDO::FETCH_ASSOC)) {
-    $playersMap[$row['id']] = !empty($row['shortname']) ? $row['shortname'] : $row['first_name'];
+    $playersMap[$row['id']] = $row['first_name'];
 }
 
 function getPlayerName($pid, $volgorde_arr, $gk_count, $schema_idx) {

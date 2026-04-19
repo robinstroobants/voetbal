@@ -41,13 +41,14 @@ $page_title = $page_title ?? 'Voetbal App';
                         <i class="fa-solid fa-gauge-high me-2 text-warning"></i>Performance
                     </a></li>
 
-                    <li class="nav-item dropdown d-none">
+                    <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="settingsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="fa-solid fa-gear me-2"></i>Settings
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="settingsDropdown">
                             <li><a class="dropdown-item" href="edit_players.php"><i class="fa-solid fa-users me-2"></i>Spelers</a></li>
-                            <li><a class="dropdown-item" href="edit_scores.php"><i class="fa-solid fa-star me-2"></i>Scores</a></li>
+                            <li><a class="dropdown-item" href="edit_rankings.php"><i class="fa-solid fa-ranking-star me-2 fw-bold text-primary"></i>Rankings</a></li>
+                            <li><a class="dropdown-item" href="edit_scores.php"><i class="fa-solid fa-star me-2"></i>Matrix (Old)</a></li>
                         </ul>
                     </li>
                 </ul>

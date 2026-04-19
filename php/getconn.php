@@ -17,3 +17,13 @@ try {
 } catch (PDOException $e) {
     die("PDO Connection failed: " . $e->getMessage());
 }
+
+if (!function_exists('logPerformance')) {
+    function logPerformance($actionName, $timeMs, $memoryMb, $userId = null) {
+        global $pdo;
+        if ($pdo) {
+            $stmt = $pdo->prepare("INSERT INTO system_logs (action_name, execution_time_ms, memory_usage_mb, user_id) VALUES (?, ?, ?, ?)");
+            $stmt->execute([$actionName, $timeMs, $memoryMb, $userId]);
+        }
+    }
+}

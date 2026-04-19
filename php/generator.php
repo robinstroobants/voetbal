@@ -524,6 +524,7 @@
       $top_selected_options = array($selected);
   } else {
       // --- BEGIN BACKTRACKING OPTIMIZATION ---
+      $algo_start_time = microtime(true);
       $top_lineups = []; // Voor het vasthouden van de absolute top over ALLE schemas
       $gecombineerde_fail_stats = ['no_max' => [], 'no_min' => [], 'forbidden' => []];
       $beschikbare_schemas = !empty($beschikbare_schemas) ? $beschikbare_schemas : [0]; 
@@ -758,6 +759,12 @@
           $fail_stats = $gecombineerde_fail_stats;
       }
       // --- END BACKTRACKING OPTIMIZATION ---
+      $algo_end_time = microtime(true);
+      if (function_exists('logPerformance')) {
+          $exec_time_ms = ($algo_end_time - $algo_start_time) * 1000;
+          $mem_usage_mb = memory_get_peak_usage(true) / 1024 / 1024;
+          logPerformance('Generator Recursive Backtracking', $exec_time_ms, $mem_usage_mb, null);
+      }
   }
 
   // Nu de uitgebreide debug output als er niets gevonden is

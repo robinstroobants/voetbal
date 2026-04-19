@@ -174,9 +174,7 @@ class Game
 
     private function getEvents($players,$format = "5sp4x15"){
       global $events;
-      //pecho($format);
-      //dpr($players,$format);
-      $returnVal = $events[$format][$players];
+      $returnVal = $events[$format][$players] ?? [];
       return $returnVal;
     }
     

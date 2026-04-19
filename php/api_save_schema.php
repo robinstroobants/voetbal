@@ -177,10 +177,17 @@ if ($duplicate_id !== null) {
     $GLOBALS['player_scores'] = isset($matchData['player_scores']) && is_array($matchData['player_scores']) ? $matchData['player_scores'] : [];
     $GLOBALS['global_playerinfo'] = isset($matchData['player_info']) && is_array($matchData['player_info']) ? $matchData['player_info'] : [];
     
+    // Zorg ervoor dat $format globaal beschikbaar is VOOR constructie
+    global $events;
+    $events = [];
+    $events[$format][count($list_of_players)] = $ws[$duplicate_id];
+    
     $gameObj = new Game($list_of_players, true, $format, 'none');
     $gameObj->setPlayerInfo($matchData['player_info']);
     $gameObj->setPlayerScores($matchData['player_scores']);
-    $gameObj->setEvents($duplicate_id);
+    // Overschrijf events expliciet om foutvrij te evalueren
+    $gameObj->events = $ws[$duplicate_id];
+    $gameObj->setTimePlayed(count($gameObj->events)-1);
     $gameObj->setRunQuality();
     $calculated_score = $gameObj->score;
     
@@ -235,6 +242,10 @@ $matchData = $matchManager->getSelection($gameId);
 $GLOBALS['player_scores'] = isset($matchData['player_scores']) && is_array($matchData['player_scores']) ? $matchData['player_scores'] : [];
 $GLOBALS['global_playerinfo'] = isset($matchData['player_info']) && is_array($matchData['player_info']) ? $matchData['player_info'] : [];
 
+global $events;
+$events = [];
+$events[$format][count($list_of_players)] = $ws[$new_id];
+
 $gameObj = new Game($list_of_players, true, $format, 'none');
 $gameObj->setPlayerInfo($matchData['player_info']);
 $gameObj->setPlayerScores($matchData['player_scores']);
@@ -243,7 +254,8 @@ if (preg_match('/_(\d+)x(\d+)$/', $format, $m)) {
     $gameObj->game_duration = (int)$m[2];
     $gameObj->nr_of_games = (int)$m[1];
 }
-$gameObj->setEvents($new_id);
+$gameObj->events = $ws[$new_id];
+$gameObj->setTimePlayed(count($gameObj->events)-1);
 $gameObj->setRunQuality();
 $calculated_score = $gameObj->score;
 

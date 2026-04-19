@@ -27,11 +27,16 @@ if (isset($_SERVER['CONTENT_TYPE']) && strpos($_SERVER['CONTENT_TYPE'], 'applica
             $stmt->close();
         }
         
-        $res = $conn->query("SELECT updated_at, UNIX_TIMESTAMP(updated_at) as ts FROM players WHERE id=$id");
-        $row = $res->fetch_assoc();
+        // Haal de geupdate speler op (zonder veilige crash indien updated_at nog niet bestaat)
+        $res = $conn->query("SELECT * FROM players WHERE id=$id");
+        $row = $res->fetch_assoc() ?? [];
         
-        $ts_val = isset($row['ts']) ? (int)$row['ts'] : 0;
-        $date_str = !empty($row['updated_at']) ? date("Y-m-d H:i", strtotime($row['updated_at'])) : date("Y-m-d H:i");
+        $date_str = '-';
+        $ts_val = 0;
+        if (!empty($row['updated_at'])) {
+            $date_str = date("Y-m-d H:i", strtotime($row['updated_at']));
+            $ts_val = strtotime($row['updated_at']);
+        }
         
         echo json_encode(['success' => true, 'updated_at' => $date_str, 'ts' => $ts_val]);
         exit;
@@ -213,6 +218,10 @@ document.addEventListener("DOMContentLoaded", function() {
                 dt.cell(tr, 5).data(tr.find('td:nth-child(6)').html()).invalidate();
                 dt.draw(false); // false means 'keep current paging'
             }
+        }).catch(err => {
+            console.error("AJAX Error:", err);
+            btn.html('<i class="fa-solid fa-triangle-exclamation text-warning"></i>');
+            alert("Fout bij opslaan! Controleer database of netwerk.");
         });
     });
 

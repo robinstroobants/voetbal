@@ -37,6 +37,9 @@ $page_title = $page_title ?? 'Voetbal App';
                         <i class="fa-regular fa-calendar-days me-2"></i>Wedstrijden
                     </a></li>
                     
+                    <li class="nav-item"><a class="nav-link" href="dashboard_performance.php">
+                        <i class="fa-solid fa-gauge-high me-2 text-warning"></i>Performance
+                    </a></li>
 
                     <li class="nav-item dropdown d-none">
                         <a class="nav-link dropdown-toggle" href="#" id="settingsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">

@@ -13,27 +13,30 @@
     
   <main>
     <div class="container">
-      <div class="d-flex justify-content-between align-items-center p-3">
-        
-          <?php if ($prevGame): ?>
-              <?php $query_params['wedstrijd'] = $prevGame['id']; ?>
-              <a href="<?= build_url($base_url, $query_params); ?>" class="btn btn-wedstrijd d-print-none text-start">
-                  <i class="fa-solid fa-arrow-left"></i>&nbsp;<strong><?= htmlspecialchars($prevGame['opponent']) ?></strong><br>
-                  <small class="text-muted" style="font-size: 0.7em; margin-left: 1.5rem;"><?= date('d/m/Y', strtotime($prevGame['game_date'])) ?></small>
-              </a>
-          <?php else: ?>
-            
-          <?php endif; ?>
-          <h5 class="mb-0 w-100 text-center" id="dynamic-page-title"><?= htmlspecialchars($page_title) ?></h5>
+      <div class="d-flex justify-content-between align-items-center pt-3 pb-2">
+          <div>
+              <?php if ($prevGame): ?>
+                  <?php $query_params['wedstrijd'] = $prevGame['id']; ?>
+                  <a href="<?= build_url($base_url, $query_params); ?>" class="btn btn-outline-secondary btn-sm d-print-none" title="Vorige: <?= htmlspecialchars($prevGame['opponent']) ?>">
+                      <i class="fa-solid fa-chevron-left"></i>
+                  </a>
+              <?php else: ?>
+                  <div style="width: 32px;"></div>
+              <?php endif; ?>
+          </div>
+          
+          <h5 class="mb-0 text-center flex-grow-1 px-2" id="dynamic-page-title"><?= htmlspecialchars($page_title) ?></h5>
 
-          <?php if ($nextGame): ?>
-              <?php $query_params['wedstrijd'] = $nextGame['id']; ?>
-              <a href="<?= build_url($base_url, $query_params) ?>" class="btn btn-wedstrijd d-print-none text-end align-middle">
-                  <strong><?= htmlspecialchars($nextGame['opponent']) ?></strong>&nbsp;<i class="fa-solid fa-arrow-right align-middle me-1"></i><br>
-                  <small class="text-muted" style="font-size: 0.7em; margin-right: 1.5rem;"><?= date('d/m/Y', strtotime($nextGame['game_date'])) ?></small>
-              </a>
-          <?php else: ?>
-          <?php endif; ?>
+          <div>
+              <?php if ($nextGame): ?>
+                  <?php $query_params['wedstrijd'] = $nextGame['id']; ?>
+                  <a href="<?= build_url($base_url, $query_params) ?>" class="btn btn-outline-secondary btn-sm d-print-none" title="Volgende: <?= htmlspecialchars($nextGame['opponent']) ?>">
+                      <i class="fa-solid fa-chevron-right"></i>
+                  </a>
+              <?php else: ?>
+                  <div style="width: 32px;"></div>
+              <?php endif; ?>
+          </div>
       </div>
       
       <div class="d-print-none text-center mb-4 mt-2">
@@ -250,15 +253,10 @@
               $nr_of_games = count($lineup->events);
               $smcol_width = 12;
               //$col_width = 12/$nr_of_parts;  
-              $col_width = 4;
-
-
-              $smcol_width = 4;
-            
-            
+              $col_width = 6;
             
               ?>
-              <div class="col-4 col-sm-<?php echo $smcol_width ?> col-md-<?php echo $col_width ?> p-2">
+              <div class="col-<?php echo $smcol_width ?> col-md-<?php echo $col_width ?> p-2">
                  <div class="border border-secondary p-2 h-100 bg-white text-dark">
                 <table width="100%">
                   <tr>  
@@ -533,10 +531,98 @@
         ?>
       
         </div>
+        <div class="timetable row mt-4 do_not_break <?php echo !$show_position_stats ? 'new-print-page' : ''; ?>">
+          <?php
+          
+          $offset_class = "";
+          switch(count($lineup->time_in_position)){
+            case 5:
+              $timecolwidth = 2;
+              $offset_class = "offset-md-1 ";
+              break;
+            case 6:
+            case 7:
+            case 9:
+              $timecolwidth = 4;
+              break;
+            case 11:
+              $timecolwidth = 2;
+              break;
+            default:
+              $timecolwidth = 3;
+          }
+        
+          //DEBUG array
+          $playertime_to_print = array();
+
+          foreach($lineup->time_in_position as $player=>$playtime) { 
+          
+            $score_for_player = 0;
+            $playertime_to_print[] = "\"" . $player ."\" => " . $lineup->total_playtime[$player];
+            $available_positions_for_player = array();
+            if (array_key_exists("pos",$lineup->playerinfo[$player])){
+              $available_positions_for_player = $lineup->playerinfo[$player]["pos"];
+            } else {
+              // indien nog geen posities gedefinieerd dan is alles ok.
+              $available_positions_for_player = $lineup->positions;
+            }
+            ?>
+            <div class="col-6 col-sm-6 col-md-<?php echo $timecolwidth;?> <?php echo $offset_class; ?>">
+              <h5 class="d-flex justify-content-between align-items-center mb-3 ps-2">
+                <span class="text-primary"><?php echo getPlayerName($player); ?></span>
+                <span class="badge bg-primary rounded-pill"><?php echo calctime($lineup->total_playtime[$player]);?></span>
+              </h5>
+              <ul class="list-group mb-3">
+                <?php foreach($playtime as $pos=>$seconds){ 
+                  if (is_numeric($pos)){
+                    $score_for_player += ($seconds * $player_scores[$player][$pos]); // aantal seconden in die positie maal de score voor die positie. 
+                  }
+                  if ($seconds > 0 && $pos != "total"){ 
+                    $extra_class = "";
+                  
+                    $out_of_position = 0;
+                    if ($pos !="bench" && !in_array($pos,$available_positions_for_player)){
+                      //dpr($available_positions_for_player,$pos);
+                      $extra_class = "fst-italic";
+                    }
+                  ?>
+                  <li class="list-group-item d-flex justify-content-between <?php echo $extra_class; ?> lh-sm">
+                    <div>
+                      <h6 class="my-0"><?php echo $pos; ?></h6>
+                    </div>
+                    <span class="text-muted"><?php echo calctime($seconds) ; ?></span>
+                  </li>
+                <?php } 
+                }
+              
+                if ($building_lineup == 1) {
+                  ?>
+                  <li class="list-group-item d-flex justify-content-between <?php echo $extra_class; ?> lh-sm">
+                    <div>
+                      <h6 class="my-0">Rating <?php echo getPlayerName($player); ?></h6>
+                    </div>
+                    <span class="text-muted"><?php echo round($score_for_player/$playtime["total"]); ?></span>
+                  </li>
+                  <li class="list-group-item d-flex justify-content-between bg-light lh-sm">
+                    <div>
+                      <h6 class="my-0">Pos: <?php echo implode(",",$available_positions_for_player); ?></h6>
+                    </div>
+                  </li>
+                  <?php
+                }
+                ?>
+              
+              </ul>
+            </div>
+          
+            <?php
+            $offset_class = ""; //enkel eerste kolom
+           } 
+           ?>
+          </div>
+      <?php if ($show_position_stats) {?> 
       
-    <?php if ($show_position_stats) {?> 
-      
-      <div class="row mt-4 timetable new-print-page" style="">
+      <div class="row mt-4 timetable new-print-page d-none d-md-flex" style="">
         <div class="col">
           <table id="player-overview" class="table table-bordered table-sm table-hover text-center align-middle bg-white text-dark border-secondary">
             <tr>
@@ -623,116 +709,9 @@
       </div>
     
     <?php } ?>    
-      
-      
-        <div class="timetable row mt-4 do_not_break <?php echo !$show_position_stats ? 'new-print-page' : ''; ?>">
-          <?php
-          
-          $offset_class = "";
-          switch(count($lineup->time_in_position)){
-            case 5:
-              $timecolwidth = 2;
-              $offset_class = "offset-md-1 ";
-              break;
-            case 6:
-            case 7:
-            case 9:
-              $timecolwidth = 4;
-              break;
-            case 11:
-              $timecolwidth = 2;
-              break;
-            default:
-              $timecolwidth = 3;
-          }
-        
-          //DEBUG array
-          $playertime_to_print = array();
-
-          foreach($lineup->time_in_position as $player=>$playtime) { 
-          
-            $score_for_player = 0;
-            $playertime_to_print[] = "\"" . $player ."\" => " . $lineup->total_playtime[$player];
-            $available_positions_for_player = array();
-            if (array_key_exists("pos",$lineup->playerinfo[$player])){
-              $available_positions_for_player = $lineup->playerinfo[$player]["pos"];
-            } else {
-              // indien nog geen posities gedefinieerd dan is alles ok.
-              $available_positions_for_player = $lineup->positions;
-            }
-            ?>
-            <div class="col-md-<?php echo $timecolwidth;?> col-sm-6 <?php echo $offset_class; ?>">
-              <h5 class="d-flex justify-content-between align-items-center mb-3 ps-2">
-                <span class="text-primary"><?php echo getPlayerName($player); ?></span>
-                <span class="badge bg-primary rounded-pill"><?php echo calctime($lineup->total_playtime[$player]);?></span>
-              </h5>
-              <ul class="list-group mb-3">
-                <?php foreach($playtime as $pos=>$seconds){ 
-                  if (is_numeric($pos)){
-                    $score_for_player += ($seconds * $player_scores[$player][$pos]); // aantal seconden in die positie maal de score voor die positie. 
-                  }
-                  if ($seconds > 0 && $pos != "total"){ 
-                    $extra_class = "";
-                  
-                    $out_of_position = 0;
-                    if ($pos !="bench" && !in_array($pos,$available_positions_for_player)){
-                      //dpr($available_positions_for_player,$pos);
-                      $extra_class = "fst-italic";
-                    }
-                  ?>
-                  <li class="list-group-item d-flex justify-content-between <?php echo $extra_class; ?> lh-sm">
-                    <div>
-                      <h6 class="my-0"><?php echo $pos; ?></h6>
-                    </div>
-                    <span class="text-muted"><?php echo calctime($seconds) ; ?></span>
-                  </li>
-                <?php } 
-                }
-              
-                if ($building_lineup == 1) {
-                  ?>
-                  <li class="list-group-item d-flex justify-content-between <?php echo $extra_class; ?> lh-sm">
-                    <div>
-                      <h6 class="my-0">Rating <?php echo getPlayerName($player); ?></h6>
-                    </div>
-                    <span class="text-muted"><?php echo round($score_for_player/$playtime["total"]); ?></span>
-                  </li>
-                  <li class="list-group-item d-flex justify-content-between bg-light lh-sm">
-                    <div>
-                      <h6 class="my-0">Pos: <?php echo implode(",",$available_positions_for_player); ?></h6>
-                    </div>
-                  </li>
-                  <?php
-                }
-                ?>
-              
-              </ul>
-            </div>
-          
-            <?php
-            $offset_class = ""; //enkel eerste kolom
-           } 
-           ?>
-         
-         
-         
-
-
-          </div>
      
      
-     
-       <?php
-    
-    
 
-        //pr($QTOTALS);
-        //pr($QLEVELS);
-    
-    
-        //dpr($g);
-      
-      ?>
       
           </div> <!-- End tab-pane -->
       <?php endforeach; ?>

@@ -38,7 +38,7 @@ $page_title = $page_title ?? 'Voetbal App';
                     </a></li>
                     
 
-                    <li class="nav-item dropdown">
+                    <li class="nav-item dropdown d-none">
                         <a class="nav-link dropdown-toggle" href="#" id="settingsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="fa-solid fa-gear me-2"></i>Settings
                         </a>

@@ -15,29 +15,40 @@ try {
     $pdo->beginTransaction();
 
     if ($data['action'] == 'team') {
-        // Leeg the hele tabel
-        $pdo->exec("TRUNCATE TABLE player_team_ranking");
+        // Verwijder alleen rankings voor de spelers in dit team
+        $delTeam = $pdo->prepare("DELETE ptr FROM player_team_ranking ptr JOIN players p ON ptr.player_id = p.id WHERE p.team_id = ?");
+        $delTeam->execute([$_SESSION['team_id']]);
         
+        $valStmt = $pdo->prepare("SELECT id FROM players WHERE id=? AND team_id=?");
         $stmt = $pdo->prepare("INSERT INTO player_team_ranking (player_id, team_rank) VALUES (?, ?)");
         if (isset($data['order']) && is_array($data['order'])) {
             foreach ($data['order'] as $index => $pid) {
-                // Rank = index + 1 (1 is the best)
-                $stmt->execute([(int)$pid, $index + 1]);
+                // Valideer of de speler bij het team hoort (veiligheid)
+                $valStmt->execute([(int)$pid, $_SESSION['team_id']]);
+                if ($valStmt->fetchColumn()) {
+                    // Rank = index + 1 (1 is the best)
+                    $stmt->execute([(int)$pid, $index + 1]);
+                }
             }
         }
     } 
     elseif ($data['action'] == 'position') {
         $posId = (int)$data['position_id'];
         
-        // Verwijder oude rankings voor deze positie
-        $delStmt = $pdo->prepare("DELETE FROM position_rankings WHERE position_id = ?");
-        $delStmt->execute([$posId]);
+        // Verwijder oude rankings voor deze positie voor DIT team
+        $delStmt = $pdo->prepare("DELETE pr FROM position_rankings pr JOIN players p ON pr.player_id = p.id WHERE pr.position_id = ? AND p.team_id = ?");
+        $delStmt->execute([$posId, $_SESSION['team_id']]);
+        
+        $valStmt = $pdo->prepare("SELECT id FROM players WHERE id=? AND team_id=?");
         
         $stmt = $pdo->prepare("INSERT INTO position_rankings (position_id, player_id, pos_rank) VALUES (?, ?, ?)");
         if (isset($data['order']) && is_array($data['order'])) {
             foreach ($data['order'] as $index => $pid) {
-                // Rank = index + 1
-                $stmt->execute([$posId, (int)$pid, $index + 1]);
+                $valStmt->execute([(int)$pid, $_SESSION['team_id']]);
+                if ($valStmt->fetchColumn()) {
+                    // Rank = index + 1
+                    $stmt->execute([$posId, (int)$pid, $index + 1]);
+                }
             }
         }
     }

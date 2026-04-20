@@ -16,6 +16,14 @@ if ($game_id <= 0) {
 }
 
 try {
+    // Valideer of de game wel aan dit team toebehoort
+    $checkTeam = $pdo->prepare("SELECT id FROM games WHERE id = ? AND team_id = ?");
+    $checkTeam->execute([$game_id, $_SESSION['team_id']]);
+    if (!$checkTeam->fetchColumn()) {
+        echo json_encode(["status" => "error", "message" => "Toegang geweigerd: deze match behoort niet tot uw team."]);
+        exit;
+    }
+
     if ($action === 'save_preselection') {
         $schema_id = (int)($_POST['schema_id'] ?? 0);
         $player_order = trim($_POST['player_order'] ?? '');

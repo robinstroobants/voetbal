@@ -40,15 +40,22 @@ header("Expires: 0"); // Proxies blockeren
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
+                <ul class="navbar-nav ms-auto align-items-center">
                     <li class="nav-item"><a class="nav-link" href="manage_games.php">
                         <i class="fa-regular fa-calendar-days me-2"></i>Wedstrijden
                     </a></li>
                     
-                    <?php if ($is_localhost): ?>
+                    <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'superadmin'): ?>
+                    <li class="nav-item"><a class="nav-link fw-bold text-success" href="superadmin_dashboard.php">
+                        <i class="fa-solid fa-server me-1"></i> SaaS Beheer
+                    </a></li>
+                    <?php endif; ?>
+                    
+                    <?php if ($is_localhost || (isset($_SESSION['role']) && $_SESSION['role'] === 'superadmin')): ?>
                     <li class="nav-item"><a class="nav-link" href="dashboard_performance.php">
                         <i class="fa-solid fa-gauge-high me-2 text-warning"></i>Performance
                     </a></li>
+                    <?php endif; ?>
 
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="settingsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -60,8 +67,23 @@ header("Expires: 0"); // Proxies blockeren
                             <li><a class="dropdown-item" href="edit_scores.php"><i class="fa-solid fa-star me-2"></i>Matrix (Old)</a></li>
                         </ul>
                     </li>
-                    <?php endif; ?>
+
+                    <li class="nav-item ms-3">
+                        <a class="btn btn-sm btn-outline-danger d-flex align-items-center" href="logout.php">
+                            <i class="fa-solid fa-right-from-bracket me-2"></i>
+                            <div class="text-start ms-1" style="line-height:1;">
+                                <small class="d-block w-100" style="font-size:0.65rem; opacity:0.8;"><?= htmlspecialchars($_SESSION['team_name'] ?? 'Coach') ?></small>
+                                <span>Logout</span>
+                            </div>
+                        </a>
+                    </li>
                 </ul>
             </div>
         </div>
     </nav>
+    
+    <?php if (isset($_SESSION['is_read_only']) && $_SESSION['is_read_only'] === true): ?>
+    <div class="alert alert-danger mx-3 text-center fw-bold shadow-sm" role="alert" style="border: 2px solid #dc3545;">
+        <i class="fa-solid fa-lock me-2"></i> Uw abonnement is vervallen. U heeft enkel nog leestoegang tot uw gegevens. Neem contact op met de beheerder om uw account te vernieuwen.
+    </div>
+    <?php endif; ?>

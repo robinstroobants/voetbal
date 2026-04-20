@@ -13,8 +13,8 @@ class MatchManager {
      */
     public function getSelection(int $gameId): array {
         // 1. Haal basis match informatie op
-        $stmtGame = $this->pdo->prepare("SELECT opponent, game_date, format, min_pos FROM games WHERE id = :id");
-        $stmtGame->execute(['id' => $gameId]);
+        $stmtGame = $this->pdo->prepare("SELECT opponent, game_date, format, min_pos FROM games WHERE id = :id AND team_id = :team_id");
+        $stmtGame->execute(['id' => $gameId, 'team_id' => $_SESSION['team_id']]);
         $game = $stmtGame->fetch(PDO::FETCH_ASSOC);
 
         if (!$game) {

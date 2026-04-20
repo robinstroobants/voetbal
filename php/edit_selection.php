@@ -8,8 +8,8 @@ if (isset($_POST['game_id'])) {
 }
 
 // Haal wedstrijd info op
-$stmt = $pdo->prepare("SELECT * FROM games WHERE id = :id");
-$stmt->execute(['id' => $gameId]);
+$stmt = $pdo->prepare("SELECT * FROM games WHERE id = :id AND team_id = :team_id");
+$stmt->execute(['id' => $gameId, 'team_id' => $_SESSION['team_id']]);
 $game = $stmt->fetch(PDO::FETCH_ASSOC);
 
 if (!$game) {
@@ -76,7 +76,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 }
 
 // Haal alle actieve spelers op
-$stmtPlayers = $pdo->query("SELECT * FROM players ORDER BY first_name, last_name");
+$stmtPlayers = $pdo->prepare("SELECT * FROM players WHERE team_id = ? ORDER BY first_name, last_name");
+$stmtPlayers->execute([$_SESSION['team_id']]);
 $allPlayers = $stmtPlayers->fetchAll(PDO::FETCH_ASSOC);
 
 $page_title = 'Selectie Beheren: ' . htmlspecialchars($game['opponent']);

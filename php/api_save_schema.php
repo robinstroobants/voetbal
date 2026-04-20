@@ -148,8 +148,8 @@ $overwrite = isset($data['overwrite_mode']) ? filter_var($data['overwrite_mode']
 
 $duplicate_id = null;
 if (!$overwrite) {
-    $stmtDup = $pdo->prepare("SELECT id, schema_data FROM lineups WHERE game_format = ? AND player_count = ?");
-    $stmtDup->execute([$format, $aantal]);
+    $stmtDup = $pdo->prepare("SELECT id, schema_data FROM lineups WHERE game_format = ? AND player_count = ? AND team_id = ?");
+    $stmtDup->execute([$format, $aantal, $_SESSION['team_id']]);
     while ($row = $stmtDup->fetch()) {
         $db_schema = json_decode($row['schema_data'], true);
         if (schemas_are_identical($new_schema, $db_schema)) {
@@ -215,8 +215,8 @@ if ($overwrite && !empty($data['original_schema_id'])) {
     $stmtUpd->execute([json_encode($new_schema), $new_id]);
 } else {
     // Nieuw schema opslaan, eventueel met parent_id = originalId
-    $stmtIns = $pdo->prepare("INSERT INTO lineups (game_format, player_count, legacy_id, parent_id, schema_data, is_original) VALUES (?, ?, 0, ?, ?, 0)");
-    $stmtIns->execute([$format, $aantal, $originalId, json_encode($new_schema)]);
+    $stmtIns = $pdo->prepare("INSERT INTO lineups (game_format, player_count, legacy_id, parent_id, schema_data, is_original, team_id) VALUES (?, ?, 0, ?, ?, 0, ?)");
+    $stmtIns->execute([$format, $aantal, $originalId, json_encode($new_schema), $_SESSION['team_id']]);
     $new_id = $pdo->lastInsertId();
 }
 

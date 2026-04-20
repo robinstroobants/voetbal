@@ -82,7 +82,8 @@
   // [2] Bepaal Game
   // ------------------------------------------------------------
   if ($gameId === 0) {
-      $stmt = $pdo->query("SELECT id FROM games ORDER BY game_date DESC LIMIT 1");
+      $stmt = $pdo->prepare("SELECT id FROM games WHERE team_id = ? ORDER BY game_date DESC LIMIT 1");
+      $stmt->execute([$_SESSION['team_id']]);
       $gameId = (int)$stmt->fetchColumn();
   }
 
@@ -178,8 +179,8 @@
               echo "Zoek in database: " . $format . " " . $aantal . "sp<br/>";
           }
 
-          $stmtSchemas = $pdo->prepare("SELECT id, schema_data FROM lineups WHERE game_format = ? AND player_count = ?");
-          $stmtSchemas->execute([$format, $aantal]);
+          $stmtSchemas = $pdo->prepare("SELECT id, schema_data FROM lineups WHERE game_format = ? AND player_count = ? AND team_id = ?");
+          $stmtSchemas->execute([$format, $aantal, $_SESSION['team_id']]);
           $ws = [];
           while($s_row = $stmtSchemas->fetch(PDO::FETCH_ASSOC)) {
               $ws[$s_row['id']] = json_decode($s_row['schema_data'], true);
@@ -258,13 +259,13 @@
   // ------------------------------------------------------------
   $gd = $matchData['game']['game_date'] ?? null;
   if ($gd) {
-    $stmtPrev = $pdo->prepare("SELECT id, opponent, game_date FROM games WHERE game_date < :gd ORDER BY game_date DESC LIMIT 1");
-    $stmtPrev->execute(['gd' => $gd]);
+    $stmtPrev = $pdo->prepare("SELECT id, opponent, game_date FROM games WHERE game_date < :gd AND team_id = :team_id ORDER BY game_date DESC LIMIT 1");
+    $stmtPrev->execute(['gd' => $gd, 'team_id' => $_SESSION['team_id']]);
     $prevGame = $stmtPrev->fetch(PDO::FETCH_ASSOC);
     $vorige_key = $prevGame ? $prevGame['id'] : null;
 
-    $stmtNext = $pdo->prepare("SELECT id, opponent, game_date FROM games WHERE game_date > :gd ORDER BY game_date ASC LIMIT 1");
-    $stmtNext->execute(['gd' => $gd]);
+    $stmtNext = $pdo->prepare("SELECT id, opponent, game_date FROM games WHERE game_date > :gd AND team_id = :team_id ORDER BY game_date ASC LIMIT 1");
+    $stmtNext->execute(['gd' => $gd, 'team_id' => $_SESSION['team_id']]);
     $nextGame = $stmtNext->fetch(PDO::FETCH_ASSOC);
     $volgende_key = $nextGame ? $nextGame['id'] : null;
   } else {

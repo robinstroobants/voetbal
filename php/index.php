@@ -2,14 +2,16 @@
 require_once 'getconn.php';
 
 // Haal de laatste 6 wedstrijden op
-$stmt = $pdo->query("
+$stmt = $pdo->prepare("
     SELECT g.*, 
         (SELECT COUNT(*) FROM game_selections gs WHERE gs.game_id = g.id) as selection_count,
         (SELECT score FROM game_lineups gl WHERE gl.game_id = g.id AND gl.is_final = 1 LIMIT 1) as final_score
     FROM games g 
+    WHERE g.team_id = ?
     ORDER BY g.game_date DESC
     LIMIT 6
 ");
+$stmt->execute([$_SESSION['team_id']]);
 $games = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 $page_title = 'Overzicht Wedstrijden';

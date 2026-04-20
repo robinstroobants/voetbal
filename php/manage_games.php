@@ -5,11 +5,13 @@ require_once 'getconn.php';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
     if ($action === 'delete' && isset($_POST['game_id'])) {
-        // Cascade delete wegens ontbrekende ON DELETE CASCADE rules in database schema:
-        $pdo->prepare("DELETE FROM game_lineups WHERE game_id = :id")->execute(['id' => $_POST['game_id']]);
-        $pdo->prepare("DELETE FROM game_selections WHERE game_id = :id")->execute(['id' => $_POST['game_id']]);
-        $stmt = $pdo->prepare("DELETE FROM games WHERE id = :id");
-        $stmt->execute(['id' => $_POST['game_id']]);
+        $check = $pdo->prepare("SELECT id FROM games WHERE id = :id AND team_id = :team_id");
+        $check->execute(['id' => $_POST['game_id'], 'team_id' => $_SESSION['team_id']]);
+        if ($check->fetchColumn()) {
+            $pdo->prepare("DELETE FROM game_lineups WHERE game_id = :id")->execute(['id' => $_POST['game_id']]);
+            $pdo->prepare("DELETE FROM game_selections WHERE game_id = :id")->execute(['id' => $_POST['game_id']]);
+            $pdo->prepare("DELETE FROM games WHERE id = :id")->execute(['id' => $_POST['game_id']]);
+        }
     } elseif ($action === 'save') {
         $gameId = !empty($_POST['game_id']) ? (int)$_POST['game_id'] : null;
         $opponent = trim($_POST['opponent']);
@@ -33,8 +35,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt = $pdo->prepare("UPDATE games SET opponent = :opp, game_date = :gd, format = :fmt, min_pos = :mpos, coach_id = :cid WHERE id = :id");
             $stmt->execute(['opp' => $opponent, 'gd' => $gameDate, 'fmt' => $format, 'mpos' => $minPos, 'cid' => $coachId, 'id' => $gameId]);
         } else {
-            $stmt = $pdo->prepare("INSERT INTO games (team_id, opponent, game_date, format, min_pos, coach_id) VALUES (1, :opp, :gd, :fmt, :mpos, :cid)");
-            $stmt->execute(['opp' => $opponent, 'gd' => $gameDate, 'fmt' => $format, 'mpos' => $minPos, 'cid' => $coachId]);
+            $stmt = $pdo->prepare("INSERT INTO games (team_id, opponent, game_date, format, min_pos, coach_id) VALUES (:team_id, :opp, :gd, :fmt, :mpos, :cid)");
+            $stmt->execute(['team_id' => $_SESSION['team_id'], 'opp' => $opponent, 'gd' => $gameDate, 'fmt' => $format, 'mpos' => $minPos, 'cid' => $coachId]);
         }
     }
     // Voorkom form resubmission bij refresh
@@ -43,14 +45,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // Haal wedstrijden op
-$stmt = $pdo->query("
+$stmt = $pdo->prepare("
     SELECT g.*, c.name AS coach_name,
         (SELECT COUNT(*) FROM game_selections gs WHERE gs.game_id = g.id) as selection_count,
         (SELECT score FROM game_lineups gl WHERE gl.game_id = g.id AND gl.is_final = 1 LIMIT 1) as final_score
     FROM games g 
     LEFT JOIN coaches c ON g.coach_id = c.id
+    WHERE g.team_id = ?
     ORDER BY g.game_date DESC
 ");
+$stmt->execute([$_SESSION['team_id']]);
 $games = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Groepeer de matchen dynamisch op Seizoen (juli-juni) en de jeugdreeks-fases (Fase 1/2) 
@@ -84,7 +88,8 @@ $available_formats = [
 ];
 
 // Haal beschikbare coaches op
-$stmtC = $pdo->query("SELECT * FROM coaches ORDER BY name ASC");
+$stmtC = $pdo->prepare("SELECT * FROM coaches WHERE team_id = ? ORDER BY name ASC");
+$stmtC->execute([$_SESSION['team_id']]);
 $coachesData = $stmtC->fetchAll(PDO::FETCH_ASSOC);
 
 // Definieer een palet aan onderscheidende kleuren

@@ -10,36 +10,30 @@ if (isset($_SERVER['CONTENT_TYPE']) && strpos($_SERVER['CONTENT_TYPE'], 'applica
 
     if (isset($data["player_id"])) {
         $id = intval($data["player_id"]);
-        $first_name = $conn->real_escape_string($data["first_name"] ?? '');
-        $last_name = $conn->real_escape_string($data["last_name"] ?? '');
+        $first_name = $data["first_name"] ?? '';
+        $last_name = $data["last_name"] ?? '';
         $birthdate = trim($data["birthdate"] ?? '');
-        $fav_pos = $conn->real_escape_string($data["favorite_positions"] ?? '');
+        $fav_pos = $data["favorite_positions"] ?? '';
         $is_doelman = !empty($data["is_doelman"]) ? 1 : 0;
 
         $birthdate_val = ($birthdate === '') ? null : $birthdate;
         $fav_pos_val = $fav_pos; // Geen NULL force, gewoon lege string toestaan voor VARCHAR
 
-        $stmt = $conn->prepare("UPDATE players SET first_name=?, last_name=?, birthdate=?, favorite_positions=?, is_doelman=? WHERE id=?");
-        if ($stmt) {
-            $stmt->bind_param("ssssii", $first_name, $last_name, $birthdate_val, $fav_pos_val, $is_doelman, $id);
-            try {
-                if (!$stmt->execute()) {
-                    echo json_encode(['success' => false, 'error' => $stmt->error]);
-                    exit;
-                }
-            } catch (Exception $e) {
-                echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+        try {
+            $stmt = $pdo->prepare("UPDATE players SET first_name=?, last_name=?, birthdate=?, favorite_positions=?, is_doelman=? WHERE id=? AND team_id=?");
+            if (!$stmt->execute([$first_name, $last_name, $birthdate_val, $fav_pos_val, $is_doelman, $id, $_SESSION['team_id']])) {
+                echo json_encode(['success' => false, 'error' => 'Could not execute query']);
                 exit;
             }
-            $stmt->close();
-        } else {
-            echo json_encode(['success' => false, 'error' => $conn->error]);
+        } catch (PDOException $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
             exit;
         }
         
         // Haal de geupdate speler op (zonder veilige crash indien updated_at nog niet bestaat)
-        $res = $conn->query("SELECT * FROM players WHERE id=$id");
-        $row = $res->fetch_assoc() ?? [];
+        $stmt_check = $pdo->prepare("SELECT * FROM players WHERE id=? AND team_id=?");
+        $stmt_check->execute([$id, $_SESSION['team_id']]);
+        $row = $stmt_check->fetch(PDO::FETCH_ASSOC) ?: [];
         
         $date_str = '-';
         $ts_val = 0;
@@ -54,7 +48,9 @@ if (isset($_SERVER['CONTENT_TYPE']) && strpos($_SERVER['CONTENT_TYPE'], 'applica
 }
 
 // Fetch players
-$result = $conn->query("SELECT * FROM players ORDER BY first_name, last_name");
+$stmtAll = $pdo->prepare("SELECT * FROM players WHERE team_id=? ORDER BY first_name, last_name");
+$stmtAll->execute([$_SESSION['team_id']]);
+$players = $stmtAll->fetchAll(PDO::FETCH_ASSOC);
 ?>
 
 <?php 
@@ -85,7 +81,7 @@ require_once 'header.php';
                 </tr>
             </thead>
             <tbody>
-                <?php while ($row = $result->fetch_assoc()): 
+                <?php foreach ($players as $row): 
                     $f_id = "f_".$row['id'];
                 ?>
                 <tr>
@@ -122,7 +118,7 @@ require_once 'header.php';
                         <button type="button" class="btn btn-primary btn-sm save-btn d-none" data-id="<?= $row['id'] ?>"><i class="fa-solid fa-check"></i></button>
                     </td>
                 </tr>
-                <?php endwhile; ?>
+                <?php endforeach; ?>
             </tbody>
         </table>
     </div>

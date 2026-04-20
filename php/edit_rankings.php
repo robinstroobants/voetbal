@@ -2,21 +2,24 @@
 require_once 'getconn.php';
 $page_title = 'Team & Positie Rankings';
 
-// Haal alle spelers op die GEEN vaste doelman zijn
-$players_result = $conn->query("SELECT id, first_name, last_name, is_doelman FROM players ORDER BY first_name ASC, last_name ASC");
+// Haal alle spelers op die GEEN vaste doelman zijn, specifiek voor deze ploeg
+$stmtPlayers = $pdo->prepare("SELECT id, first_name, last_name, is_doelman FROM players WHERE team_id = ? ORDER BY first_name ASC, last_name ASC");
+$stmtPlayers->execute([$_SESSION['team_id']]);
 $players = [];
 $team_ranking_valid_players = []; // Voor initiële weergave in tabblad 1
-while ($p = $players_result->fetch_assoc()) {
+while ($p = $stmtPlayers->fetch(PDO::FETCH_ASSOC)) {
     $players[$p['id']] = $p;
+    // Database structuur zorgt soms fouten, fallback op strikte controle
     if ($p['is_doelman'] == 0 || $p['is_doelman'] === null) {
         $team_ranking_valid_players[] = $p['id'];
     }
 }
 
 // 1. Team Ranking inladen
-$team_rank_result = $conn->query("SELECT player_id FROM player_team_ranking ORDER BY team_rank ASC");
+$stmtTeamRank = $pdo->prepare("SELECT ptr.player_id FROM player_team_ranking ptr JOIN players p ON ptr.player_id = p.id WHERE p.team_id = ? ORDER BY ptr.team_rank ASC");
+$stmtTeamRank->execute([$_SESSION['team_id']]);
 $team_ranking = [];
-while ($r = $team_rank_result->fetch_assoc()) {
+while ($r = $stmtTeamRank->fetch(PDO::FETCH_ASSOC)) {
     if(isset($players[$r['player_id']])) {
         $team_ranking[] = $r['player_id'];
     }
@@ -29,23 +32,26 @@ foreach ($players as $id => $p) {
 }
 
 // 2. Posities bepalen op basis van player_scores database (indien die bestaat)
-$pos_result = $conn->query("SELECT DISTINCT position FROM player_scores ORDER BY position ASC");
+$stmtPos = $pdo->prepare("SELECT DISTINCT ps.position FROM player_scores ps JOIN players p ON ps.player_id = p.id WHERE p.team_id = ? ORDER BY ps.position ASC");
+$stmtPos->execute([$_SESSION['team_id']]);
 $positions = [];
-while ($pos = $pos_result->fetch_assoc()) {
+while ($pos = $stmtPos->fetch(PDO::FETCH_ASSOC)) {
     if ($pos['position'] > 0) $positions[] = $pos['position'];
 }
 if(empty($positions)) $positions = range(1, 11);
 
 // 3. Positie rankings inladen
 $pos_ranks = [];
-$pos_ranks_result = $conn->query("SELECT position_id, player_id FROM position_rankings ORDER BY position_id ASC, pos_rank ASC");
-while ($pr = $pos_ranks_result->fetch_assoc()) {
+$stmtPR = $pdo->prepare("SELECT pr.position_id, pr.player_id FROM position_rankings pr JOIN players p ON pr.player_id = p.id WHERE p.team_id = ? ORDER BY pr.position_id ASC, pr.pos_rank ASC");
+$stmtPR->execute([$_SESSION['team_id']]);
+while ($pr = $stmtPR->fetch(PDO::FETCH_ASSOC)) {
     $pos_ranks[$pr['position_id']][] = $pr['player_id'];
 }
 // 4. Goalie Scores inladen
 $gk_scores = [];
-$gk_res = $conn->query("SELECT player_id, score FROM gk_scores");
-while ($g = $gk_res->fetch_assoc()) {
+$stmtGK = $pdo->prepare("SELECT gks.player_id, gks.score FROM gk_scores gks JOIN players p ON gks.player_id = p.id WHERE p.team_id = ?");
+$stmtGK->execute([$_SESSION['team_id']]);
+while ($g = $stmtGK->fetch(PDO::FETCH_ASSOC)) {
     $gk_scores[$g['player_id']] = $g['score'];
 }
 ?>

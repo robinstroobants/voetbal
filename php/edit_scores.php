@@ -3,55 +3,57 @@ require_once("game.php");
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['player_id'])) {
     $player_id = intval($_POST['player_id']);
-    foreach($_POST as $k=>$v){
-      if ($k != "player_id"){
-        $position = intval(str_replace('pos_', '', $k));
-        $score = floatval($v);
-        // Check of er al een score is in de laatste 5 dagen
-        $check_sql = "SELECT id, score FROM player_scores 
-                      WHERE player_id = ? AND position = ? 
-                      AND score_date >= DATE_SUB(NOW(), INTERVAL 5 DAY)
-                      ORDER BY score_date DESC LIMIT 1";
+    
+    // Validatie of speler wel in dit team zit
+    $val = $pdo->prepare("SELECT id FROM players WHERE id=? AND team_id=?");
+    $val->execute([$player_id, $_SESSION['team_id']]);
+    if ($val->fetchColumn()) {
+        foreach($_POST as $k=>$v){
+            if ($k != "player_id"){
+                $position = intval(str_replace('pos_', '', $k));
+                $score = floatval($v);
+                
+                // Check of er al een score is in de laatste 5 dagen
+                $check_sql = "SELECT id, score FROM player_scores 
+                              WHERE player_id = ? AND position = ? 
+                              AND score_date >= DATE_SUB(NOW(), INTERVAL 5 DAY)
+                              ORDER BY score_date DESC LIMIT 1";
 
-        $check_stmt = $conn->prepare($check_sql);
-        $check_stmt->bind_param("ii", $player_id, $position);
-        $check_stmt->execute();
-        $check_result = $check_stmt->get_result();
+                $check_stmt = $pdo->prepare($check_sql);
+                $check_stmt->execute([$player_id, $position]);
+                $row = $check_stmt->fetch(PDO::FETCH_ASSOC);
 
-        if ($check_result->num_rows > 0) {
-            $row = $check_result->fetch_assoc();
-
-            // Alleen updaten als de score verschilt
-            if (floatval($row['score']) !== $score) {
-                $update_sql = "UPDATE player_scores SET score = ?, score_date = NOW() WHERE id = ?";
-                $update_stmt = $conn->prepare($update_sql);
-                $update_stmt->bind_param("di", $score, $row['id']);
-                $update_stmt->execute();
+                if ($row) {
+                    // Alleen updaten als de score verschilt
+                    if (floatval($row['score']) !== $score) {
+                        $update_sql = "UPDATE player_scores SET score = ?, score_date = NOW() WHERE id = ?";
+                        $update_stmt = $pdo->prepare($update_sql);
+                        $update_stmt->execute([$score, $row['id']]);
+                    }
+                } else {
+                    // Voeg nieuwe score toe
+                    $insert_sql = "INSERT INTO player_scores (player_id, position, score, score_date)
+                                   VALUES (?, ?, ?, NOW())";
+                    $insert_stmt = $pdo->prepare($insert_sql);
+                    $insert_stmt->execute([$player_id, $position, $score]);
+                }
             }
-        } else {
-            // Voeg nieuwe score toe
-            $insert_sql = "INSERT INTO player_scores (player_id, position, score, score_date)
-                           VALUES (?, ?, ?, NOW())";
-            $insert_stmt = $conn->prepare($insert_sql);
-            $insert_stmt->bind_param("iid", $player_id, $position, $score);
-            $insert_stmt->execute();
         }
-        
-      }
     }
 }
 
-
-// Scores ophalen per speler en positie (laatste score)
-$result = $conn->query("SELECT * FROM players ORDER BY first_name, last_name");
+// Scores ophalen per speler en positie (laatste score), gefilterd op team
+$stmtAll = $pdo->prepare("SELECT * FROM players WHERE team_id = ? ORDER BY first_name, last_name");
+$stmtAll->execute([$_SESSION['team_id']]);
 $players = [];
 $player_ids = [];
-while ($row = $result->fetch_assoc()) {
+while ($row = $stmtAll->fetch(PDO::FETCH_ASSOC)) {
     $players[$row['id']]["id"] = $row['id'];
     $players[$row['id']]["first_name"] = $row['first_name'];
     $players[$row['id']]["last_name"] = $row['last_name'];
     $player_ids[] = $row['id'];
 }
+
 $scores = [];
 if (!empty($player_ids)) {
     $ids_str = implode(',', $player_ids);
@@ -64,13 +66,11 @@ if (!empty($player_ids)) {
                   WHERE player_id IN ($ids_str)
                   GROUP BY player_id, position
               )";
-    $result_scores = $conn->query($sql);
-    while ($row = $result_scores->fetch_assoc()) {
+    $result_scores = $pdo->query($sql);
+    while ($row = $result_scores->fetch(PDO::FETCH_ASSOC)) {
         $scores[$row['player_id']][$row['position']] = $row['score'];
     }
 }
-//pr($players);
-//dpr($scores);
 ?>
 
 <?php 

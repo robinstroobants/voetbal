@@ -1,6 +1,7 @@
 <?php
 // Default page title
 $page_title = $page_title ?? 'Voetbal App';
+$is_localhost = isset($_SERVER['HTTP_HOST']) && (strpos($_SERVER['HTTP_HOST'], 'localhost') !== false || strpos($_SERVER['HTTP_HOST'], '127.0.0.1') !== false);
 ?>
 <?php
 // Forceer NGINX (zoals SiteGround SuperCacher) en browsers om The Matrix Nooit te cachen!
@@ -44,6 +45,7 @@ header("Expires: 0"); // Proxies blockeren
                         <i class="fa-regular fa-calendar-days me-2"></i>Wedstrijden
                     </a></li>
                     
+                    <?php if ($is_localhost): ?>
                     <li class="nav-item"><a class="nav-link" href="dashboard_performance.php">
                         <i class="fa-solid fa-gauge-high me-2 text-warning"></i>Performance
                     </a></li>
@@ -58,6 +60,7 @@ header("Expires: 0"); // Proxies blockeren
                             <li><a class="dropdown-item" href="edit_scores.php"><i class="fa-solid fa-star me-2"></i>Matrix (Old)</a></li>
                         </ul>
                     </li>
+                    <?php endif; ?>
                 </ul>
             </div>
         </div>

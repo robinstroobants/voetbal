@@ -9,11 +9,29 @@ if (isset($_SESSION['user_id'])) {
 require_once 'getconn.php';
 
 $error = '';
+$invite_token = $_GET['invite_token'] ?? $_POST['invite_token'] ?? '';
+$invited_team_id = null;
+$prefill_email = '';
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+if ($invite_token) {
+    $stmtInv = $pdo->prepare("SELECT team_id, email FROM team_invitations WHERE token = ? AND expires_at > NOW()");
+    $stmtInv->execute([$invite_token]);
+    $inv_data = $stmtInv->fetch();
+    if ($inv_data) {
+        $invited_team_id = $inv_data['team_id'];
+        $prefill_email = $inv_data['email'];
+    } else {
+        $error = "Deze uitnodigingslink is ongeldig of vervallen.";
+        $invite_token = '';
+    }
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error) {
     $name = trim($_POST['name'] ?? '');
     $email = filter_var($_POST['email'] ?? '', FILTER_SANITIZE_EMAIL);
     $password = $_POST['password'] ?? '';
+    
+    // Alleen nodig als we geen invite hebben
     $team_name = trim($_POST['team_name'] ?? '');
     $default_format = trim($_POST['default_format'] ?? '8v8');
     
@@ -21,7 +39,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $first_name = $nameParts[0];
     $last_name = $nameParts[1] ?? '';
 
-    if ($name && $email && $password && $team_name && $default_format) {
+    // Validatie
+    $has_team_data = $invited_team_id ? true : ($team_name && $default_format);
+
+    if ($name && $email && $password && $has_team_data) {
         if (strlen($password) < 6) {
             $error = "Wachtwoord moet minimaal 6 tekens lang zijn.";
         } else {
@@ -37,33 +58,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     // 1. Maak de gebruiker eerst aan (team_id is tijdelijk NULL)
                     $hash = password_hash($password, PASSWORD_BCRYPT);
                     $role = 'Coach'; 
+                    $token = bin2hex(random_bytes(32));
                     
-                    $stmtUser = $pdo->prepare("INSERT INTO users (email, first_name, last_name, password_hash, role) VALUES (?, ?, ?, ?, ?)");
-                    $stmtUser->execute([$email, $first_name, $last_name, $hash, $role]);
+                    $stmtUser = $pdo->prepare("INSERT INTO users (email, first_name, last_name, password_hash, role, is_verified, verification_token) VALUES (?, ?, ?, ?, ?, 0, ?)");
+                    $stmtUser->execute([$email, $first_name, $last_name, $hash, $role, $token]);
                     $user_id = $pdo->lastInsertId();
 
-                    // 2. Maak het team aan met een 1 maand trial
-                    // Gebruikt user_id (zojuist aangemaakt) en club_id = 1 (standaard legacy club) ivm oude database restricties
-                    $valid_until = date('Y-m-d H:i:s', strtotime("+1 month"));
-                    
-                    $stmtTeam = $pdo->prepare("INSERT INTO teams (user_id, club_id, name, default_format, subscription_plan, subscription_valid_until, is_active) VALUES (?, 1, ?, ?, 'trial', ?, 1)");
-                    $stmtTeam->execute([$user_id, $team_name, $default_format, $valid_until]);
-                    $team_id = $pdo->lastInsertId();
+                    if ($invited_team_id) {
+                        // 2. Koppel rechtstreeks aan bestaand team (Workspace)
+                        $team_id = $invited_team_id;
+                        $pdo->prepare("INSERT IGNORE INTO user_teams (user_id, team_id) VALUES (?, ?)")->execute([$user_id, $team_id]);
+                        
+                        // En update users.team_id als anchor
+                        $pdo->prepare("UPDATE users SET team_id = ? WHERE id = ?")->execute([$team_id, $user_id]);
 
-                    // 3. Koppel de gebruiker aan het zojuist gemaakte team
-                    $stmtUpdateUser = $pdo->prepare("UPDATE users SET team_id = ? WHERE id = ?");
-                    $stmtUpdateUser->execute([$team_id, $user_id]);
+                        // 3. Vernietig de invite token
+                        $pdo->prepare("DELETE FROM team_invitations WHERE token = ?")->execute([$invite_token]);
+                    } else {
+                        // 2. Maak het team aan met een 1 maand trial
+                        $valid_until = date('Y-m-d H:i:s', strtotime("+1 month"));
+                        
+                        $stmtTeam = $pdo->prepare("INSERT INTO teams (user_id, club_id, name, default_format, subscription_plan, subscription_valid_until, is_active) VALUES (?, 1, ?, ?, 'trial', ?, 1)");
+                        $stmtTeam->execute([$user_id, $team_name, $default_format, $valid_until]);
+                        $team_id = $pdo->lastInsertId();
+
+                        // 3. Koppel de gebruiker aan het zojuist gemaakte team als primary en in user_teams
+                        $pdo->prepare("UPDATE users SET team_id = ? WHERE id = ?")->execute([$team_id, $user_id]);
+                        $pdo->prepare("INSERT IGNORE INTO user_teams (user_id, team_id) VALUES (?, ?)")->execute([$user_id, $team_id]);
+                    }
 
                     $pdo->commit();
 
-                    // Log de gebruiker direct in
-                    $_SESSION['user_id'] = $user_id;
-                    $_SESSION['role'] = $role;
-                    $_SESSION['team_id'] = $team_id;
-                    $_SESSION['team_name'] = $team_name;
-                    $_SESSION['is_read_only'] = false;
+                    // 4. Verstuur de verificatie e-mail
+                    $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http");
+                    $host = $_SERVER['HTTP_HOST'];
+                    $verify_link = "$protocol://$host/verify.php?token=$token";
+                    
+                    $subject = "Activeer je Lineup account";
+                    $message = "Beste $first_name,\n\nWelkom bij Lineup!\nKlik op de onderstaande link om je account te activeren:\n$verify_link\n\nMet vriendelijke groeten,\nHet Lineup Team";
+                    $headers = "From: noreply@$host\r\n";
+                    $headers .= "Reply-To: noreply@$host\r\n";
+                    $headers .= "X-Mailer: PHP/" . phpversion();
 
-                    header("Location: index.php");
+                    @mail($email, $subject, $message, $headers);
+
+                    // Redirect naar login pagina met melding in plaats van direct in te loggen
+                    header("Location: login.php?msg=registered");
                     exit;
 
                 } catch (Exception $e) {
@@ -319,8 +359,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <div class="login-container">
         <div class="logo-wrap">
             <i class="fa-regular fa-futbol main-icon"></i>
-            <h1>Word lid van Lineup</h1>
-            <p>Maak een gratis account aan om te starten.</p>
+            <?php if ($invited_team_id): ?>
+                <h1>Uitnodiging Accepteren</h1>
+                <p>Maak een gratis account aan om als coach toe te treden.</p>
+            <?php else: ?>
+                <h1>Word lid van Lineup</h1>
+                <p>Maak een gratis account aan om te starten.</p>
+            <?php endif; ?>
         </div>
 
         <?php if ($error): ?>
@@ -330,31 +375,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div class="login-layout">
             <div class="login-main">
                 <form method="POST" action="">
-                    <div class="form-group">
-                        <input type="text" name="team_name" placeholder="Naam team (bv. U11 Thes IP)" required>
-                    </div>
+                    <?php if ($invite_token): ?>
+                        <input type="hidden" name="invite_token" value="<?= htmlspecialchars($invite_token) ?>">
+                    <?php else: ?>
+                        <div class="form-group">
+                            <input type="text" name="team_name" placeholder="Naam team (bv. U11 Thes IP)" required>
+                        </div>
 
-                    <div class="form-group">
-                        <select name="default_format" class="form-control" style="width: 100%; background: #ffffff; border: 1px solid var(--apple-border); color: var(--apple-text-main); padding: 16px; border-radius: 12px; font-size: 1rem; outline: none; appearance: auto;" required>
-                            <option value="">Kies Wedstrijd Formaat</option>
-                            <option value="11v11">11v11</option>
-                            <option value="8v8_4x15">8v8 (4x15)</option>
-                            <option value="8v8_3x20">8v8 (3x20)</option>
-                            <option value="8v8_4x20">8v8 (4x20)</option>
-                            <option value="8v8_5x15">8v8 (5x15)</option>
-                            <option value="8v8_6x15">8v8 (6x15)</option>
-                            <option value="8v8_7x15">8v8 (7x15)</option>
-                            <option value="5v5_4x15">5v5 (4x15)</option>
-                            <option value="3v3_6x10">3v3 (6x10)</option>
-                            <option value="2v2_6x10">2v2 (6x10)</option>
-                        </select>
-                    </div>
+                        <div class="form-group">
+                            <select name="default_format" class="form-control" style="width: 100%; background: #ffffff; border: 1px solid var(--apple-border); color: var(--apple-text-main); padding: 16px; border-radius: 12px; font-size: 1rem; outline: none; appearance: auto;" required>
+                                <option value="">Kies Wedstrijd Formaat</option>
+                                <option value="11v11">11v11</option>
+                                <option value="8v8_4x15">8v8 (4x15)</option>
+                                <option value="8v8_3x20">8v8 (3x20)</option>
+                                <option value="8v8_4x20">8v8 (4x20)</option>
+                                <option value="8v8_5x15">8v8 (5x15)</option>
+                                <option value="8v8_6x15">8v8 (6x15)</option>
+                                <option value="8v8_7x15">8v8 (7x15)</option>
+                                <option value="5v5_4x15">5v5 (4x15)</option>
+                                <option value="3v3_6x10">3v3 (6x10)</option>
+                                <option value="2v2_6x10">2v2 (6x10)</option>
+                            </select>
+                        </div>
+                    <?php endif; ?>
+                    
                     <div class="form-group">
                         <input type="text" name="name" placeholder="Je volledige naam" required autofocus>
                     </div>
 
                     <div class="form-group">
-                        <input type="email" name="email" placeholder="E-mailadres" required>
+                        <?php if ($invite_token && $prefill_email): ?>
+                            <input type="email" name="email" value="<?= htmlspecialchars($prefill_email) ?>" readonly style="background-color: #f5f5f7; color: var(--apple-text-muted);">
+                        <?php else: ?>
+                            <input type="email" name="email" placeholder="E-mailadres" required>
+                        <?php endif; ?>
                     </div>
 
                     

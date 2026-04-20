@@ -9,13 +9,24 @@ if (isset($_SESSION['user_id'])) {
 require_once 'getconn.php';
 
 $error = '';
+$msg_success = '';
+
+if (isset($_GET['msg'])) {
+    if ($_GET['msg'] === 'registered') {
+        $msg_success = "Je account is aangemaakt! We hebben een activatielink gestuurd naar je e-mailadres.";
+    } elseif ($_GET['msg'] === 'verified') {
+        $msg_success = "Je e-mailadres is met succes geverifieerd. Je kan nu inloggen.";
+    } elseif ($_GET['msg'] === 'password_reset') {
+        $msg_success = "Je wachtwoord is succesvol gewijzigd. Je kan nu inloggen met je nieuwe wachtwoord.";
+    }
+}
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = filter_var($_POST['email'] ?? '', FILTER_SANITIZE_EMAIL);
     $password = $_POST['password'] ?? '';
 
     if ($email && $password) {
-        $stmt = $pdo->prepare("SELECT u.id, u.email, u.password_hash, u.role, u.team_id, t.name as team_name, t.subscription_valid_until 
+        $stmt = $pdo->prepare("SELECT u.id, u.email, u.password_hash, u.role, u.team_id, u.is_verified, u.is_beta_user, t.name as team_name, t.default_format, t.subscription_valid_until 
                                FROM users u 
                                LEFT JOIN teams t ON u.team_id = t.id 
                                WHERE u.email = ? LIMIT 1");
@@ -23,10 +34,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $user = $stmt->fetch();
 
         if ($user && password_verify($password, $user['password_hash'])) {
+            if (isset($user['is_verified']) && $user['is_verified'] == 0) {
+                $error = "Je account is nog niet geactiveerd. Controleer je e-mail inbox (of spam) voor de activatielink.";
+            } else {
             $_SESSION['user_id'] = $user['id'];
             $_SESSION['role'] = $user['role'];
+            $_SESSION['is_beta_user'] = $user['is_beta_user'];
+            
+            // Fetch Workspaces (Multi-Team Support)
+            $stmtWs = $pdo->prepare("SELECT ut.team_id, t.name, t.default_format, t.subscription_valid_until FROM user_teams ut JOIN teams t ON ut.team_id = t.id WHERE ut.user_id = ?");
+            $stmtWs->execute([$user['id']]);
+            $workspaces = $stmtWs->fetchAll(PDO::FETCH_ASSOC);
+            $_SESSION['available_teams'] = $workspaces;
+
             $_SESSION['team_id'] = $user['team_id'];
             $_SESSION['team_name'] = $user['team_name'];
+            $_SESSION['default_format'] = $user['default_format'] ?: '8v8';
+            
+            // Fallback to first available team if primary is missing
+            if (!$_SESSION['team_id'] && !empty($workspaces)) {
+                $_SESSION['team_id'] = $workspaces[0]['team_id'];
+                $_SESSION['team_name'] = $workspaces[0]['name'];
+                $_SESSION['default_format'] = $workspaces[0]['default_format'] ?: '8v8';
+                $user['subscription_valid_until'] = $workspaces[0]['subscription_valid_until'];
+            }
             
             // Check aubscription
             $validUntil = strtotime($user['subscription_valid_until']);
@@ -36,8 +67,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['is_read_only'] = false;
             }
 
-            header("Location: index.php");
+            if ($user['role'] === 'superadmin') {
+                header("Location: superadmin_dashboard.php");
+            } else {
+                header("Location: index.php");
+            }
             exit;
+            }
         } else {
             $error = "Ongeldig emailadres of wachtwoord.";
         }
@@ -296,6 +332,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div class="error"><?= htmlspecialchars($error) ?></div>
         <?php endif; ?>
 
+        <?php if ($msg_success): ?>
+            <div class="success" style="background: #ebf5df; border: 1px solid #d4e8c1; color: #3b7b1e; padding: 12px; border-radius: 10px; font-size: 0.9rem; margin-bottom: 24px; text-align: center;">
+                <i class="fa-solid fa-circle-check me-1"></i> <?= htmlspecialchars($msg_success) ?>
+            </div>
+        <?php endif; ?>
+
         <div class="login-layout">
             <div class="login-main">
                 <form method="POST" action="">
@@ -305,6 +347,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     
                     <div class="form-group">
                         <input type="password" name="password" placeholder="Wachtwoord" required>
+                    </div>
+                    
+                    <div style="text-align: right; margin-bottom: 20px;">
+                        <a href="forgot_password.php" style="color: var(--apple-blue); text-decoration: none; font-size: 0.85rem; font-weight: 500;">Wachtwoord vergeten?</a>
                     </div>
 
                     <button type="submit" class="btn-submit">Ga verder</button>

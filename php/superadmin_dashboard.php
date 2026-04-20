@@ -55,6 +55,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pdo->prepare("UPDATE teams SET subscription_valid_until = ? WHERE id = ?")->execute([$new_date, $team_id]);
             $success = "✅ Abonnement verlengd tot " . date('d-m-Y', strtotime($new_date));
         }
+    } elseif ($action === 'toggle_beta') {
+        $user_id = (int)$_POST['user_id'];
+        $current_beta = (int)($_POST['current_beta'] ?? 0);
+        $new_beta = $current_beta ? 0 : 1;
+        $pdo->prepare("UPDATE users SET is_beta_user = ? WHERE id = ?")->execute([$new_beta, $user_id]);
+        $success = "✅ BETA status bijgewerkt voor gebruiker!";
+    } elseif ($action === 'link_extra_team') {
+        $uId = (int)$_POST['user_id'];
+        $nTId = (int)$_POST['new_team_id'];
+        // Koppel of negeer indien al gekoppeld
+        $pdo->prepare("INSERT IGNORE INTO user_teams (user_id, team_id) VALUES (?, ?)")->execute([$uId, $nTId]);
+        $success = "✅ Extra Workspace gekoppeld aan gebruiker!";
     }
 }
 
@@ -62,11 +74,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $stmtTeams = $pdo->query("SELECT * FROM teams ORDER BY id ASC");
 $teams = $stmtTeams->fetchAll(PDO::FETCH_ASSOC);
 
-// 2. Haal alle gebruikers op, gegroepeerd per team
-$stmtUsers = $pdo->query("SELECT * FROM users ORDER BY team_id ASC, first_name ASC");
+// 2. Haal alle gebruikers op, gegroepeerd
 $users = [];
-while ($u = $stmtUsers->fetch(PDO::FETCH_ASSOC)) {
-    $users[$u['team_id']][] = $u;
+$usersResult = $pdo->query("SELECT * FROM users ORDER BY created_at DESC")->fetchAll();
+foreach ($usersResult as $u) {
+    if ($u['team_id']) {
+        $users[$u['team_id']][] = $u;
+    }
+}
+
+// Fetch all linked workspaces per user for UI Badges
+$allUserTeams = [];
+$utResult = $pdo->query("SELECT ut.user_id, t.name, t.id as team_id FROM user_teams ut JOIN teams t ON ut.team_id = t.id")->fetchAll();
+foreach ($utResult as $ut) {
+    $allUserTeams[$ut['user_id']][] = $ut;
 }
 
 require_once 'header.php';
@@ -90,7 +111,7 @@ require_once 'header.php';
                         <input type="hidden" name="action" value="create_team">
                         <div class="mb-3">
                             <label class="form-label">Team Naam</label>
-                            <input type="text" name="team_name" class="form-control" required placeholder="Bv. U13 Cité">
+                            <input type="text" name="team_name" class="form-control" required placeholder="Bv. U13 Barcelona">
                         </div>
                         <div class="row">
                             <div class="col-6 mb-3">
@@ -192,12 +213,25 @@ require_once 'header.php';
                                                 <th>Naam</th>
                                                 <th>E-mailadres</th>
                                                 <th>Rechten Rol</th>
+                                                <th class="text-center">BETA Access</th>
+                                                <th class="text-end">Acties</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             <?php foreach ($users[$t['id']] as $user): ?>
                                             <tr>
-                                                <td><?= htmlspecialchars($user['first_name'] . ' ' . $user['last_name']) ?></td>
+                                                <td>
+                                                    <?= htmlspecialchars($user['first_name'] . ' ' . $user['last_name']) ?>
+                                                    <?php if(isset($allUserTeams[$user['id']]) && count($allUserTeams[$user['id']]) > 1): ?>
+                                                        <div class="small fw-semibold mt-1 text-primary">
+                                                            <i class="fa-solid fa-layer-group"></i> Workspaces: 
+                                                            <?php 
+                                                               $wsArr = array_map(function($w) { return htmlspecialchars($w['name']); }, $allUserTeams[$user['id']]);
+                                                               echo implode(', ', $wsArr);
+                                                            ?>
+                                                        </div>
+                                                    <?php endif; ?>
+                                                </td>
                                                 <td><a href="mailto:<?= htmlspecialchars($user['email']) ?>"><?= htmlspecialchars($user['email']) ?></a></td>
                                                 <td>
                                                     <?php 
@@ -206,6 +240,54 @@ require_once 'header.php';
                                                         if($user['role'] == 'admin') $badge = 'bg-primary';
                                                     ?>
                                                     <span class="badge <?= $badge ?>"><?= htmlspecialchars($user['role']) ?></span>
+                                                </td>
+                                                <td class="text-center">
+                                                    <form method="POST" style="display:inline;">
+                                                        <input type="hidden" name="action" value="toggle_beta">
+                                                        <input type="hidden" name="user_id" value="<?= $user['id'] ?>">
+                                                        <input type="hidden" name="current_beta" value="<?= $user['is_beta_user'] ?>">
+                                                        <button type="submit" class="btn btn-sm <?= $user['is_beta_user'] ? 'btn-warning text-dark fw-bold' : 'btn-outline-secondary' ?>">
+                                                            <i class="fa-solid <?= $user['is_beta_user'] ? 'fa-toggle-on' : 'fa-toggle-off' ?>"></i> 
+                                                            <?= $user['is_beta_user'] ? 'BETA AAN' : 'UIT' ?>
+                                                        </button>
+                                                    </form>
+                                                </td>
+                                                <td class="text-end">
+                                                    <?php if($user['role'] !== 'superadmin'): ?>
+                                                    <div class="d-flex justify-content-end gap-1">
+                                                        <form method="POST" action="impersonate.php?action=start" class="m-0">
+                                                            <input type="hidden" name="target_user_id" value="<?= $user['id'] ?>">
+                                                            <button type="submit" class="btn btn-sm btn-outline-primary" title="Log in als deze gebruiker">
+                                                                <i class="fa-solid fa-user-secret"></i>
+                                                            </button>
+                                                        </form>
+                                                        
+                                                        <form method="POST" action="" class="m-0 d-flex align-items-center">
+                                                            <input type="hidden" name="action" value="link_extra_team">
+                                                            <input type="hidden" name="user_id" value="<?= $user['id'] ?>">
+                                                            <select name="new_team_id" class="form-select form-select-sm d-inline-block" style="width:110px;" required>
+                                                                <option value="" disabled selected>+ Team</option>
+                                                                <?php foreach($teams as $teamOp): 
+                                                                        // Controleer of gebruiker al in deze workspace zit
+                                                                        $isIn = false;
+                                                                        if(isset($allUserTeams[$user['id']])){
+                                                                            foreach($allUserTeams[$user['id']] as $w) {
+                                                                                if($w['team_id'] == $teamOp['id']) $isIn = true;
+                                                                            }
+                                                                        }
+                                                                        if(!$isIn && $teamOp['id'] != $user['team_id']): 
+                                                                ?>
+                                                                    <option value="<?= $teamOp['id'] ?>"><?= htmlspecialchars($teamOp['name']) ?></option>
+                                                                <?php endif; endforeach; ?>
+                                                            </select>
+                                                            <button type="submit" class="btn btn-sm btn-outline-success ms-1" title="Koppel">
+                                                                <i class="fa-solid fa-link"></i>
+                                                            </button>
+                                                        </form>
+                                                    </div>
+                                                    <?php else: ?>
+                                                        <span class="badge bg-light text-muted border">Jezelf</span>
+                                                    <?php endif; ?>
                                                 </td>
                                             </tr>
                                             <?php endforeach; ?>

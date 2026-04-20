@@ -1,7 +1,12 @@
 <?php
 require_once 'getconn.php';
 
-$team_id = (int)$_SESSION['team_id'];
+$team_id = (int)($_SESSION['team_id'] ?? 0);
+
+if (isset($_SESSION['role']) && $_SESSION['role'] === 'superadmin') {
+    header("Location: superadmin_dashboard.php");
+    exit;
+}
 
 // 1. Calculate Onboarding Status
 $stmtP = $pdo->prepare("SELECT COUNT(*) FROM players WHERE team_id = ?");
@@ -14,13 +19,19 @@ $coaches_count = (int)$stmtC->fetchColumn();
 
 // Extraheer format requirements
 $stmtF = $pdo->prepare("SELECT default_format FROM teams WHERE id = ?");
-$stmtF->execute([$team_id]);
+$stmtF->execute([$_SESSION['team_id']]);
 $default_format = $stmtF->fetchColumn() ?: '8v8';
 
 $required_players = 8;
 if (preg_match('/^(\d+)v\d+/', $default_format, $matches)) {
     $required_players = (int)$matches[1];
 }
+
+$max_players = 24;
+if (strpos($default_format, '2v2') === 0 || strpos($default_format, '3v3') === 0) {
+    $max_players = 12;
+}
+$remaining_players = max(0, $max_players - $players_count);
 
 $onboarding_complete = ($players_count >= $required_players && $coaches_count >= 1);
 
@@ -240,6 +251,8 @@ require_once 'header.php';
       <div class="modal-body">
           <div class="alert alert-info border-0 shadow-sm">
              <i class="fa-solid fa-circle-info me-2"></i>Plak hier de namen uit bijvoorbeeld je Excel-bestand. Zet <strong>elke speler op een nieuwe regel</strong>.
+             <hr class="my-2">
+             <div class="small"><i class="fa-solid fa-user-shield me-1"></i> Voor dit formaat (<?= htmlspecialchars($default_format) ?>) geldt een limiet van <b><?= $max_players ?> spelers</b>. Je kunt er nu nog maximaal <b><?= $remaining_players ?></b> toevoegen.</div>
           </div>
           <form id="frmBulkPlayers">
               <input type="hidden" name="action" value="add_bulk_players">

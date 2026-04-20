@@ -4,7 +4,12 @@ FROM php:8.2-apache
 RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
 
 # Install required packages
-RUN apt-get update && apt-get install -y git unzip && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y git unzip msmtp \
+    && rm -rf /var/lib/apt/lists/*
+
+# Configure msmtp for Mailpit
+RUN printf "account default\nhost mailpit\nport 1025\nauto_from on\nmaildomain localhost\n" > /etc/msmtprc \
+    && echo 'sendmail_path = "/usr/bin/msmtp -t"' > /usr/local/etc/php/conf.d/mail.ini
 
 # Install mysqli, pdo_mysql and opcache
 RUN docker-php-ext-install mysqli pdo_mysql opcache

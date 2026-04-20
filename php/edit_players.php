@@ -51,6 +51,18 @@ if (isset($_SERVER['CONTENT_TYPE']) && strpos($_SERVER['CONTENT_TYPE'], 'applica
 $stmtAll = $pdo->prepare("SELECT * FROM players WHERE team_id=? ORDER BY first_name, last_name");
 $stmtAll->execute([$_SESSION['team_id']]);
 $players = $stmtAll->fetchAll(PDO::FETCH_ASSOC);
+$players_count = count($players);
+
+// Extraheer format requirements
+$stmtF = $pdo->prepare("SELECT default_format FROM teams WHERE id = ?");
+$stmtF->execute([$_SESSION['team_id']]);
+$default_format = $stmtF->fetchColumn() ?: '8v8';
+
+$max_players = 24;
+if (strpos($default_format, '2v2') === 0 || strpos($default_format, '3v3') === 0) {
+    $max_players = 12;
+}
+$remaining_players = max(0, $max_players - $players_count);
 ?>
 
 <?php 
@@ -63,8 +75,18 @@ require_once 'header.php';
 
 <div class="container mt-5 mb-5">
     <div class="mb-4 d-flex justify-content-between align-items-center">
-        <h2>Spelers Bewerken</h2>
-        <span class="text-danger fw-bold"><i class="fa-solid fa-triangle-exclamation me-1"></i> Let op: Je kunt maar één speler tegelijk updaten (klik Opslaan per rij).</span>
+        <div>
+            <h2 class="mb-1">Spelers Beheren</h2>
+            <div class="text-danger fw-bold small"><i class="fa-solid fa-triangle-exclamation me-1"></i> Let op: Bij bewerken kun je maar één speler tegelijk updaten (klik op het vinkje per rij).</div>
+        </div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#addSinglePlayerModal" <?= $remaining_players <= 0 ? 'disabled' : '' ?>>
+                <i class="fa-solid fa-user-plus me-1"></i> Nieuwe Speler
+            </button>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addBulkPlayersModal" <?= $remaining_players <= 0 ? 'disabled' : '' ?>>
+                <i class="fa-solid fa-file-excel me-1"></i> Bulk Import
+            </button>
+        </div>
     </div>
     
     <div class="card p-4 shadow-sm border-0 table-responsive overflow-visible">
@@ -134,7 +156,7 @@ require_once 'header.php';
 <script>
 document.addEventListener("DOMContentLoaded", function() {
     
-    // Toggle functionaliteit voor doelmannen veld
+// Toggle functionaliteit voor doelmannen veld
     function updateVisibility(toggle) {
         const row = toggle.closest('tr');
         if (!row) return; // In case DataTables modifies DOM unexpectedly during init
@@ -146,6 +168,19 @@ document.addEventListener("DOMContentLoaded", function() {
         } else {
             favContainer.style.visibility = 'visible';
         }
+    }
+
+    const checkDoelmanSingle = document.getElementById('checkDoelmanSingle');
+    const favPosContainerSingle = document.getElementById('favPosContainerSingle');
+    if(checkDoelmanSingle && favPosContainerSingle) {
+        checkDoelmanSingle.addEventListener('change', function() {
+            if (this.checked) {
+                favPosContainerSingle.style.display = 'none';
+                favPosContainerSingle.querySelector('input').value = '';
+            } else {
+                favPosContainerSingle.style.display = 'block';
+            }
+        });
     }
 
     // Attach listeners on body so DataTables pagination doesn't break event listeners
@@ -250,3 +285,111 @@ document.addEventListener("DOMContentLoaded", function() {
     });
 });
 </script>
+
+<script>
+function submitApicall(formId) {
+    const form = document.getElementById(formId);
+    if (!form.checkValidity()) {
+        form.reportValidity();
+        return;
+    }
+    const formData = new FormData(form);
+    
+    // Disable in modal
+    const btn = form.closest('.modal-content').querySelector('.modal-footer .btn-primary');
+    const originalText = btn.innerHTML;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Bezig...';
+    btn.disabled = true;
+
+    fetch('api_onboarding_add.php', {
+        method: 'POST',
+        body: formData
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            window.location.reload();
+        } else {
+            alert('Fout: ' + (data.error || 'Onbekende fout'));
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        }
+    })
+    .catch(error => {
+        alert('Er is een netwerkfout opgetreden bij het toevoegen.');
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    });
+}
+</script>
+
+<!-- MODALS -->
+<!-- 1. Single Player Modal -->
+<div class="modal fade" id="addSinglePlayerModal" tabindex="-1" aria-labelledby="addSingleLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header bg-dark text-white">
+        <h5 class="modal-title" id="addSingleLabel"><i class="fa-solid fa-user-plus me-2"></i>Eén Speler Toevoegen</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+          <form id="frmSinglePlayer">
+              <input type="hidden" name="action" value="add_single_player">
+              <div class="row">
+                  <div class="col-6 mb-3">
+                      <label class="form-label fw-bold small text-muted">VOORNAAM <span class="text-danger">*</span></label>
+                      <input type="text" name="first_name" class="form-control" required placeholder="Bv. Eden">
+                  </div>
+                  <div class="col-6 mb-3">
+                      <label class="form-label fw-bold small text-muted">ACHTERNAAM</label>
+                      <input type="text" name="last_name" class="form-control" placeholder="Bv. Hazard">
+                  </div>
+              </div>
+              <div class="mb-3">
+                  <div class="form-check form-switch pt-1">
+                      <input class="form-check-input" type="checkbox" name="is_doelman" id="checkDoelmanSingle" value="1">
+                      <label class="form-check-label fw-bold text-dark" for="checkDoelmanSingle">Deze speler is een doelman</label>
+                  </div>
+              </div>
+              <div class="mb-3" id="favPosContainerSingle">
+                  <label class="form-label fw-bold small text-muted">FAVORIETE POSITIES (Optioneel)</label>
+                  <input type="text" name="favorite_positions" class="form-control" placeholder="Bv. 7, 11 (gescheiden met komma)">
+              </div>
+          </form>
+      </div>
+      <div class="modal-footer bg-light">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuleren</button>
+        <button type="button" class="btn btn-primary" onclick="submitApicall('frmSinglePlayer')"><i class="fa-solid fa-check me-1"></i> Toevoegen</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 2. Bulk Player Modal -->
+<div class="modal fade" id="addBulkPlayersModal" tabindex="-1" aria-labelledby="addBulkLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title" id="addBulkLabel"><i class="fa-solid fa-list-ul me-2"></i>Bulk Spelers Importeren</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+          <div class="alert alert-info border-0 shadow-sm">
+             <i class="fa-solid fa-circle-info me-2"></i>Plak hier de namen uit bijvoorbeeld je Excel-bestand. Zet <strong>elke speler op een nieuwe regel</strong>.
+             <hr class="my-2">
+             <div class="small"><i class="fa-solid fa-user-shield me-1"></i> Voor dit formaat (<?= htmlspecialchars($default_format) ?>) geldt een limiet van <b><?= $max_players ?> spelers</b>. Je kunt er nu nog maximaal <b><?= $remaining_players ?></b> toevoegen.</div>
+          </div>
+          <form id="frmBulkPlayers">
+              <input type="hidden" name="action" value="add_bulk_players">
+              <div class="mb-3">
+                  <textarea name="players_text" class="form-control shadow-sm" style="font-family: monospace; resize: none;" rows="12" placeholder="Jan Peeters&#10;Piet Smet&#10;Kevin De Bruyne..."></textarea>
+              </div>
+          </form>
+      </div>
+      <div class="modal-footer bg-light">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuleren</button>
+        <button type="button" class="btn btn-primary" onclick="submitApicall('frmBulkPlayers')"><i class="fa-solid fa-file-import me-1"></i> Lijst Importeren</button>
+      </div>
+    </div>
+  </div>
+</div>

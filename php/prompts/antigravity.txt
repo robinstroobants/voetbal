@@ -1,0 +1,4 @@
+TODO
+- performance tab moet enkel zichtbaar zijn voor superadmins
+- logout button moet teamnaam niet meer bevatten
+

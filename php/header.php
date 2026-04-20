@@ -33,17 +33,50 @@ header("Expires: 0"); // Proxies blockeren
     <link href="css/styles.css" rel="stylesheet">
 </head>
 <body class="bg-light pb-5">
+    <?php if (isset($_SESSION['original_user_id'])): ?>
+    <div class="alert alert-warning text-center fw-bold py-2 mb-0 rounded-0 border-bottom border-warning shadow-sm sticky-top" style="z-index: 1050;">
+        <i class="fa-solid fa-user-secret me-2"></i> Je bent actief als coach: <span class="text-dark bg-white px-2 py-1 rounded ms-1 border border-warning shadow-sm"><?= htmlspecialchars($_SESSION['impersonated_first_name'] ?? 'Coach') ?></span>
+        <a href="impersonate.php?action=stop" class="btn btn-danger btn-sm ms-3 fw-bold rounded-pill shadow-sm"><i class="fa-solid fa-right-from-bracket me-1"></i> Terug naar Beheerders-weergave</a>
+    </div>
+    <?php endif; ?>
     <nav class="navbar navbar-expand-lg bg-dark mb-4 w-100 d-print-none" data-bs-theme="dark">
         <div class="container">
-            <a class="navbar-brand fw-bold" href="index.php"><i class="fa-regular fa-futbol me-2"></i>Lineup</a>
+            <?php $wsCount = count($_SESSION['available_teams'] ?? []); ?>
+            <?php if ($wsCount > 1 && (!isset($_SESSION['role']) || $_SESSION['role'] !== 'superadmin')): ?>
+            <div class="dropdown">
+                <a class="navbar-brand fw-bold text-truncate dropdown-toggle text-white" style="max-width: 220px; cursor: pointer;" data-bs-toggle="dropdown" aria-expanded="false">
+                    <i class="fa-regular fa-futbol me-2"></i><?= htmlspecialchars($_SESSION['team_name'] ?? 'Lineup') ?>
+                </a>
+                <ul class="dropdown-menu shadow">
+                    <li class="dropdown-header text-uppercase fw-bold"><i class="fa-solid fa-layer-group me-1"></i> Workspaces</li>
+                    <?php foreach($_SESSION['available_teams'] as $ws): ?>
+                        <li>
+                            <form method="POST" action="switch_team.php" class="m-0 p-0">
+                                <input type="hidden" name="team_id" value="<?= $ws['team_id'] ?>">
+                                <button type="submit" class="dropdown-item py-2 <?= ($ws['team_id'] == $_SESSION['team_id']) ? 'fw-bold bg-light' : '' ?>">
+                                    <?= htmlspecialchars($ws['name']) ?>
+                                    <?= ($ws['team_id'] == $_SESSION['team_id']) ? '<i class="fa-solid fa-check text-success ms-2"></i>' : '' ?>
+                                </button>
+                            </form>
+                        </li>
+                    <?php endforeach; ?>
+                </ul>
+            </div>
+            <?php else: ?>
+            <a class="navbar-brand fw-bold text-truncate" style="max-width: 220px;" href="index.php">
+                <i class="fa-regular fa-futbol me-2"></i><?= htmlspecialchars($_SESSION['team_name'] ?? 'Lineup') ?>
+            </a>
+            <?php endif; ?>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto align-items-center">
+                    <?php if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'superadmin'): ?>
                     <li class="nav-item"><a class="nav-link" href="manage_games.php">
                         <i class="fa-regular fa-calendar-days me-2"></i>Wedstrijden
                     </a></li>
+                    <?php endif; ?>
                     
                     <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'superadmin'): ?>
                     <li class="nav-item"><a class="nav-link fw-bold text-success" href="superadmin_dashboard.php">
@@ -51,32 +84,39 @@ header("Expires: 0"); // Proxies blockeren
                     </a></li>
                     <?php endif; ?>
                     
-                    <?php if ($is_localhost || (isset($_SESSION['role']) && $_SESSION['role'] === 'superadmin')): ?>
+                    <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'superadmin'): ?>
                     <li class="nav-item"><a class="nav-link" href="dashboard_performance.php">
                         <i class="fa-solid fa-gauge-high me-2 text-warning"></i>Performance
                     </a></li>
                     <?php endif; ?>
 
+                    <?php if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'superadmin'): ?>
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="settingsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="fa-solid fa-gear me-2"></i>Settings
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="settingsDropdown">
                             <li><a class="dropdown-item" href="edit_players.php"><i class="fa-solid fa-users me-2"></i>Spelers</a></li>
-                            <li><a class="dropdown-item" href="edit_rankings.php"><i class="fa-solid fa-ranking-star me-2 fw-bold text-primary"></i>Rankings</a></li>
-                            <li><a class="dropdown-item" href="edit_scores.php"><i class="fa-solid fa-star me-2"></i>Matrix (Old)</a></li>
+                            
+                            <?php 
+                            $df = $_SESSION['default_format'] ?? '8v8';
+                            if (strpos($df, '2v2') !== 0 && strpos($df, '3v3') !== 0): 
+                            ?>
+                            <li><a class="dropdown-item" href="edit_scores.php"><i class="fa-solid fa-star me-2"></i>Score Matrix</a></li>
+                            <?php if (isset($_SESSION['is_beta_user']) && $_SESSION['is_beta_user'] == 1): ?>
+                            <li><a class="dropdown-item" href="edit_rankings.php"><i class="fa-solid fa-flask text-warning me-2"></i>Rankings <span class="badge bg-warning text-dark ms-1" style="font-size:0.6rem;">BETA</span></a></li>
+                            <?php endif; ?>
+                            <?php endif; ?>
+                            
                             <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="settings.php"><i class="fa-solid fa-sliders me-2"></i>Instellingen</a></li>
+                            <li><a class="dropdown-item" href="settings.php"><i class="fa-solid fa-sliders me-2"></i>Team</a></li>
                         </ul>
                     </li>
+                    <?php endif; ?>
 
-                    <li class="nav-item ms-3">
-                        <a class="btn btn-sm btn-outline-danger d-flex align-items-center" href="logout.php">
-                            <i class="fa-solid fa-right-from-bracket me-2"></i>
-                            <div class="text-start ms-1" style="line-height:1;">
-                                <small class="d-block w-100" style="font-size:0.65rem; opacity:0.8;"><?= htmlspecialchars($_SESSION['team_name'] ?? 'Coach') ?></small>
-                                <span>Logout</span>
-                            </div>
+                    <li class="nav-item ms-3 d-flex align-items-center">
+                        <a class="btn btn-sm btn-outline-danger shadow-sm" href="logout.php">
+                            <i class="fa-solid fa-right-from-bracket me-1"></i> Logout
                         </a>
                     </li>
                 </ul>

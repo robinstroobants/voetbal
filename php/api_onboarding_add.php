@@ -16,6 +16,19 @@ if (!$team_id) {
     exit;
 }
 
+$stmtT = $pdo->prepare("SELECT default_format FROM teams WHERE id = ?");
+$stmtT->execute([$team_id]);
+$default_format = $stmtT->fetchColumn() ?: '8v8';
+
+$max_players = 24;
+if (strpos($default_format, '2v2') === 0 || strpos($default_format, '3v3') === 0) {
+    $max_players = 12;
+}
+
+$stmtP = $pdo->prepare("SELECT COUNT(*) FROM players WHERE team_id = ?");
+$stmtP->execute([$team_id]);
+$current_players = (int)$stmtP->fetchColumn();
+
 if ($action === 'add_single_player') {
     $first_name = trim($_POST['first_name'] ?? '');
     $last_name = trim($_POST['last_name'] ?? '');
@@ -24,6 +37,11 @@ if ($action === 'add_single_player') {
     
     if (empty($first_name)) {
         echo json_encode(['success' => false, 'error' => 'Voornaam is verplicht']);
+        exit;
+    }
+    
+    if ($current_players >= $max_players) {
+        echo json_encode(['success' => false, 'error' => "Limiet bereikt. Jouw format ondersteunt maximaal $max_players spelers."]);
         exit;
     }
     
@@ -59,6 +77,25 @@ if ($action === 'add_bulk_players') {
     }
     
     $lines = explode("\n", str_replace("\r", "", $players_text));
+    $valid_lines = [];
+    foreach ($lines as $line) {
+        if (trim($line) !== '') {
+            $valid_lines[] = trim($line);
+        }
+    }
+    
+    $attempted_count = count($valid_lines);
+    if ($attempted_count === 0) {
+        echo json_encode(['success' => false, 'error' => 'Geen geldige namen gevonden.']);
+        exit;
+    }
+    
+    if (($current_players + $attempted_count) > $max_players) {
+        $remaining = max(0, $max_players - $current_players);
+        echo json_encode(['success' => false, 'error' => "Je probeert $attempted_count spelers toe te voegen, maar je hebt nog maar plaats voor $remaining speler(s) (Max $max_players). Pas je lijst aan."]);
+        exit;
+    }
+    
     $added = 0;
     
     try {

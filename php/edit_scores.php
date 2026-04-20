@@ -1,6 +1,30 @@
 <?php
 require_once("game.php");
 
+// Bepaal de zichtbare posities a.d.h.v. het format van dit team
+$stmtF = $pdo->prepare("SELECT default_format FROM teams WHERE id = ?");
+$stmtF->execute([$_SESSION['team_id']]);
+$default_format = $stmtF->fetchColumn() ?: '8v8';
+
+$visible_positions = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]; // default
+if (strpos($default_format, '2v2') === 0 || strpos($default_format, '3v3') === 0) {
+    // 2v2 en 3v3 hebben the matrix helemaal niet nodig!
+    require_once 'header.php';
+    echo '<div class="container mt-5">';
+    echo '<div class="alert alert-info shadow-sm text-center py-5">';
+    echo '  <i class="fa-solid fa-face-smile-wink fa-3x text-primary mb-3"></i>';
+    echo '  <h3>Fun Formats hebben geen Matrix nodig!</h3>';
+    echo '  <p class="mb-0">Bij 2v2 en 3v3 draait het volledig om plezier. De exacte opstelling of matrix scores maken hier niets uit en the generator verdeelt de speeltijd gewoon eerlijk.</p>';
+    echo '  <a href="index.php" class="btn btn-primary mt-4"><i class="fa-solid fa-arrow-left me-2"></i>Terug naar dashboard</a>';
+    echo '</div>';
+    echo '</div>';
+    require_once 'footer.php';
+    exit;
+} elseif (strpos($default_format, '5v5') === 0) {
+    $visible_positions = [1, 4, 7, 9, 11];
+} elseif (strpos($default_format, '8v8') === 0) {
+    $visible_positions = [1, 2, 4, 5, 7, 9, 10, 11];
+}
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['player_id'])) {
     $player_id = intval($_POST['player_id']);
     
@@ -78,22 +102,30 @@ $page_title = 'Edit Player scores';
 require_once 'header.php';
 ?>
 <div class="container mt-5">
-    <h2 class="mb-4">Edit Player Scores</h2>
+    <h2 class="mb-4">Score Matrix</h2>
+    <div class="alert alert-info border-0 shadow-sm mb-4">
+        <i class="fa-solid fa-circle-info me-2"></i>Je bekijkt the posities voor <b><?= htmlspecialchars($default_format) ?></b>. Andere posities worden op de achtergrond bewaard en doorgerekend.
+    </div>
+
     <?php foreach($players as $player_id => $player) { ?>
-      <form method="post" class="card p-3 mb-3">
+      <form method="post" class="card shadow-sm border-0 mb-3 px-4 py-3">
           <input type="hidden" name="player_id" value="<?php echo $player_id; ?>">
-          <div class="row g-3 align-items-center">
+          <div class="row g-2 align-items-center">
             <div class="col-md-3">
-                <label class="form-label"><?php echo !empty($player['first_name']) ? htmlspecialchars($player['first_name']) : ''; ?> <?php echo !empty($player['first_name']) ? htmlspecialchars($player['last_name']) : ''; ?></label>              
+                <div class="fw-bold fs-6 text-dark"><?php echo !empty($player['first_name']) ? htmlspecialchars($player['first_name']) : ''; ?> <?php echo !empty($player['last_name']) ? htmlspecialchars($player['last_name']) : ''; ?></div>              
             </div>
-            <?php foreach($scores[$player_id] as $position => $score) {?>
-            <div class="col-md-1">
-                <label class="form-label"><?php echo $position; ?></label>
-                <input type="text" name="pos_<?php echo $position; ?>" class="form-control" value="<?php echo $score; ?>">
+            <?php foreach($scores[$player_id] as $position => $score) {
+                 if (in_array($position, $visible_positions)):
+            ?>
+            <div class="col-1 text-center" style="width: 70px;">
+                <label class="form-label text-muted small fw-bold mb-1">P<?= $position ?></label>
+                <input type="text" name="pos_<?php echo $position; ?>" class="form-control form-control-sm text-center px-1" value="<?php echo $score; ?>">
             </div>
-            <?php } ?>
-              <div class="col-md-2 d-flex align-items-end">
-                  <button type="submit" class="btn btn-primary">Save</button>
+            <?php 
+                endif;
+            } ?>
+              <div class="col-md-2 d-flex align-items-end ms-auto">
+                  <button type="submit" class="btn btn-primary btn-sm px-4">Save</button>
               </div>
           </div>
       </form>

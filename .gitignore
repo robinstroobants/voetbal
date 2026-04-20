@@ -5,3 +5,4 @@
 db/
 /php/vendor/
 /php/.phpunit.cache/
+/php/php_errorlog

@@ -500,6 +500,16 @@
           }
       }
 
+      $schema_events = $events[$format][count($list_of_players)] ?? [];
+      if (empty($schema_events)) {
+          echo "<div style='font-family: sans-serif; padding: 20px; border: 2px solid red; background: #fff5f5; margin:20px;'>";
+          echo "<h2 style='color: #d9534f;'>❌ Schema Niet Compatibel</h2>";
+          echo "<p>Het opgevraagde wisselschema bestaat niet (meer) voor de huidige selectie (<strong>" . count($list_of_players) . " spelers</strong>).<br/>Dit gebeurt meestal als je een opgeslagen opstelling bekijkt, maar intussen spelers hebt toegevoegd of verwijderd aan de 'Wedstrijd Selectie'.</p>";
+          echo "<a href='lineup.php?wedstrijd=" . (isset($gameId) ? $gameId : 0) . "' style='display:inline-block; padding: 10px 15px; background: #d9534f; color: #fff; text-decoration: none; border-radius: 4px;'>Ga terug naar de vernieuwde opstelling</a>";
+          echo "</div>";
+          return;
+      }
+
       $result = new Game($list_of_players,$onlyBestSelection,$format);
       $total_points = $result->score;
       $max_points = $total_points;

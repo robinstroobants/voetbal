@@ -25,7 +25,7 @@ $stmtGk = $pdo->prepare("SELECT SUM(is_goalkeeper) FROM game_selections WHERE ga
 $stmtGk->execute([$gameId]);
 $gk_count = (int)$stmtGk->fetchColumn();
 
-// Find filename
+// Find filename (behoud variabelen voor JS redirects etc.)
 $search_format = $format;
 if (strpos($format, 'gk') === false) {
     if (preg_match('/^(\d+v\d+)_(\d+x\d+)$/', $format, $matches)) {
@@ -33,18 +33,17 @@ if (strpos($format, 'gk') === false) {
     }
 }
 $full_format = $search_format . "_" . $aantal . "sp";
-$wissel_file = __DIR__ . "/wisselschemas/" . $full_format . ".php";
 
-if (!file_exists($wissel_file)) {
-    die("Kan schemabestand niet vinden: " . basename($wissel_file));
+// Haal schema direct op met het unieke id
+$stmtSch = $pdo->prepare("SELECT schema_data FROM lineups WHERE id = ?");
+$stmtSch->execute([$schemaId]);
+$schema_json = $stmtSch->fetchColumn();
+
+if (!$schema_json) {
+    die("Kan schema (ID $schemaId) niet vinden in database.");
 }
 
-include $wissel_file;
-if (!isset($ws[$schemaId])) {
-    die("Schema ID $schemaId niet gevonden in bestand.");
-}
-
-$schema = $ws[$schemaId];
+$schema = json_decode($schema_json, true);
 
 // Helper for playernames
 $stmtPlayers = $pdo->query("SELECT id, first_name, last_name FROM players");

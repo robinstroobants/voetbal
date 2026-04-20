@@ -174,18 +174,22 @@
   // ------------------------------------------------------------
   // [4] Wisselschema zoeken en laden
   // ------------------------------------------------------------
-          $wissel_file = __DIR__ . "/wisselschemas/" . $format . "_" . $aantal . "sp.php";
-
           if ($building_lineup == 1) {
-              echo "Zoekbestand: " . $wissel_file . "<br/>";
+              echo "Zoek in database: " . $format . " " . $aantal . "sp<br/>";
           }
 
-          if (file_exists($wissel_file)) {
+          $stmtSchemas = $pdo->prepare("SELECT id, schema_data FROM lineups WHERE game_format = ? AND player_count = ?");
+          $stmtSchemas->execute([$format, $aantal]);
+          $ws = [];
+          while($s_row = $stmtSchemas->fetch(PDO::FETCH_ASSOC)) {
+              $ws[$s_row['id']] = json_decode($s_row['schema_data'], true);
+          }
+
+          if (!empty($ws)) {
               if ($building_lineup == 1) {
-                  echo "Wisselschema geladen: " . basename($wissel_file) . "<br/>";
+                  echo "Wisselschemas geladen uit database.<br/>";
               }
-              include $wissel_file;
-              $beschikbare_schemas = array_keys(isset($ws) ? $ws : []);
+              $beschikbare_schemas = array_keys($ws);
               
               // Filter schemas op basis van min_pos instelling uit de DB
               $min_pos_requirement = (int)($matchData['game']['min_pos'] ?? 0);
@@ -493,10 +497,11 @@
       // We moeten het juiste schema inladen via de global variabelen voordat Game wordt geïnitialiseerd
       // Normaliter deed de iterator dat, maar in coach mode moeten we dit eenmalig manueel doen.
       if (isset($te_gebruiken_schema)) {
-          $wissel_file = __DIR__ . "/wisselschemas/" . $format . "_" . count($list_of_players) . "sp.php";
-          if (file_exists($wissel_file)) {
-              include $wissel_file; 
-              $events[$format][count($list_of_players)] = $ws[$te_gebruiken_schema] ?? [];
+          $stmtSch = $pdo->prepare("SELECT schema_data FROM lineups WHERE id = ?");
+          $stmtSch->execute([$te_gebruiken_schema]);
+          $schema_json = $stmtSch->fetchColumn();
+          if ($schema_json) {
+              $events[$format][count($list_of_players)] = json_decode($schema_json, true);
           }
       }
 
@@ -514,7 +519,7 @@
       $total_points = $result->score;
       $max_points = $total_points;
       $selected["run"] = $tries;
-      $selected["ws_id"] = $te_gebruiken_schema ?? ($wisselschema_index[$format] ?? 0);
+      $selected["ws_id"] = $te_gebruiken_schema ?? 0;
       $selected["total_points"] = $total_points;
       $selected["rating"] = $result->rating;
       $selected["volgorde"] = implode(',', $list_of_players);
@@ -672,7 +677,7 @@
               $game_result = new Game($list_of_players, $onlyBestSelection, $format);
               $total_points = $game_result->score;
               
-              $ws_id_current = $wisselschema_index[$format] ?? $schema_id;
+              $ws_id_current = $schema_id;
               
               $cat_current = 30000;
               if ($ws_id_current < 20000) $cat_current = 10000;
@@ -770,7 +775,7 @@
   if (is_null($result)) {
       echo "<div style='font-family: Arial, sans-serif; padding: 20px; border: 2px solid red; background: #fff5f5; margin-bottom: 20px;'>";
       echo "<h2 style='color: #d9534f;'>❌ Geen geldige opstelling gevonden</h2>";
-      echo "<p><strong>Schema:</strong> <code>" . basename($wissel_file) . "</code> | <strong>Pogingen:</strong> $tries</p>";
+      echo "<p><strong>Schema:</strong> <code>DB (Format: $format)</code> | <strong>Pogingen:</strong> $tries</p>";
 
       echo "<h3>🕵️ Bottleneck Analyse</h3>";
       echo "<table border='1' cellpadding='8' style='border-collapse: collapse; width: 100%; background: white; text-align: left;'>";

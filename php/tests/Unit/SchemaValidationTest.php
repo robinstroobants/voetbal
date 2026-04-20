@@ -4,41 +4,50 @@ use PHPUnit\Framework\TestCase;
 
 class SchemaValidationTest extends TestCase
 {
-    private array $schemaFiles = [];
+    private $pdo;
 
     protected function setUp(): void
     {
-        // Zoek alle valid wisselschema bestanden in de map
-        $dir = __DIR__ . '/../../wisselschemas';
-        $files = scandir($dir);
-        foreach ($files as $file) {
-            if (pathinfo($file, PATHINFO_EXTENSION) === 'php') {
-                $this->schemaFiles[] = $dir . '/' . $file;
-            }
+        // Setup direct DB connection
+        $host = getenv('DB_HOST') ?: 'db';
+        $db   = getenv('DB_NAME') ?: 'voetbal';
+        $user = getenv('DB_USER') ?: 'voetbal_user';
+        $pass = getenv('DB_PASS') ?: 'voetbal_pass';
+        $charset = 'utf8mb4';
+        
+        $dsn = "mysql:host=$host;dbname=$db;charset=$charset";
+        $options = [
+            PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::ATTR_EMULATE_PREPARES   => false,
+        ];
+        
+        try {
+            $this->pdo = new PDO($dsn, $user, $pass, $options);
+        } catch (\PDOException $e) {
+            $this->markTestSkipped('Geen database connectie beschikbaar voor test: ' . $e->getMessage());
         }
     }
 
     public function testSchemasComplyWithGameRules()
     {
-        $this->assertNotEmpty($this->schemaFiles, "Geen schema's gevonden om te testen.");
+        $stmt = $this->pdo->query("SELECT id, game_format, player_count, schema_data FROM lineups");
+        $results = $stmt->fetchAll();
+        
+        $this->assertNotEmpty($results, "Geen schema's gevonden in database om te testen.");
 
-        foreach ($this->schemaFiles as $file) {
-            // Extract the playercount from the filename, e.g. "5v5_1gk_4x15_6sp.php" -> 6
-            preg_match('/_(\d+)sp\.php$/', $file, $matches);
-            if (!isset($matches[1])) continue;
+        foreach ($results as $row) {
+            $schemaId = (int)$row['id'];
+            $format = $row['game_format'];
+            $playercount = (int)$row['player_count'];
             
-            $playercount = (int)$matches[1];
-            
-            preg_match('/_(\d+)gk_/', $file, $gkMatches);
+            preg_match('/_(\d+)gk_/', $format, $gkMatches);
             $gkCount = isset($gkMatches[1]) ? (int)$gkMatches[1] : 1;
             
-            // Laad het bestand
-            $ws = [];
-            require $file; // Laadt de $ws variabele in de locale scope
-
-            foreach ($ws as $schemaId => $shifts) {
-                $this->validateSchema($file, $schemaId, $shifts, $playercount, $gkCount);
-            }
+            $shifts = json_decode($row['schema_data'], true);
+            $sourceIdentifier = "DB_ID: {$schemaId} ({$format}_{$playercount}sp)";
+            
+            $this->validateSchema($sourceIdentifier, $schemaId, $shifts, $playercount, $gkCount);
         }
     }
 

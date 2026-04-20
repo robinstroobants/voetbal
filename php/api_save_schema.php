@@ -18,22 +18,19 @@ $originalId = (int)$data['original_schema_id'];
 $blocks = $data['blocks'];
 $force_update = !empty($data['force_settings_update']);
 
-$wissel_file = __DIR__ . "/wisselschemas/" . $format . "_" . $aantal . "sp.php";
-if (!file_exists($wissel_file)) {
-    die(json_encode(['success' => false, 'error' => 'Bronschema structuur niet gevonden op schijf.']));
+$stmtSchema = $pdo->prepare("SELECT schema_data FROM lineups WHERE id = ?");
+$stmtSchema->execute([$originalId]);
+$schema_json = $stmtSchema->fetchColumn();
+
+if (!$schema_json) {
+    die(json_encode(['success' => false, 'error' => 'Origineel schema (ID '.$originalId.') onbekend!']));
 }
 
-include $wissel_file;
-
-if (!isset($ws[$originalId])) {
-    die(json_encode(['success' => false, 'error' => 'Origineel schema onbekend!']));
-}
-
-$old_schema = $ws[$originalId];
+$old_schema = json_decode($schema_json, true);
 $new_schema = [];
 
 $gk_count_schema = 0;
-if (preg_match('/_(\d+)gk_/', basename($wissel_file), $m)) {
+if (preg_match('/_(\d+)gk_/', $format, $m)) {
     $gk_count_schema = (int)$m[1];
 }
 
@@ -151,9 +148,12 @@ $overwrite = isset($data['overwrite_mode']) ? filter_var($data['overwrite_mode']
 
 $duplicate_id = null;
 if (!$overwrite) {
-    foreach ($ws as $k => $sch) {
-        if (schemas_are_identical($new_schema, $sch)) {
-            $duplicate_id = $k;
+    $stmtDup = $pdo->prepare("SELECT id, schema_data FROM lineups WHERE game_format = ? AND player_count = ?");
+    $stmtDup->execute([$format, $aantal]);
+    while ($row = $stmtDup->fetch()) {
+        $db_schema = json_decode($row['schema_data'], true);
+        if (schemas_are_identical($new_schema, $db_schema)) {
+            $duplicate_id = $row['id'];
             break;
         }
     }
@@ -172,7 +172,7 @@ if ($duplicate_id !== null && !$overwrite) {
     
     global $events;
     $events = [];
-    $events[$duplicate_id] = $ws[$duplicate_id];
+    $events[$duplicate_id] = $new_schema;
     
     $matchManager = new MatchManager($pdo);
     $matchData = $matchManager->getSelection($gameId);
@@ -184,13 +184,13 @@ if ($duplicate_id !== null && !$overwrite) {
     // Zorg ervoor dat $format globaal beschikbaar is VOOR constructie
     global $events;
     $events = [];
-    $events[$format][count($list_of_players)] = $ws[$duplicate_id];
+    $events[$format][count($list_of_players)] = $new_schema;
     
     $gameObj = new Game($list_of_players, true, $format, 'none');
     $gameObj->setPlayerInfo($matchData['player_info']);
     $gameObj->setPlayerScores($matchData['player_scores']);
     // Overschrijf events expliciet om foutvrij te evalueren
-    $gameObj->events = $ws[$duplicate_id];
+    $gameObj->events = $new_schema;
     $gameObj->swapPlayers(); // FIX: Translate generic schema indices to actual player string keys!
     $gameObj->setTimePlayed(count($gameObj->events)-1);
     $gameObj->setRunQuality();
@@ -209,32 +209,15 @@ $overwrite = isset($data['overwrite_mode']) ? filter_var($data['overwrite_mode']
 $new_id = null;
 
 if ($overwrite && !empty($data['original_schema_id'])) {
-    // Revisor modus: We overschrijven keihard het originele bronbestand-ID, en negeren duplicate checks!
+    // Revisor modus: We overschrijven keihard het database record.
     $new_id = (int)$data['original_schema_id'];
-    $ws[$new_id] = $new_schema;
+    $stmtUpd = $pdo->prepare("UPDATE lineups SET schema_data = ? WHERE id = ?");
+    $stmtUpd->execute([json_encode($new_schema), $new_id]);
 } else {
-    // 3. Nieuw ID Saven als theorie
-    $catBounded = $cat > 3 ? 3 : $cat;
-    $startId = $catBounded * 10000;
-    $endId = $startId + 9999;
-
-    $max_in_cat = $startId;
-    foreach (array_keys($ws) as $k) {
-        if ($k >= $startId && $k <= $endId && $k > $max_in_cat) {
-            $max_in_cat = $k;
-        }
-    }
-
-    $new_id = $max_in_cat + 1;
-    $ws[$new_id] = $new_schema;
-}
-
-// Sla terug op in PHP structuur
-$file_content = "<?php\n\$ws_fname = '" . str_replace("sp.php","",basename($wissel_file)) . "';\n";
-$file_content .= "\$ws = " . var_export($ws, true) . ";\n";
-
-if (file_put_contents($wissel_file, $file_content) === false) {
-    die(json_encode(['success' => false, 'error' => 'Kon bestand niet schrijven: ' . basename($wissel_file)]));
+    // Nieuw schema opslaan, eventueel met parent_id = originalId
+    $stmtIns = $pdo->prepare("INSERT INTO lineups (game_format, player_count, legacy_id, parent_id, schema_data, is_original) VALUES (?, ?, 0, ?, ?, 0)");
+    $stmtIns->execute([$format, $aantal, $originalId, json_encode($new_schema)]);
+    $new_id = $pdo->lastInsertId();
 }
 
 // Opschonen database
@@ -260,7 +243,7 @@ $GLOBALS['global_playerinfo'] = isset($matchData['player_info']) && is_array($ma
 
 global $events;
 $events = [];
-$events[$format][count($list_of_players)] = $ws[$new_id];
+$events[$format][count($list_of_players)] = $new_schema;
 
 $gameObj = new Game($list_of_players, true, $format, 'none');
 $gameObj->setPlayerInfo($matchData['player_info']);
@@ -270,7 +253,7 @@ if (preg_match('/_(\d+)x(\d+)$/', $format, $m)) {
     $gameObj->game_duration = (int)$m[2];
     $gameObj->nr_of_games = (int)$m[1];
 }
-$gameObj->events = $ws[$new_id];
+$gameObj->events = $new_schema;
 $gameObj->swapPlayers(); // FIX: Translate generic schema indices to actual player string keys!
 $gameObj->setTimePlayed(count($gameObj->events)-1);
 $gameObj->setRunQuality();

@@ -7,23 +7,17 @@ require_once 'header.php'; // Zorg dat we de admin layout pakken
 $format = $_GET['format'] ?? '8v8_0gk_4x15_9sp';
 $schemaId = isset($_GET['schema']) ? (int)$_GET['schema'] : 20000;
 
-$wissel_file = __DIR__ . '/wisselschemas/' . $format . '.php';
+$stmtSchema = $pdo->prepare("SELECT schema_data FROM lineups WHERE id = ?");
+$stmtSchema->execute([$schemaId]);
+$schema_json = $stmtSchema->fetchColumn();
 
-if (!file_exists($wissel_file)) {
-    echo "<div class='container mt-5'><div class='alert alert-danger'>File not found: " . htmlspecialchars($format) . ".php</div></div>";
+if (!$schema_json) {
+    echo "<div class='container mt-5'><div class='alert alert-warning'>Schema $schemaId niet gevonden in de database.</div></div>";
     require_once 'footer.php';
     exit;
 }
 
-require $wissel_file;
-
-if (!isset($ws[$schemaId])) {
-    echo "<div class='container mt-5'><div class='alert alert-warning'>Schema $schemaId niet gevonden in $format.php</div></div>";
-    require_once 'footer.php';
-    exit;
-}
-
-$shifts = $ws[$schemaId];
+$shifts = json_decode($schema_json, true);
 
 // Fake player names database voor visualisatie - zorg voor genoeg namen om "dubbele" te vermijden!
 $fakeNames = ["Loris", "Arda", "Miel", "Jack", "Jayden", "Seppe", "Tiebe", "Murat", "Vinn", "Rune", "Staf", "Daan", "Bram", "Tom", "Lars", "Jesse", "Milan", "Noah", "Sem", "Lucas", "Liam", "Finn", "Mason", "Luuk"];

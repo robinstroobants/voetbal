@@ -228,23 +228,18 @@ class MatchManager {
             
             $count = count($players);
             $format = $row['format'];
-            
-            // Calculate goalies to determine literal lookup format
-            $gk_count = (int)($row['gk_count'] ?? 0);
-            
-            if (strpos($format, 'gk') === false) {
-                if (preg_match('/^(\d+v\d+)_(\d+x\d+)$/', $format, $matches)) {
-                    $format = $matches[1] . '_' . $gk_count . 'gk_' . $matches[2];
-                }
-            }
             $schema_id = $row['schema_id'];
 
-            $wissel_file = __DIR__ . "/wisselschemas/" . $format . "_" . $count . "sp.php";
+            // Haal het schema op uit de nieuwe database tabel (unieke IDs)
+            $stmtSch = $this->pdo->prepare("SELECT schema_data FROM lineups WHERE id = ?");
+            $stmtSch->execute([$schema_id]);
+            $schema_json = $stmtSch->fetchColumn();
 
-            $schema = $this->loadSchemaForHistory($wissel_file, $schema_id);
-            if (!$schema) {
-                continue; // Schema niet gevonden lokaal, overslaan
+            if (!$schema_json) {
+                continue; // Schema niet gevonden in DB, overslaan
             }
+            
+            $schema = json_decode($schema_json, true);
 
             $durationTotal = 0;
             $time_played = [];
@@ -302,25 +297,5 @@ class MatchManager {
         }
 
         return $pt_all_games;
-    }
-
-    /**
-     * Isoleert scope voor include() zodat variabele conflicten (bv $ws globale overschrijvingen) voorkomen worden.
-     */
-    private function loadSchemaForHistory(string $file, $schema_id) {
-        if (!file_exists($file)) return null;
-        $ws = [];
-        $te_gebruiken_schema = $schema_id; // Simuleert "gekozen" in het bestand
-        
-        // Zorg dat we output dempen in geval er notices of echos in de legacy bestanden staan.
-        // Eerst error handler tijdelijk overriden
-        $old_err = error_reporting(0);
-        include $file;
-        error_reporting($old_err);
-        
-        if (isset($ws[$schema_id])) {
-            return $ws[$schema_id];
-        }
-        return null;
     }
 }

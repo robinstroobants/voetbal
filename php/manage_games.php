@@ -5,6 +5,9 @@ require_once 'getconn.php';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
     if ($action === 'delete' && isset($_POST['game_id'])) {
+        // Cascade delete wegens ontbrekende ON DELETE CASCADE rules in database schema:
+        $pdo->prepare("DELETE FROM game_lineups WHERE game_id = :id")->execute(['id' => $_POST['game_id']]);
+        $pdo->prepare("DELETE FROM game_selections WHERE game_id = :id")->execute(['id' => $_POST['game_id']]);
         $stmt = $pdo->prepare("DELETE FROM games WHERE id = :id");
         $stmt->execute(['id' => $_POST['game_id']]);
     } elseif ($action === 'save') {
@@ -17,6 +20,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $coachId = !empty($_POST['coach_id']) ? (int)$_POST['coach_id'] : null;
         
         if ($gameId) {
+            // Controleer of layout/format veranderd is ten opzichte van current
+            $stmtCheckFmt = $pdo->prepare("SELECT format FROM games WHERE id = ?");
+            $stmtCheckFmt->execute([$gameId]);
+            $oldFormat = $stmtCheckFmt->fetchColumn();
+
+            if ($oldFormat !== $format) {
+                // Formaat is gewijzigd, theorie is nu nutteloos, opruimen!
+                $pdo->prepare("DELETE FROM game_lineups WHERE game_id = ?")->execute([$gameId]);
+            }
+
             $stmt = $pdo->prepare("UPDATE games SET opponent = :opp, game_date = :gd, format = :fmt, min_pos = :mpos, coach_id = :cid WHERE id = :id");
             $stmt->execute(['opp' => $opponent, 'gd' => $gameDate, 'fmt' => $format, 'mpos' => $minPos, 'cid' => $coachId, 'id' => $gameId]);
         } else {

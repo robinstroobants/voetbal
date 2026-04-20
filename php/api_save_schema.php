@@ -147,15 +147,19 @@ function schemas_are_identical($sch1, $sch2) {
     return true;
 }
 
+$overwrite = isset($data['overwrite_mode']) ? filter_var($data['overwrite_mode'], FILTER_VALIDATE_BOOLEAN) : false;
+
 $duplicate_id = null;
-foreach ($ws as $k => $sch) {
-    if (schemas_are_identical($new_schema, $sch)) {
-        $duplicate_id = $k;
-        break;
+if (!$overwrite) {
+    foreach ($ws as $k => $sch) {
+        if (schemas_are_identical($new_schema, $sch)) {
+            $duplicate_id = $k;
+            break;
+        }
     }
 }
 
-if ($duplicate_id !== null) {
+if ($duplicate_id !== null && !$overwrite) {
     // Schema bestaat al, we slaan niet nieuw op, we refereren enkel!
     if ($force_update && $cat < $game_min_pos) {
         $update_pos = $cat > 1 ? $cat : 0;
@@ -190,7 +194,7 @@ if ($duplicate_id !== null) {
     $gameObj->swapPlayers(); // FIX: Translate generic schema indices to actual player string keys!
     $gameObj->setTimePlayed(count($gameObj->events)-1);
     $gameObj->setRunQuality();
-    $calculated_score = $gameObj->score;
+    $calculated_score = $gameObj->rating;
     
     $stmtInsert = $pdo->prepare("INSERT INTO game_lineups (game_id, schema_id, player_order, score, is_final) VALUES (?, ?, ?, ?, 0)");
     $stmtInsert->execute([$gameId, $duplicate_id, $volgorde, $calculated_score]);
@@ -200,20 +204,30 @@ if ($duplicate_id !== null) {
     exit;
 }
 
-// 3. Nieuw ID Saven als theorie
-$catBounded = $cat > 3 ? 3 : $cat;
-$startId = $catBounded * 10000;
-$endId = $startId + 9999;
+$overwrite = isset($data['overwrite_mode']) ? filter_var($data['overwrite_mode'], FILTER_VALIDATE_BOOLEAN) : false;
 
-$max_in_cat = $startId;
-foreach (array_keys($ws) as $k) {
-    if ($k >= $startId && $k <= $endId && $k > $max_in_cat) {
-        $max_in_cat = $k;
+$new_id = null;
+
+if ($overwrite && !empty($data['original_schema_id'])) {
+    // Revisor modus: We overschrijven keihard het originele bronbestand-ID, en negeren duplicate checks!
+    $new_id = (int)$data['original_schema_id'];
+    $ws[$new_id] = $new_schema;
+} else {
+    // 3. Nieuw ID Saven als theorie
+    $catBounded = $cat > 3 ? 3 : $cat;
+    $startId = $catBounded * 10000;
+    $endId = $startId + 9999;
+
+    $max_in_cat = $startId;
+    foreach (array_keys($ws) as $k) {
+        if ($k >= $startId && $k <= $endId && $k > $max_in_cat) {
+            $max_in_cat = $k;
+        }
     }
-}
 
-$new_id = $max_in_cat + 1;
-$ws[$new_id] = $new_schema;
+    $new_id = $max_in_cat + 1;
+    $ws[$new_id] = $new_schema;
+}
 
 // Sla terug op in PHP structuur
 $file_content = "<?php\n\$ws_fname = '" . str_replace("sp.php","",basename($wissel_file)) . "';\n";
@@ -260,10 +274,10 @@ $gameObj->events = $ws[$new_id];
 $gameObj->swapPlayers(); // FIX: Translate generic schema indices to actual player string keys!
 $gameObj->setTimePlayed(count($gameObj->events)-1);
 $gameObj->setRunQuality();
-$calculated_score = $gameObj->score;
+$calculated_score = $gameObj->rating;
 
 $stmtInsert = $pdo->prepare("INSERT INTO game_lineups (game_id, schema_id, player_order, score, is_final) VALUES (?, ?, ?, ?, 0)");
 $stmtInsert->execute([$gameId, $new_id, $volgorde, $calculated_score]);
 $lineup_id = $pdo->lastInsertId();
 
-echo json_encode(['success' => true, 'new_id' => $new_id, 'is_duplicate' => false, 'lineup_id' => $lineup_id]);
+echo json_encode(['success' => true, 'new_id' => $new_id, 'is_duplicate' => false, 'lineup_id' => $lineup_id, 'is_overwrite' => $overwrite]);

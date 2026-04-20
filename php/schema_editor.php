@@ -5,6 +5,7 @@ require_once 'MatchManager.php';
 $gameId = $_GET['game_id'] ?? 0;
 $schemaId = $_GET['schema_id'] ?? 0;
 $volgorde = $_GET['volgorde'] ?? '';
+$overwriteMode = isset($_GET['overwrite_mode']) && $_GET['overwrite_mode'] == '1';
 
 if (!$gameId || !$schemaId || empty($volgorde)) {
     die("Minimale setup data ontbreekt (game_id, schema_id, volgorde vereist).");
@@ -31,7 +32,8 @@ if (strpos($format, 'gk') === false) {
         $search_format = $matches[1] . '_' . $gk_count . 'gk_' . $matches[2];
     }
 }
-$wissel_file = __DIR__ . "/wisselschemas/" . $search_format . "_" . $aantal . "sp.php";
+$full_format = $search_format . "_" . $aantal . "sp";
+$wissel_file = __DIR__ . "/wisselschemas/" . $full_format . ".php";
 
 if (!file_exists($wissel_file)) {
     die("Kan schemabestand niet vinden: " . basename($wissel_file));
@@ -139,7 +141,11 @@ require_once 'header.php';
         </div>
         <div>
             <a href="lineup.php?wedstrijd=<?= $gameId ?>" class="btn btn-outline-secondary me-2"><i class="fa-solid fa-arrow-left me-1"></i> Terug</a>
-            <button class="btn btn-success" onclick="saveSchema()"><i class="fa-solid fa-floppy-disk me-1"></i> Opslaan Als Nieuw</button>
+            <?php if (!empty($overwriteMode)): ?>
+                <button class="btn btn-warning fw-bold text-dark" onclick="saveSchema()"><i class="fa-solid fa-floppy-disk me-1"></i> Wijzigingen Overschrijven</button>
+            <?php else: ?>
+                <button class="btn btn-success" onclick="saveSchema()"><i class="fa-solid fa-floppy-disk me-1"></i> Opslaan Als Nieuw</button>
+            <?php endif; ?>
         </div>
     </div>
     <div class="alert alert-info border-info">
@@ -302,17 +308,42 @@ document.querySelectorAll('.player-item[draggable="true"]').forEach(item => {
                 });
             } else {
                 // BANK <-> VELD WISSEL: Wissel de IDENTITEITEN (de volledige rotaties) doorheen het kwartier
-                gameContainer.querySelectorAll('.player-item').forEach(item => {
-                    let thisSidx = item.getAttribute('data-sidx');
-                    if (thisSidx === sidxA) {
-                        item.setAttribute('data-sidx', sidxB);
-                        item.setAttribute('data-name', nameB);
-                        item.innerText = nameB;
-                    } else if (thisSidx === sidxB) {
-                        item.setAttribute('data-sidx', sidxA);
-                        item.setAttribute('data-name', nameA);
-                        item.innerText = nameA;
+                let currentBlock = this.closest('.editor-block');
+                let benchBoundSidx = (posA !== 'bench') ? sidxA : sidxB;
+                let fieldBoundSidx = (posA === 'bench') ? sidxA : sidxB;
+                
+                gameContainer.querySelectorAll('.editor-block').forEach(block => {
+                    let isCurrentBlock = (block === currentBlock);
+                    
+                    // Slimme check: Als we het "andere helftje" (smart-sync) updaten...
+                    if (!isCurrentBlock) {
+                        // Ligt de speler die in de actieve helft naar het VELD gaat, hier toevallig op de BANK?
+                        // Als we ze dan zouden swappen, vliegt de benchBound speler ook in dit helftje naar de bank.
+                        // Dan zou hij dus 2 helftjes na elkaar op de bank zitten! Dat verbieden we (skip smart-sync hier).
+                        let fieldBoundPlayerOnBenchInThisBlock = false;
+                        block.querySelectorAll('.pos-wrapper[data-pos="bench"] .player-item').forEach(pi => {
+                            if (pi.getAttribute('data-sidx') === fieldBoundSidx) fieldBoundPlayerOnBenchInThisBlock = true;
+                        });
+                        
+                        // Als dat het geval is, weigeren we de automatische sync in dit specifieke blok om fouten te vermijden!
+                        if (fieldBoundPlayerOnBenchInThisBlock) {
+                            return; // skip this block!
+                        }
                     }
+                    
+                    // Update items via veilige theorie in dit block
+                    block.querySelectorAll('.player-item').forEach(item => {
+                        let thisSidx = item.getAttribute('data-sidx');
+                        if (thisSidx === sidxA) {
+                            item.setAttribute('data-sidx', sidxB);
+                            item.setAttribute('data-name', nameB);
+                            item.innerText = nameB;
+                        } else if (thisSidx === sidxB) {
+                            item.setAttribute('data-sidx', sidxA);
+                            item.setAttribute('data-name', nameA);
+                            item.innerText = nameA;
+                        }
+                    });
                 });
             }
             recalculateStats();
@@ -455,13 +486,16 @@ function saveSchema(forceUpdate = false) {
             volgorde: '<?= $volgorde ?>',
             original_schema_id: <?= $schemaId ?>,
             blocks: payload,
-            force_settings_update: forceUpdate
+            force_settings_update: forceUpdate,
+            overwrite_mode: <?= $overwriteMode ? 'true' : 'false' ?>
         })
     })
     .then(r => r.json())
     .then(data => {
+        let btnStr = <?= $overwriteMode ? "'<i class=\"fa-solid fa-floppy-disk me-1\"></i> Wijzigingen Overschrijven'" : "'<i class=\"fa-solid fa-floppy-disk me-1\"></i> Opslaan Als Nieuw'" ?>;
+        
         if (data.requires_confirm) {
-            btn.innerHTML = '<i class=\"fa-solid fa-floppy-disk me-1\"></i> Opslaan Als Nieuw';
+            btn.innerHTML = btnStr;
             btn.disabled = false;
             
             if (confirm(data.confirm_msg)) {
@@ -473,13 +507,20 @@ function saveSchema(forceUpdate = false) {
         if (data.success) {
             if (data.is_duplicate) {
                 alert("Dit schema deelt al perfect dezelfde theorie als een bestaand schema (ID: " + data.new_id + "). We hebben een dubbel bespaard en jou hieraan gekoppeld!");
+            } else if (data.is_overwrite) {
+                alert("SUCCES: Theorie-schema " + data.new_id + " is overschreven en gepatched in het .php bestand!");
             } else {
                 alert("Schema succesvol opgeslagen! Je wordt doorgestuurd naar de opstelling.");
             }
-            window.location.href = 'lineup.php?wedstrijd=<?= $gameId ?>&preview=' + data.lineup_id;
+            
+            if (data.is_overwrite) {
+                window.location.href = 'inspect_schema.php?format=<?= $full_format ?>&schema=' + data.new_id;
+            } else {
+                window.location.href = 'lineup.php?wedstrijd=<?= $gameId ?>&preview=' + data.lineup_id;
+            }
         } else {
             alert('Fout: ' + (data.error || 'Onbekende fout'));
-            btn.innerHTML = '<i class=\"fa-solid fa-floppy-disk me-1\"></i> Opslaan Als Nieuw';
+            btn.innerHTML = btnStr;
             btn.disabled = false;
         }
     })

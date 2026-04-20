@@ -3,3 +3,5 @@
 .env
 .htaccess
 db/
+/php/vendor/
+/php/.phpunit.cache/

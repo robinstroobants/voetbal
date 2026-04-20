@@ -94,14 +94,16 @@ class Game
     public array $playerscores = [];
     
     
+    private $injected_events = null;
+    
     // method declaration
-    public function __construct($spelers, $onlyBestSelection,$format,$shuffle_type = "random"){
+    public function __construct($spelers, $onlyBestSelection,$format,$shuffle_type = "random", $injected_scores = null, $injected_info = null, $injected_events = null){
       
-      
-      //tijdelijk tot het uit de db komt
+      // Val terug op dependency injection, zoniet fall back op globals via db logic (legacy)
       global $player_scores,$global_playerinfo;
-      $this->setPlayerScores($player_scores ?? []);
-      $this->setPlayerInfo($global_playerinfo ?? []);
+      $this->setPlayerScores($injected_scores ?? $player_scores ?? []);
+      $this->setPlayerInfo($injected_info ?? $global_playerinfo ?? []);
+      $this->injected_events = $injected_events;
 
 
           
@@ -173,6 +175,9 @@ class Game
     }
 
     private function getEvents($players,$format = "5sp4x15"){
+      if ($this->injected_events !== null) {
+          return $this->injected_events[$format][$players] ?? [];
+      }
       global $events;
       $returnVal = $events[$format][$players] ?? [];
       return $returnVal;

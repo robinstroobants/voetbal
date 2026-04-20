@@ -1,0 +1,8 @@
+# Bestanden genegeerd tijdens Docker build process
+/tests/
+/phpunit.xml
+/composer.json
+/composer.lock
+/vendor/
+/.phpunit.cache/
+/.git/

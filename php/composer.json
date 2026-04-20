@@ -1,0 +1,16 @@
+{
+    "name": "voetbal/lineup",
+    "description": "Football Lineup Generator",
+    "type": "project",
+    "require": {
+        "php": ">=8.2"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^11.0"
+    },
+    "autoload": {
+        "classmap": [
+            "./"
+        ]
+    }
+}

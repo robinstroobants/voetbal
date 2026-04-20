@@ -1,0 +1,7 @@
+# Bestanden uitsluiten bij deploy / git archives (.zip release builds enz.)
+/tests/ export-ignore
+phpunit.xml export-ignore
+composer.json export-ignore
+composer.lock export-ignore
+/vendor/ export-ignore
+/.phpunit.cache/ export-ignore

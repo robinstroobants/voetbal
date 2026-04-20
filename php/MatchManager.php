@@ -175,6 +175,13 @@ class MatchManager {
             $stmtClear = $this->pdo->prepare("DELETE FROM game_selections WHERE game_id = ? AND status_id = ?");
             $stmtClear->execute([$gameId, $statusId]);
 
+            // Wis out-of-date opgeslagen theorie-schemas die gekoppeld zijn aan de oude spelers samenstelling
+            if ($statusId == 2) {
+                // We deleten enkel theorie-schemas als we effectief de 'Wedscheids Selectie' wijzigen
+                $stmtClearLineups = $this->pdo->prepare("DELETE FROM game_lineups WHERE game_id = ?");
+                $stmtClearLineups->execute([$gameId]);
+            }
+
             // Insert new selection
             $stmtIns = $this->pdo->prepare("INSERT INTO game_selections (game_id, player_id, status_id, is_goalkeeper) VALUES (?, ?, ?, ?)");
             

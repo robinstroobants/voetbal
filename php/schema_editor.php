@@ -476,7 +476,7 @@ function saveSchema(forceUpdate = false) {
             } else {
                 alert("Schema succesvol opgeslagen! Je wordt doorgestuurd naar de opstelling.");
             }
-            window.location.href = 'lineup.php?wedstrijd=<?= $gameId ?>&force_schema=' + data.new_id;
+            window.location.href = 'lineup.php?wedstrijd=<?= $gameId ?>&preview=' + data.lineup_id;
         } else {
             alert('Fout: ' + (data.error || 'Onbekende fout'));
             btn.innerHTML = '<i class=\"fa-solid fa-floppy-disk me-1\"></i> Opslaan Als Nieuw';

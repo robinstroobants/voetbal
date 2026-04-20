@@ -187,14 +187,16 @@ if ($duplicate_id !== null) {
     $gameObj->setPlayerScores($matchData['player_scores']);
     // Overschrijf events expliciet om foutvrij te evalueren
     $gameObj->events = $ws[$duplicate_id];
+    $gameObj->swapPlayers(); // FIX: Translate generic schema indices to actual player string keys!
     $gameObj->setTimePlayed(count($gameObj->events)-1);
     $gameObj->setRunQuality();
     $calculated_score = $gameObj->score;
     
     $stmtInsert = $pdo->prepare("INSERT INTO game_lineups (game_id, schema_id, player_order, score, is_final) VALUES (?, ?, ?, ?, 0)");
     $stmtInsert->execute([$gameId, $duplicate_id, $volgorde, $calculated_score]);
+    $lineup_id = $pdo->lastInsertId();
     
-    echo json_encode(['success' => true, 'new_id' => $duplicate_id, 'is_duplicate' => true]);
+    echo json_encode(['success' => true, 'new_id' => $duplicate_id, 'is_duplicate' => true, 'lineup_id' => $lineup_id]);
     exit;
 }
 
@@ -255,11 +257,13 @@ if (preg_match('/_(\d+)x(\d+)$/', $format, $m)) {
     $gameObj->nr_of_games = (int)$m[1];
 }
 $gameObj->events = $ws[$new_id];
+$gameObj->swapPlayers(); // FIX: Translate generic schema indices to actual player string keys!
 $gameObj->setTimePlayed(count($gameObj->events)-1);
 $gameObj->setRunQuality();
 $calculated_score = $gameObj->score;
 
 $stmtInsert = $pdo->prepare("INSERT INTO game_lineups (game_id, schema_id, player_order, score, is_final) VALUES (?, ?, ?, ?, 0)");
 $stmtInsert->execute([$gameId, $new_id, $volgorde, $calculated_score]);
+$lineup_id = $pdo->lastInsertId();
 
-echo json_encode(['success' => true, 'new_id' => $new_id, 'is_duplicate' => false]);
+echo json_encode(['success' => true, 'new_id' => $new_id, 'is_duplicate' => false, 'lineup_id' => $lineup_id]);

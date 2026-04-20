@@ -11,38 +11,69 @@ require_once 'getconn.php';
 $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $name = trim($_POST['name'] ?? '');
     $email = filter_var($_POST['email'] ?? '', FILTER_SANITIZE_EMAIL);
     $password = $_POST['password'] ?? '';
+    $team_name = trim($_POST['team_name'] ?? '');
+    $default_format = trim($_POST['default_format'] ?? '8v8');
+    
+    $nameParts = explode(' ', $name, 2);
+    $first_name = $nameParts[0];
+    $last_name = $nameParts[1] ?? '';
 
-    if ($email && $password) {
-        $stmt = $pdo->prepare("SELECT u.id, u.email, u.password_hash, u.role, u.team_id, t.name as team_name, t.subscription_valid_until 
-                               FROM users u 
-                               LEFT JOIN teams t ON u.team_id = t.id 
-                               WHERE u.email = ? LIMIT 1");
-        $stmt->execute([$email]);
-        $user = $stmt->fetch();
-
-        if ($user && password_verify($password, $user['password_hash'])) {
-            $_SESSION['user_id'] = $user['id'];
-            $_SESSION['role'] = $user['role'];
-            $_SESSION['team_id'] = $user['team_id'];
-            $_SESSION['team_name'] = $user['team_name'];
-            
-            // Check aubscription
-            $validUntil = strtotime($user['subscription_valid_until']);
-            if ($user['role'] !== 'superadmin' && $validUntil < time()) {
-                $_SESSION['is_read_only'] = true;
-            } else {
-                $_SESSION['is_read_only'] = false;
-            }
-
-            header("Location: index.php");
-            exit;
+    if ($name && $email && $password && $team_name && $default_format) {
+        if (strlen($password) < 6) {
+            $error = "Wachtwoord moet minimaal 6 tekens lang zijn.";
         } else {
-            $error = "Ongeldig emailadres of wachtwoord.";
+            // Controleer of e-mail al bestaat
+            $stmt = $pdo->prepare("SELECT id FROM users WHERE email = ?");
+            $stmt->execute([$email]);
+            if ($stmt->fetch()) {
+                $error = "Dit e-mailadres is al in gebruik.";
+            } else {
+                try {
+                    $pdo->beginTransaction();
+
+                    // 1. Maak de gebruiker eerst aan (team_id is tijdelijk NULL)
+                    $hash = password_hash($password, PASSWORD_BCRYPT);
+                    $role = 'Coach'; 
+                    
+                    $stmtUser = $pdo->prepare("INSERT INTO users (email, first_name, last_name, password_hash, role) VALUES (?, ?, ?, ?, ?)");
+                    $stmtUser->execute([$email, $first_name, $last_name, $hash, $role]);
+                    $user_id = $pdo->lastInsertId();
+
+                    // 2. Maak het team aan met een 1 maand trial
+                    // Gebruikt user_id (zojuist aangemaakt) en club_id = 1 (standaard legacy club) ivm oude database restricties
+                    $valid_until = date('Y-m-d H:i:s', strtotime("+1 month"));
+                    
+                    $stmtTeam = $pdo->prepare("INSERT INTO teams (user_id, club_id, name, default_format, subscription_plan, subscription_valid_until, is_active) VALUES (?, 1, ?, ?, 'trial', ?, 1)");
+                    $stmtTeam->execute([$user_id, $team_name, $default_format, $valid_until]);
+                    $team_id = $pdo->lastInsertId();
+
+                    // 3. Koppel de gebruiker aan het zojuist gemaakte team
+                    $stmtUpdateUser = $pdo->prepare("UPDATE users SET team_id = ? WHERE id = ?");
+                    $stmtUpdateUser->execute([$team_id, $user_id]);
+
+                    $pdo->commit();
+
+                    // Log de gebruiker direct in
+                    $_SESSION['user_id'] = $user_id;
+                    $_SESSION['role'] = $role;
+                    $_SESSION['team_id'] = $team_id;
+                    $_SESSION['team_name'] = $team_name;
+                    $_SESSION['is_read_only'] = false;
+
+                    header("Location: index.php");
+                    exit;
+
+                } catch (Exception $e) {
+                    $pdo->rollBack();
+                    $error = "Er liep iets mis. Probeer het later opnieuw.";
+                }
+            }
         }
     } else {
-        $error = "Vul alle velden in.";
+        $error = "Gelieve alle velden in te vullen.";
     }
 }
 ?>
@@ -51,7 +82,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Inloggen - Lineup</title>
+    <title>Registreren - Lineup</title>
     <!-- Gebruik Inter voor een Apple-achtige of strakke uitstraling -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     <!-- FontAwesome toevoegen -->
@@ -288,8 +319,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <div class="login-container">
         <div class="logo-wrap">
             <i class="fa-regular fa-futbol main-icon"></i>
-            <h1>Inloggen op Lineup</h1>
-            <p>Welkom terug, Coach.</p>
+            <h1>Word lid van Lineup</h1>
+            <p>Maak een gratis account aan om te starten.</p>
         </div>
 
         <?php if ($error): ?>
@@ -300,17 +331,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div class="login-main">
                 <form method="POST" action="">
                     <div class="form-group">
-                        <input type="email" name="email" placeholder="E-mailadres" required autofocus>
-                    </div>
-                    
-                    <div class="form-group">
-                        <input type="password" name="password" placeholder="Wachtwoord" required>
+                        <input type="text" name="team_name" placeholder="Naam team (bv. U11 Thes IP)" required>
                     </div>
 
-                    <button type="submit" class="btn-submit">Ga verder</button>
+                    <div class="form-group">
+                        <select name="default_format" class="form-control" style="width: 100%; background: #ffffff; border: 1px solid var(--apple-border); color: var(--apple-text-main); padding: 16px; border-radius: 12px; font-size: 1rem; outline: none; appearance: auto;" required>
+                            <option value="">Kies Wedstrijd Formaat</option>
+                            <option value="11v11">11v11</option>
+                            <option value="8v8_4x15">8v8 (4x15)</option>
+                            <option value="8v8_3x20">8v8 (3x20)</option>
+                            <option value="8v8_4x20">8v8 (4x20)</option>
+                            <option value="8v8_5x15">8v8 (5x15)</option>
+                            <option value="8v8_6x15">8v8 (6x15)</option>
+                            <option value="8v8_7x15">8v8 (7x15)</option>
+                            <option value="5v5_4x15">5v5 (4x15)</option>
+                            <option value="3v3_6x10">3v3 (6x10)</option>
+                            <option value="2v2_6x10">2v2 (6x10)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <input type="text" name="name" placeholder="Je volledige naam" required autofocus>
+                    </div>
+
+                    <div class="form-group">
+                        <input type="email" name="email" placeholder="E-mailadres" required>
+                    </div>
+
+                    
+                    
+                    <div class="form-group">
+                        <input type="password" name="password" placeholder="Kies een wachtwoord" required>
+                    </div>
+
+                    <button type="submit" class="btn-submit">Account Aanmaken</button>
                     
                     <div class="switch-link">
-                        Nog geen account? <a href="register.php">Ontdek Lineup</a>
+                        Heb je al een account? <a href="login.php">Log in</a>
                     </div>
                 </form>
             </div>
@@ -318,7 +374,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div class="divider"><span>of</span></div>
             
             <div class="login-social">
-                <button type="button" class="btn-social" onclick="alert('Google Login in opbouw!');">
+                <button type="button" class="btn-social" onclick="alert('Google Register in opbouw!');">
                     <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                         <g transform="matrix(1, 0, 0, 1, 27.009001, -39.238998)">
                             <path fill="#4285F4" d="M -3.264 51.509 C -3.264 50.719 -3.334 49.969 -3.454 49.239 L -14.754 49.239 L -14.754 53.749 L -8.284 53.749 C -8.574 55.229 -9.424 56.479 -10.684 57.329 L -10.684 60.329 L -6.824 60.329 C -4.564 58.239 -3.264 55.159 -3.264 51.509 Z"/>
@@ -329,7 +385,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </svg>
                     Google
                 </button>
-                <button type="button" class="btn-social" onclick="alert('Apple Login in opbouw!');">
+                <button type="button" class="btn-social" onclick="alert('Apple Register in opbouw!');">
                     <svg viewBox="0 0 24 24" fill="#000" xmlns="http://www.w3.org/2000/svg">
                         <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.19 2.31-.88 3.5-.88 1.5 0 2.8.62 3.5 1.5-3.03 1.92-2.52 5.5.5 6.67-1.12 2.6-2.6 5.5-2.58 4.88zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.36 2.38-1.92 4.39-3.74 4.25z"/>
                     </svg>

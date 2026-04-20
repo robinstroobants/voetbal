@@ -59,6 +59,25 @@ $games = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Groepeer de matchen dynamisch op Seizoen (juli-juni) en de jeugdreeks-fases (Fase 1/2) 
 $groupedGames = [];
+// ... (code will calculate onboarding status here)
+$stmtP = $pdo->prepare("SELECT COUNT(*) FROM players WHERE team_id = ?");
+$stmtP->execute([$_SESSION['team_id']]);
+$players_count = (int)$stmtP->fetchColumn();
+
+$stmtC = $pdo->prepare("SELECT COUNT(*) FROM coaches WHERE team_id = ?");
+$stmtC->execute([$_SESSION['team_id']]);
+$coaches_count = (int)$stmtC->fetchColumn();
+
+$stmtF = $pdo->prepare("SELECT default_format FROM teams WHERE id = ?");
+$stmtF->execute([$_SESSION['team_id']]);
+$default_format = $stmtF->fetchColumn() ?: '8v8';
+
+$required_players = 8;
+if (preg_match('/^(\d+)v\d+/', $default_format, $matches)) {
+    $required_players = (int)$matches[1];
+}
+
+$onboarding_complete = ($players_count >= $required_players && $coaches_count >= 1);
 foreach ($games as $game) {
     $time = strtotime($game['game_date']);
     $year = (int)date('Y', $time);
@@ -78,13 +97,17 @@ foreach ($games as $game) {
     $groupedGames[$season][$phase][] = $game;
 }
 
-// Simpele hardcoded format lijst
 $available_formats = [
+    '11v11',
     '8v8_4x15',
     '8v8_3x20',
+    '8v8_4x20',
+    '8v8_5x15',
     '8v8_6x15',
     '8v8_7x15',
-    '8v8_5x15'
+    '5v5_4x15',
+    '3v3_6x10',
+    '2v2_6x10'
 ];
 
 // Haal beschikbare coaches op
@@ -106,16 +129,30 @@ require_once 'header.php';
 <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2>Wedstrijd Beheer</h2>
-        <button class="btn btn-primary" onclick="openGameModal()">
-            <i class="fa-solid fa-plus me-2"></i>Nieuwe Wedstrijd
-        </button>
+        <?php if ($onboarding_complete): ?>
+            <button class="btn btn-primary shadow-sm" onclick="openGameModal()">
+                <i class="fa-solid fa-plus me-2"></i>Nieuwe Wedstrijd
+            </button>
+        <?php else: ?>
+            <button class="btn btn-secondary disabled opacity-75" title="Doorloop eerst de onboarding op het dashboard">
+                <i class="fa-solid fa-lock me-2"></i>Team Incompleet
+            </button>
+        <?php endif; ?>
     </div>
+
+    <?php if (!$onboarding_complete): ?>
+    <div class="alert alert-warning shadow-sm border-0 border-start border-warning border-4 fw-bold mb-4">
+        <i class="fa-solid fa-triangle-exclamation text-warning fs-5 align-middle me-2"></i> 
+        Je voldoet nog niet aan de ploegvereisten (minstens <?= $required_players ?> spelers en 1 coach).
+        <a href="index.php" class="alert-link text-decoration-underline ms-2">Keer terug naar het dashboard</a> om je inschrijving af te ronden!
+    </div>
+    <?php endif; ?>
 
     <!-- Games Overzicht Gegroepeerd -->
     <div class="accordion" id="seasonAccordion">
         <?php if(empty($games)): ?>
             <div class="alert alert-light text-center border">
-                Amai, geen wedstrijden gevonden! Tijd om er eentje te plannen.
+                Geen wedstrijden gevonden! Tijd om er eentje te plannen.
             </div>
         <?php endif; ?>
 
@@ -216,7 +253,7 @@ require_once 'header.php';
           <div class="modal-body">
               <div class="mb-3">
                   <label class="form-label text-muted small fw-bold">TEGENSTANDER</label>
-                  <input type="text" class="form-control" name="opponent" id="modal_opponent" required placeholder="BV. FC Drie Ringen">
+                  <input type="text" class="form-control" name="opponent" id="modal_opponent" required placeholder="BV. FC Barcelona">
               </div>
               <div class="mb-3">
                   <label class="form-label text-muted small fw-bold">DATUM</label>
@@ -280,6 +317,7 @@ function openGameModal(game = null) {
     } else {
         document.getElementById('gameModalLabel').innerText = 'Nieuwe Wedstrijd Plannen';
         document.getElementById('modal_game_date').value = new Date().toISOString().split('T')[0];
+        document.getElementById('modal_format').value = '<?= htmlspecialchars($default_format) ?>';
         document.getElementById('modal_min_pos').value = '0';
         document.getElementById('modal_coach_id').value = '';
     }

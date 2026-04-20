@@ -35,7 +35,7 @@ header("Expires: 0"); // Proxies blockeren
 <body class="bg-light pb-5">
     <nav class="navbar navbar-expand-lg bg-dark mb-4 w-100 d-print-none" data-bs-theme="dark">
         <div class="container">
-            <a class="navbar-brand fw-bold" href="index.php"><i class="fa-regular fa-futbol me-2"></i>Squadly</a>
+            <a class="navbar-brand fw-bold" href="index.php"><i class="fa-regular fa-futbol me-2"></i>Lineup</a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
             </button>
@@ -65,6 +65,8 @@ header("Expires: 0"); // Proxies blockeren
                             <li><a class="dropdown-item" href="edit_players.php"><i class="fa-solid fa-users me-2"></i>Spelers</a></li>
                             <li><a class="dropdown-item" href="edit_rankings.php"><i class="fa-solid fa-ranking-star me-2 fw-bold text-primary"></i>Rankings</a></li>
                             <li><a class="dropdown-item" href="edit_scores.php"><i class="fa-solid fa-star me-2"></i>Matrix (Old)</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="settings.php"><i class="fa-solid fa-sliders me-2"></i>Instellingen</a></li>
                         </ul>
                     </li>
 

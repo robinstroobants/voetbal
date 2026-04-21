@@ -7,18 +7,22 @@
             // Haal de Git App Version tag op
             $app_version = 'v0.0.0';
             // Probeer versie uit Git te halen (Docker compatibel)
+
             $versionFile1 = __DIR__ . '/site_version.txt';
             $versionFile2 = __DIR__ . '/version.txt';
-            
-            // 2. Controleer of het bestand bestaat en lees het uit (prioriteit aan site_version.txt)
+
+            // Controleer of het bestand bestaat en lees het uit (prioriteit aan site_version)
             $raw_version = '';
-            if (file_exists($versionFile1)) {
-                $raw_version = trim(file_get_contents($versionFile1));
+            foreach ([$versionFile1, $versionFile2] as $file) {
+                if (file_exists($file)) {
+                    $raw_version = trim(file_get_contents($file));
+                    if (!empty($raw_version)) {
+                        break;
+                    }
+                }
             }
-            if (empty($raw_version) && file_exists($versionFile2)) {
-                $raw_version = trim(file_get_contents($versionFile2));
-            }
-            if ($raw_version !== false && $raw_version !== '') {
+
+            if (!empty($raw_version)) {
                 // Trim whitespace en sanitize de output tegen XSS (Cross-Site Scripting)
                 // Zelfs als je het bestand zelf beheert, is dit 'best practice'.
                 $version = htmlspecialchars(trim($raw_version), ENT_QUOTES, 'UTF-8');

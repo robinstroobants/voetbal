@@ -27,11 +27,11 @@ try {
 }
 
 if (!function_exists('logPerformance')) {
-    function logPerformance($actionName, $timeMs, $memoryMb, $userId = null) {
+    function logPerformance($actionName, $timeMs, $memoryMb, $userId = null, $context = null) {
         global $pdo;
         if ($pdo) {
-            $stmt = $pdo->prepare("INSERT INTO system_logs (action_name, execution_time_ms, memory_usage_mb, user_id) VALUES (?, ?, ?, ?)");
-            $stmt->execute([$actionName, $timeMs, $memoryMb, $userId]);
+            $stmt = $pdo->prepare("INSERT INTO system_logs (action_name, execution_time_ms, memory_usage_mb, user_id, context) VALUES (?, ?, ?, ?, ?)");
+            $stmt->execute([$actionName, $timeMs, $memoryMb, $userId, $context]);
         }
     }
 }

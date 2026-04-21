@@ -35,25 +35,109 @@ $remaining_players = max(0, $max_players - $players_count);
 
 $onboarding_complete = ($players_count >= $required_players && $coaches_count >= 1);
 
-// Haal de laatste 6 wedstrijden op indien we niet in onboarding zitten
-$games = [];
+// Haal de Dashboard Data op indien onboarding compleet is
+$next_game = null;
+$past_games = [];
+$future_games_count = 0;
+$missing_matrix_count = 0;
+
 if ($onboarding_complete) {
-    $stmt = $pdo->prepare("
+    // 1. Eerstvolgende Wedstrijd
+    $stmtNext = $pdo->prepare("
+        SELECT g.*, 
+            (SELECT COUNT(*) FROM game_selections gs WHERE gs.game_id = g.id) as selection_count
+        FROM games g 
+        WHERE g.team_id = ? AND g.game_date >= CURDATE()
+        ORDER BY g.game_date ASC
+        LIMIT 1
+    ");
+    $stmtNext->execute([$team_id]);
+    $next_game = $stmtNext->fetch(PDO::FETCH_ASSOC);
+
+    // 2. Historiek (Laatste gespeelde wedstrijden)
+    $stmtPast = $pdo->prepare("
         SELECT g.*, 
             (SELECT COUNT(*) FROM game_selections gs WHERE gs.game_id = g.id) as selection_count,
-            (SELECT score FROM game_lineups gl WHERE gl.game_id = g.id AND gl.is_final = 1 LIMIT 1) as final_score
+            CONCAT(u.first_name, ' ', u.last_name) as coach_name
         FROM games g 
-        WHERE g.team_id = ?
+        LEFT JOIN users u ON g.coach_id = u.id
+        WHERE g.team_id = ? AND g.game_date < CURDATE()
         ORDER BY g.game_date DESC
-        LIMIT 6
+        LIMIT 5
     ");
-    $stmt->execute([$team_id]);
-    $games = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $stmtPast->execute([$team_id]);
+    $past_games = $stmtPast->fetchAll(PDO::FETCH_ASSOC);
+
+    // 3. Totaal aankomende wedstrijden (voor Quick Stats)
+    $stmtFuture = $pdo->prepare("SELECT COUNT(*) FROM games WHERE team_id = ? AND game_date >= CURDATE()");
+    $stmtFuture->execute([$team_id]);
+    $future_games_count = (int)$stmtFuture->fetchColumn();
+
+    // 4. Ontbrekende Matrix Scores (To-Do)
+    // Een speler is OK als hij *ergens* een score heeft in player_scores of gk_scores
+    $stmtMissing = $pdo->prepare("
+        SELECT COUNT(*) 
+        FROM players p 
+        WHERE p.team_id = ? 
+          AND NOT EXISTS (SELECT 1 FROM player_scores ps WHERE ps.player_id = p.id) 
+          AND NOT EXISTS (SELECT 1 FROM gk_scores gks WHERE gks.player_id = p.id)
+    ");
+    $stmtMissing->execute([$team_id]);
+    $missing_matrix_count = (int)$stmtMissing->fetchColumn();
+
+    // 5. Tooltips logica (beschikbare co-coaches)
+    $stmtUserTeams = $pdo->prepare("SELECT COUNT(*) FROM user_teams WHERE team_id = ?");
+    $stmtUserTeams->execute([$team_id]);
+    $current_coaches = (int)$stmtUserTeams->fetchColumn();
+
+    $stmtInvites = $pdo->prepare("SELECT COUNT(*) FROM team_invitations WHERE team_id = ? AND expires_at > NOW()");
+    $stmtInvites->execute([$team_id]);
+    $pending_invites = (int)$stmtInvites->fetchColumn();
+
+    $available_coach_slots = 3 - ($current_coaches + $pending_invites);
+
+    // 6. Tip van de week pool
+    $coaching_tips = [
+
+    ];
+    $tip_of_the_day = !empty($coaching_tips) ? $coaching_tips[array_rand($coaching_tips)] : null;
 }
 
-$page_title = 'Dashboard';
+$page_title = 'Overzicht';
 require_once 'header.php';
 ?>
+
+<style>
+    /* Styling voor het nieuwe Dashboard V2 */
+    .dashboard-hero {
+        background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+        color: white;
+        border-radius: 16px;
+        position: relative;
+        overflow: hidden;
+    }
+    .dashboard-hero::after {
+        content: '\f1e3';
+        font-family: 'Font Awesome 6 Free';
+        font-weight: 900;
+        position: absolute;
+        bottom: -20px;
+        right: -10px;
+        font-size: 10rem;
+        opacity: 0.05;
+        transform: rotate(-15deg);
+        pointer-events: none;
+    }
+    .stat-card {
+        border-radius: 12px;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        border: 1px solid rgba(0,0,0,0.05);
+    }
+    .stat-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 .5rem 1rem rgba(0,0,0,.08)!important;
+    }
+</style>
 
 <div class="container mt-4 mb-5">
     <?php if (!$onboarding_complete): ?>
@@ -127,73 +211,207 @@ require_once 'header.php';
         </div>
 
     <?php else: ?>
-        <!-- REGULIER DASHBOARD -->
-        <div class="d-flex justify-content-between align-items-center mb-4">
-            <h2>Laatste Wedstrijden</h2>
-            <a href="manage_games.php" class="btn btn-outline-primary shadow-sm">
-                Wedstrijden plannen <i class="fa-solid fa-arrow-right ms-1"></i>
+        <!-- COACH DASHBOARD V2 -->
+        
+        <!-- Welkom Bericht -->
+        <div class="d-flex justify-content-between align-items-end mb-4">
+            <div>
+                <h4 class="fw-bold text-dark mb-0">Welkom terug, Coach! <i class="fa-solid fa-hand-wave text-warning" style="font-size: 0.9em;"></i></h4>
+                <p class="text-muted mb-0 mt-1 d-none d-md-block">Jouw dashboard voor team <?= htmlspecialchars($_SESSION['team_name'] ?? '') ?></p>
+            </div>
+            <a href="manage_games.php" class="btn btn-primary shadow-sm fw-bold rounded-pill px-4">
+                <i class="fa-solid fa-plus me-1"></i> Wedstrijd Plannen
             </a>
         </div>
 
-        <div class="card shadow-sm border-0 mb-4">
-            <div class="card-body p-0">
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0 border-bottom">
-                        <thead class="table-light">
-                            <tr>
-                                <th class="ps-4">Datum</th>
-                                <th>Tegenstander</th>
-                                <th>Formaat</th>
-                                <th>Selectie</th>
-                                <th>Score</th>
-                                <th class="text-end pe-4">Acties</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php if(empty($games)): ?>
-                                <tr>
-                                    <td colspan="6" class="text-center py-5 text-muted bg-light">
-                                        <i class="fa-regular fa-calendar-xmark fs-2 mb-2 d-block"></i>
-                                        Nog geen wedstrijden gespeeld.<br>
-                                        <a href="manage_games.php" class="btn btn-primary mt-3"><i class="fa-solid fa-plus me-1"></i> Tijd om er eentje te plannen!</a>
-                                    </td>
-                                </tr>
-                            <?php endif; ?>
+        <div class="row g-4 mb-4">
+            <!-- Linker Kolom: Top Acties & Eerstvolgende Match -->
+            <div class="col-lg-8">
+                
+                <?php if ($next_game): ?>
+                <div class="dashboard-hero p-4 shadow mb-4">
+                    <span class="badge bg-white text-primary mb-3 fw-bold px-3 py-2 rounded-pill shadow-sm"><i class="fa-solid fa-calendar-day me-1"></i> Volgende Wedstrijd</span>
+                    
+                    <div class="row align-items-center">
+                        <div class="col-md-7 mb-3 mb-md-0">
+                            <h2 class="fw-bold mb-1 text-truncate" title="<?= htmlspecialchars($next_game['opponent']) ?>"><?= htmlspecialchars($next_game['opponent']) ?></h2>
+                            <p class="mb-2 fs-5 opacity-75">
+                                <i class="fa-regular fa-clock me-1"></i> 
+                                <?php 
+                                    $ts = strtotime($next_game['game_date']);
+                                    echo (date('H:i', $ts) === '00:00') ? date('d/m/Y', $ts) : date('d/m/Y \o\m H:i', $ts);
+                                ?>
+                                <span class="mx-2">•</span> 
+                                <span class="badge bg-black bg-opacity-25 border border-white border-opacity-25"><?= htmlspecialchars($next_game['format']) ?></span>
+                            </p>
                             
-                            <?php foreach($games as $game): ?>
-                            <tr>
-                                <td class="ps-4 fw-medium text-secondary"><?= date('d/m/Y', strtotime($game['game_date'])) ?></td>
-                                <td class="fw-bold"><?= htmlspecialchars($game['opponent']) ?></td>
-                                <td><span class="badge bg-secondary"><?= htmlspecialchars($game['format']) ?></span></td>
-                                <td>
-                                    <?php if($game['selection_count'] > 0): ?>
-                                        <span class="badge bg-success rounded-pill"><?= $game['selection_count'] ?> Spelers</span>
-                                    <?php else: ?>
-                                        <span class="badge bg-warning text-dark rounded-pill">0 Spelers</span>
+                            <?php 
+                                $has_selection = $next_game['selection_count'] > 0;
+                                $is_selection_ready = $next_game['selection_count'] >= $required_players; 
+                                $selection_color = $is_selection_ready ? 'success' : 'warning';
+                                $selection_icon = $has_selection ? 'fa-pen-to-square' : 'fa-plus';
+                            ?>
+                            <a href="edit_selection.php?game_id=<?= $next_game['id'] ?>" class="text-decoration-none d-inline-flex align-items-center bg-white bg-opacity-10 rounded px-3 py-2 mt-2 transition-transform" style="transition: transform 0.2s; cursor: pointer;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+                                <i class="fa-solid <?= $selection_icon ?> text-<?= $selection_color ?> fs-4 me-2"></i>
+                                <div>
+                                    <div class="small text-white text-opacity-75" style="line-height: 1;">Actuele Selectie</div>
+                                    <div class="fw-bold mt-1 text-white" style="line-height: 1;">
+                                        <?= $has_selection ? $next_game['selection_count'] . ' opgeroepen' : 'Nog geen spelers' ?>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                        <div class="col-md-5 text-md-end text-start">
+                            <a href="manage_games.php?edit_game=<?= $next_game['id'] ?>" class="btn btn-light text-secondary fw-bold rounded-pill mx-1 mb-2" title="Bewerk details">
+                                <i class="fa-solid fa-pen"></i>
+                            </a>
+                            <a href="edit_selection.php?game_id=<?= $next_game['id'] ?>" class="btn btn-light text-primary fw-bold rounded-pill mx-1 mb-2">
+                                <i class="fa-solid fa-users me-1"></i> Selectie
+                            </a>
+                            <a href="lineup.php?wedstrijd=<?= $next_game['id'] ?>" class="btn <?= $next_game['selection_count'] > 0 ? 'btn-warning text-dark' : 'btn-outline-light disabled' ?> fw-bold rounded-pill mx-1 mb-2">
+                                <i class="fa-solid fa-wand-magic-sparkles me-1"></i> Maak Opstelling
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <?php else: ?>
+                <div class="card shadow-sm border-0 mb-4 bg-light text-center" style="border-radius: 16px; border: 2px dashed var(--apple-border) !important;">
+                    <div class="card-body py-5">
+                        <i class="fa-regular fa-calendar-xmark text-muted mb-3" style="font-size: 3rem;"></i>
+                        <h4 class="fw-bold text-dark mb-1">Geen Aankomende Wedstrijden</h4>
+                        <p class="text-muted">Er staan momenteel geen wedstrijden op de planning voor je team.</p>
+                        <a href="manage_games.php" class="btn btn-primary rounded-pill mt-2">
+                            <i class="fa-solid fa-plus me-1"></i> Nu Eentje Toevoegen
+                        </a>
+                    </div>
+                </div>
+                <?php endif; ?>
+
+                <!-- Historiek Tabel -->
+                <h5 class="fw-bold text-dark mb-3"><i class="fa-solid fa-clock-rotate-left text-muted me-2"></i>Recente Historiek</h5>
+                <div class="card shadow-sm border-0 stat-card mb-4 mb-lg-0">
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th class="ps-4">Datum</th>
+                                        <th>Tegenstander</th>
+                                        <th class="text-end pe-4">Acties</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php if(empty($past_games)): ?>
+                                        <tr>
+                                            <td colspan="4" class="text-center py-4 text-muted">
+                                                Nog geen wedstrijden gespeeld in het verleden.
+                                            </td>
+                                        </tr>
                                     <?php endif; ?>
-                                </td>
-                                <td>
-                                    <?php if($game['final_score']): ?>
-                                        <span class="badge bg-info text-dark rounded-pill"><?= round($game['final_score'], 1) ?>%</span>
-                                    <?php else: ?>
-                                        <span class="text-muted small">-</span>
-                                    <?php endif; ?>
-                                </td>
-                                <td class="text-end pe-4">
-                                    <a href="edit_selection.php?game_id=<?= $game['id'] ?>" class="btn btn-sm btn-outline-success me-1" title="Beheer Selectie">
-                                        <i class="fa-solid fa-users-gear"></i> Selectie
-                                    </a>
-                                    <a href="lineup.php?wedstrijd=<?= $game['id'] ?>" class="btn btn-sm btn-outline-primary <?= $game['selection_count'] == 0 ? 'disabled' : '' ?>" title="Bereken Opstelling">
-                                        <i class="fa-solid fa-calculator"></i> Opstelling
-                                    </a>
-                                </td>
-                            </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
+                                    
+                                    <?php foreach($past_games as $game): ?>
+                                     <tr>
+                                        <td class="ps-4 fw-medium text-secondary small"><?= date('d/m/Y', strtotime($game['game_date'])) ?></td>
+                                        <td class="fw-bold">
+                                            <?php if($game['coach_name']): 
+                                                $colors = ['bg-info text-dark', 'bg-danger', 'bg-success', 'bg-warning text-dark', 'bg-primary', 'bg-dark text-white'];
+                                                $cColor = $colors[abs(crc32($game['coach_name'])) % count($colors)];
+                                            ?>
+                                                <span class="badge <?= $cColor ?> rounded-pill me-1"><?= htmlspecialchars($game['coach_name']) ?></span>
+                                            <?php endif; ?>
+                                            <?= htmlspecialchars($game['opponent']) ?>
+                                        </td>
+                                        <td class="text-end pe-4 text-nowrap">
+                                            <a href="manage_games.php?edit_game=<?= $game['id'] ?>" class="btn btn-sm btn-light text-secondary fw-bold rounded-pill shadow-sm me-1" title="Bewerk details">
+                                                <i class="fa-solid fa-pen mt-1 mb-1"></i>
+                                            </a>
+                                            <a href="manage_games.php?duplicate_game=<?= $game['id'] ?>" class="btn btn-sm btn-light text-warning fw-bold rounded-pill shadow-sm me-1" title="Dupliceer Wedstrijd">
+                                                <i class="fa-solid fa-copy me-1 mt-1 mb-1"></i> Dupliceer
+                                            </a>
+                                            <a href="lineup.php?wedstrijd=<?= $game['id'] ?>" class="btn btn-sm btn-light text-primary fw-bold rounded-pill shadow-sm" title="Bekijk Opstelling">
+                                                <i class="fa-solid fa-eye me-1 mt-1 mb-1"></i> Detail
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
                 </div>
             </div>
+
+            <!-- Rechterkolom: Quick Stats & Shortcuts -->
+            <div class="col-lg-4">
+                
+                <!-- Reminder Widget -->
+                <?php if ($missing_matrix_count > 0 && strpos($default_format, '11v11') === false): ?>
+                <div class="card stat-card border-danger border-opacity-25 shadow-sm mb-4" style="background-color: #fffafb;">
+                    <div class="card-body d-flex align-items-start">
+                        <div class="bg-danger bg-opacity-10 text-danger rounded p-3 me-3">
+                            <i class="fa-solid fa-triangle-exclamation fs-4"></i>
+                        </div>
+                        <div>
+                            <h6 class="fw-bold text-danger mb-1 mt-1">Matrix Update Nodig</h6>
+                            <p class="text-secondary small mb-2">Er zijn momenteel <strong><?= $missing_matrix_count ?> spelers</strong> in je team zonder dat hun Score Matrix (volledig) is ingevuld.</p>
+                            <a href="edit_scores.php" class="btn btn-sm btn-outline-danger rounded-pill fw-bold">Nu Bijwerken</a>
+                        </div>
+                    </div>
+                </div>
+                <?php endif; ?>
+
+                <!-- Stat Grid -->
+                <div class="row g-3 mb-4">
+                    <div class="col-12 col-sm-6 col-lg-12">
+                        <a href="edit_players.php" class="text-decoration-none">
+                            <div class="card stat-card shadow-sm border-0 h-100">
+                                <div class="card-body d-flex align-items-center">
+                                    <div class="bg-primary bg-opacity-10 text-primary rounded-circle d-flex justify-content-center align-items-center me-3" style="width: 48px; height: 48px;">
+                                        <i class="fa-solid fa-users fs-5"></i>
+                                    </div>
+                                    <div>
+                                        <div class="text-muted small fw-bold text-uppercase">Totaal Spelers</div>
+                                        <h3 class="fw-bold text-dark mb-0"><?= $players_count ?> <i class="fa-solid fa-chevron-right fs-6 text-muted mt-1 ms-1" style="vertical-align: middle;"></i></h3>
+                                    </div>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Tips & Tricks Widget -->
+                <?php 
+                $show_invite = ($available_coach_slots > 0 && rand(1, 100) <= 50);
+                // Fallback: Als we geen tip hebben, toon altijd de uitnodiging (indien beschikbaar)
+                if (!$show_invite && !$tip_of_the_day && $available_coach_slots > 0) {
+                    $show_invite = true;
+                }
+                
+                if ($show_invite || $tip_of_the_day): 
+                ?>
+                <div class="card stat-card shadow-sm border-0 mb-4" style="background: linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%);">
+                    <div class="card-body">
+                        <h6 class="fw-bold text-dark mb-3"><i class="fa-regular fa-lightbulb text-warning me-2"></i>Inzicht & Tips</h6>
+                        
+                        <?php if ($show_invite): ?>
+                        <div class="bg-white p-3 rounded shadow-sm border border-light">
+                            <div class="fw-bold text-primary mb-1" style="font-size: 0.85rem;">Samenwerken <i class="fa-solid fa-users ms-1"></i></div>
+                            <p class="small text-secondary mb-2" style="font-size: 0.85rem;">Je kan nog <strong><?= $available_coach_slots ?> extra co-coaches</strong> uitnodigen in dit teamaccount. Nodig je staf uit zodat zij ook opstellingen kunnen bouwen!</p>
+                            <a href="settings.php" class="btn btn-sm btn-light text-primary fw-bold w-100" style="font-size: 0.75rem;">Nu Uitnodigen</a>
+                        </div>
+                        <?php elseif ($tip_of_the_day): ?>
+                        <div class="bg-white p-3 rounded shadow-sm border border-light">
+                            <div class="fw-bold text-success mb-1" style="font-size: 0.85rem;">Coach Tip <i class="fa-solid fa-graduation-cap ms-1"></i></div>
+                            <p class="small text-secondary mb-0" style="font-size: 0.85rem; font-style: italic;">"<?= htmlspecialchars($tip_of_the_day) ?>"</p>
+                        </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                <?php endif; ?>
+
+            </div>
         </div>
+
     <?php endif; ?>
 </div>
 

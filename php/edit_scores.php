@@ -25,7 +25,46 @@ if (strpos($default_format, '2v2') === 0 || strpos($default_format, '3v3') === 0
 } elseif (strpos($default_format, '8v8') === 0) {
     $visible_positions = [1, 2, 4, 5, 7, 9, 10, 11];
 }
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['player_id'])) {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'reset_matrix') {
+    // Reset alle scores voor het hele team
+    $stmtPlayers = $pdo->prepare("SELECT id, is_doelman FROM players WHERE team_id = ?");
+    $stmtPlayers->execute([$_SESSION['team_id']]);
+    $teamPlayers = $stmtPlayers->fetchAll(PDO::FETCH_ASSOC);
+    $allPos = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+
+    foreach ($teamPlayers as $p) {
+        $pId = $p['id'];
+        foreach ($allPos as $position) {
+            if (!empty($p['is_doelman'])) {
+                // Doelman: krijg enkel op pos 1 een startscore
+                $score = ($position == 1) ? 50 : 0;
+            } else {
+                // Veldspeler: krijgt overal een startscore behalve niet in de goal (pos 1)
+                $score = ($position == 1) ? 0 : 50;
+            }
+
+            $check_sql = "SELECT id, score FROM player_scores 
+                          WHERE player_id = ? AND position = ? 
+                          AND score_date >= DATE_SUB(NOW(), INTERVAL 5 DAY)
+                          ORDER BY score_date DESC LIMIT 1";
+            $check_stmt = $pdo->prepare($check_sql);
+            $check_stmt->execute([$pId, $position]);
+            $row = $check_stmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($row) {
+                if (floatval($row['score']) !== (float)$score) {
+                    $pdo->prepare("UPDATE player_scores SET score = ?, score_date = NOW() WHERE id = ?")->execute([$score, $row['id']]);
+                }
+            } else {
+                $pdo->prepare("INSERT INTO player_scores (player_id, position, score, score_date) VALUES (?, ?, ?, NOW())")->execute([$pId, $position, $score]);
+            }
+        }
+    }
+    header("Location: edit_scores.php?success=reset");
+    exit;
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['player_id']) && !isset($_POST['action'])) {
     $player_id = intval($_POST['player_id']);
     
     // Validatie of speler wel in dit team zit
@@ -102,7 +141,22 @@ $page_title = 'Edit Player scores';
 require_once 'header.php';
 ?>
 <div class="container mt-5">
-    <h2 class="mb-4">Score Matrix</h2>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">Score Matrix</h2>
+        <form method="post" onsubmit="return confirm('Weet je zeker dat je de matrix voor alle spelers wilt resetten naar baseline? Veldspelers=50, Doelmannen krijgen 0 (uitgezonderd op positie 1).');">
+            <input type="hidden" name="action" value="reset_matrix">
+            <button type="submit" class="btn btn-outline-danger shadow-sm fw-bold">
+                <i class="fa-solid fa-rotate-left me-2"></i>Matrix Reset
+            </button>
+        </form>
+    </div>
+    
+    <?php if (isset($_GET['success']) && $_GET['success'] === 'reset'): ?>
+        <div class="alert alert-success shadow-sm">
+            <i class="fa-solid fa-check-circle me-2"></i> Matrix succesvol gereset!
+        </div>
+    <?php endif; ?>
+
     <div class="alert alert-info border-0 shadow-sm mb-4">
         <i class="fa-solid fa-circle-info me-2"></i>Je bekijkt the posities voor <b><?= htmlspecialchars($default_format) ?></b>. Andere posities worden op de achtergrond bewaard en doorgerekend.
     </div>

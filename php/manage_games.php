@@ -37,6 +37,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             $stmt = $pdo->prepare("INSERT INTO games (team_id, opponent, game_date, format, min_pos, coach_id) VALUES (:team_id, :opp, :gd, :fmt, :mpos, :cid)");
             $stmt->execute(['team_id' => $_SESSION['team_id'], 'opp' => $opponent, 'gd' => $gameDate, 'fmt' => $format, 'mpos' => $minPos, 'cid' => $coachId]);
+            $newGameId = $pdo->lastInsertId();
+
+            // Duplicatie verwerken indien gevraagd
+            $sourceGameId = !empty($_POST['source_game_id']) ? (int)$_POST['source_game_id'] : null;
+            if ($sourceGameId) {
+                // Veiligheidscheck team
+                $check = $pdo->prepare("SELECT id FROM games WHERE id = ? AND team_id = ?");
+                $check->execute([$sourceGameId, $_SESSION['team_id']]);
+                if ($check->fetchColumn()) {
+                    $pdo->prepare("INSERT INTO game_selections (game_id, player_id, is_goalkeeper) 
+                                   SELECT ?, player_id, is_goalkeeper FROM game_selections WHERE game_id = ?")
+                        ->execute([$newGameId, $sourceGameId]);
+                }
+            }
         }
     }
     // Voorkom form resubmission bij refresh
@@ -46,11 +60,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Haal wedstrijden op
 $stmt = $pdo->prepare("
-    SELECT g.*, c.name AS coach_name,
+    SELECT g.*, CONCAT(c.first_name, ' ', c.last_name) AS coach_name,
         (SELECT COUNT(*) FROM game_selections gs WHERE gs.game_id = g.id) as selection_count,
         (SELECT score FROM game_lineups gl WHERE gl.game_id = g.id AND gl.is_final = 1 LIMIT 1) as final_score
     FROM games g 
-    LEFT JOIN coaches c ON g.coach_id = c.id
+    LEFT JOIN users c ON g.coach_id = c.id
     WHERE g.team_id = ?
     ORDER BY g.game_date DESC
 ");
@@ -97,7 +111,7 @@ foreach ($games as $game) {
     $groupedGames[$season][$phase][] = $game;
 }
 
-$available_formats = [
+$available_formats_all = [
     '11v11',
     '8v8_4x15',
     '8v8_3x20',
@@ -110,8 +124,34 @@ $available_formats = [
     '2v2_6x10'
 ];
 
-// Haal beschikbare coaches op
-$stmtC = $pdo->prepare("SELECT * FROM coaches WHERE team_id = ? ORDER BY name ASC");
+function getFormatLevel($fmtStr) {
+    if (strpos($fmtStr, '2v2') === 0) return 1;
+    if (strpos($fmtStr, '3v3') === 0) return 2;
+    if (strpos($fmtStr, '5v5') === 0) return 3;
+    if (strpos($fmtStr, '8v8') === 0) return 4;
+    if (strpos($fmtStr, '11v11') === 0) return 5;
+    return 0;
+}
+
+$team_level = getFormatLevel($default_format);
+$available_formats = [];
+
+foreach ($available_formats_all as $fmt) {
+    $fmt_level = getFormatLevel($fmt);
+    // Criterium: Alleen hetzelfde niveau OF maximaal exact 1 niveau hoger 
+    if ($fmt_level == $team_level || $fmt_level == $team_level + 1) {
+        $available_formats[] = $fmt;
+    }
+}
+
+// Haal beschikbare coaches op (de effectieve SaaS gebruikers/coaches gekoppeld aan dit team)
+$stmtC = $pdo->prepare("
+    SELECT u.id, CONCAT(u.first_name, ' ', u.last_name) as name 
+    FROM users u 
+    INNER JOIN user_teams ut ON u.id = ut.user_id 
+    WHERE ut.team_id = ? 
+    ORDER BY u.first_name ASC
+");
 $stmtC->execute([$_SESSION['team_id']]);
 $coachesData = $stmtC->fetchAll(PDO::FETCH_ASSOC);
 
@@ -203,6 +243,9 @@ require_once 'header.php';
                                         <a href="edit_selection.php?game_id=<?= $game['id'] ?>" class="btn btn-sm btn-outline-success me-1" title="Beheer Selectie">
                                             <i class="fa-solid fa-users-gear"></i>
                                         </a>
+                                        <a href="manage_games.php?duplicate_game=<?= $game['id'] ?>" class="btn btn-sm btn-outline-warning me-1" title="Dupliceer met Selectie">
+                                            <i class="fa-solid fa-copy"></i>
+                                        </a>
                                         <a href="lineup.php?wedstrijd=<?= $game['id'] ?>" class="btn btn-sm btn-outline-primary me-1 <?= $game['selection_count'] == 0 ? 'disabled' : '' ?>" title="Bereken Opstelling">
                                             <i class="fa-solid fa-calculator"></i> Opstelling
                                         </a>
@@ -244,6 +287,7 @@ require_once 'header.php';
       <form method="post" id="gameForm">
           <input type="hidden" name="action" value="save">
           <input type="hidden" name="game_id" id="modal_game_id" value="">
+          <input type="hidden" name="source_game_id" id="modal_source_game_id" value="">
           
           <div class="modal-header bg-dark text-white">
             <h5 class="modal-title" id="gameModalLabel">Wedstrijd Beheren</h5>
@@ -260,14 +304,6 @@ require_once 'header.php';
                   <input type="date" class="form-control" name="game_date" id="modal_game_date" required>
               </div>
               <div class="mb-3">
-                  <label class="form-label text-muted small fw-bold">AANTAL EN FORMAAT</label>
-                  <select class="form-select" name="format" id="modal_format" required>
-                      <?php foreach ($available_formats as $fmt): ?>
-                          <option value="<?= htmlspecialchars($fmt) ?>"><?= htmlspecialchars($fmt) ?></option>
-                      <?php endforeach; ?>
-                  </select>
-              </div>
-              <div class="mb-3">
                   <label class="form-label text-muted small fw-bold">MIN. POSITIES PER SPELER</label>
                   <select class="form-select" name="min_pos" id="modal_min_pos" required>
                       <option value="0">Geen minimum</option>
@@ -281,7 +317,15 @@ require_once 'header.php';
                   <select class="form-select" name="coach_id" id="modal_coach_id">
                       <option value="">-- Geen coach geselecteerd --</option>
                       <?php foreach ($coachesData as $cd): ?>
-                          <option value="<?= $cd['id'] ?>">Team <?= htmlspecialchars($cd['name']) ?></option>
+                          <option value="<?= $cd['id'] ?>">Coach <?= htmlspecialchars(trim($cd['name'])) ?></option>
+                      <?php endforeach; ?>
+                  </select>
+              </div>
+              <div class="mb-3">
+                  <label class="form-label text-muted small fw-bold">AANTAL EN FORMAAT</label>
+                  <select class="form-select" name="format" id="modal_format" required>
+                      <?php foreach ($available_formats as $fmt): ?>
+                          <option value="<?= htmlspecialchars($fmt) ?>"><?= htmlspecialchars($fmt) ?></option>
                       <?php endforeach; ?>
                   </select>
               </div>
@@ -297,20 +341,28 @@ require_once 'header.php';
 </div>
 
 <script>
-function openGameModal(game = null) {
+function openGameModal(game = null, isDuplicate = false) {
     var modalEl = document.getElementById('gameModal');
     var modal = new bootstrap.Modal(modalEl);
     
     // Reset form
     document.getElementById('gameForm').reset();
     document.getElementById('modal_game_id').value = '';
+    document.getElementById('modal_source_game_id').value = '';
     
-    if (game) {
+    if (game && !isDuplicate) {
         document.getElementById('gameModalLabel').innerText = 'Wedstrijd Bewerken';
         document.getElementById('modal_game_id').value = game.id;
         document.getElementById('modal_opponent').value = game.opponent;
-        // Strip trailing time information out of the date payload to make it HTML date-input compliant
         document.getElementById('modal_game_date').value = game.game_date ? game.game_date.split(' ')[0] : '';
+        document.getElementById('modal_format').value = game.format;
+        document.getElementById('modal_min_pos').value = game.min_pos || '0';
+        document.getElementById('modal_coach_id').value = game.coach_id || '';
+    } else if (game && isDuplicate) {
+        document.getElementById('gameModalLabel').innerText = 'Wedstrijd Dupliceren van ' + game.opponent;
+        document.getElementById('modal_source_game_id').value = game.id;
+        document.getElementById('modal_opponent').value = '';
+        document.getElementById('modal_game_date').value = new Date().toISOString().split('T')[0];
         document.getElementById('modal_format').value = game.format;
         document.getElementById('modal_min_pos').value = game.min_pos || '0';
         document.getElementById('modal_coach_id').value = game.coach_id || '';
@@ -325,20 +377,21 @@ function openGameModal(game = null) {
     modal.show();
 }
 
-<?php if (isset($_GET['edit_game'])): 
-    $editId = (int)$_GET['edit_game'];
-    $editTarget = null;
+<?php if (isset($_GET['edit_game']) || isset($_GET['duplicate_game'])): 
+    $isDup = isset($_GET['duplicate_game']);
+    $urlId = $isDup ? (int)$_GET['duplicate_game'] : (int)$_GET['edit_game'];
+    $evtTarget = null;
     foreach ($games as $g) {
-        if ((int)$g['id'] === $editId) {
-            $editTarget = $g;
+        if ((int)$g['id'] === $urlId) {
+            $evtTarget = $g;
             break;
         }
     }
-    if ($editTarget):
+    if ($evtTarget):
 ?>
 document.addEventListener("DOMContentLoaded", function() {
     setTimeout(function() {
-        openGameModal(<?= json_encode($editTarget) ?>);
+        openGameModal(<?= json_encode($evtTarget) ?>, <?= $isDup ? 'true' : 'false' ?>);
     }, 150); // Small delay to ensure bootstrap is ready
 });
 <?php endif; endif; ?>

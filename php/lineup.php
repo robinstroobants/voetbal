@@ -25,7 +25,9 @@
               <?php endif; ?>
           </div>
           
-          <h5 class="mb-0 text-center flex-grow-1 px-2" id="dynamic-page-title"><?= htmlspecialchars($page_title) ?></h5>
+          <h5 class="mb-0 text-center flex-grow-1 px-2" id="dynamic-page-title">
+              <i class="fa-solid fa-futbol me-2 text-primary"></i> <?= htmlspecialchars($matchData['game']['opponent'] ?? 'Opstelling') ?>
+          </h5>
 
           <div>
               <?php if ($nextGame): ?>
@@ -46,6 +48,9 @@
           <a href="edit_selection.php?game_id=<?= $gameId ?>" class="btn btn-outline-success btn-sm ms-2">
               <i class="fa-solid fa-users-gear me-1"></i> Wijzig Selectie
           </a>
+          <button onclick="window.print()" class="btn btn-outline-danger btn-sm ms-2">
+              <i class="fa-solid fa-file-pdf me-1"></i> Opslaan als PDF
+          </button>
       </div>
       
       <?php if (!empty($saved_lineups) && !$locked_lineup): ?>
@@ -795,11 +800,9 @@
         tabs.forEach(function(tab) {
             tab.addEventListener('shown.bs.tab', function(e) {
                 var newTitle = e.target.getAttribute("data-title");
-                if (titleDisplay && newTitle) {
-                    titleDisplay.innerText = newTitle;
-                }
+                // titleDisplay.innerText = newTitle; // Laten we overgeslagen: de h5 titel blijft kort voor mobiele weergave
                 if (newTitle) {
-                    document.title = newTitle;
+                    document.title = newTitle; // Zet wel de document title up-to-date voor PDF generatie / Printing!
                 }
             });
         });

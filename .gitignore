@@ -1,8 +1,10 @@
-
 # Secrets
 .env
 .htaccess
 db/
+/php/prompts/
 /php/vendor/
 /php/.phpunit.cache/
 /php/php_errorlog
+*.sqlite
+*.db

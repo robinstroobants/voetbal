@@ -87,13 +87,14 @@ $logs = $logs_stmt->fetchAll(PDO::FETCH_ASSOC);
                             <tr>
                                 <th>Tijdstip</th>
                                 <th>Actie / Algoritme</th>
+                                <th>Details / Configuratie</th>
                                 <th>Executie (ms)</th>
                                 <th>Geheugen (MB)</th>
                             </tr>
                         </thead>
                         <tbody>
                             <?php if (empty($logs)): ?>
-                                <tr><td colspan="4" class="text-muted py-4">Nog geen data beschikbaar... Genereer enkele lineups!</td></tr>
+                                <tr><td colspan="5" class="text-muted py-4">Nog geen data beschikbaar... Genereer enkele lineups!</td></tr>
                             <?php else: ?>
                                 <?php foreach ($logs as $log): 
                                     $timeClass = 'fast';
@@ -105,7 +106,8 @@ $logs = $logs_stmt->fetchAll(PDO::FETCH_ASSOC);
                                 ?>
                                 <tr>
                                     <td><?= date('d/m H:i:s', strtotime($log['created_at'])) ?></td>
-                                    <td><span class="badge bg-secondary"><?= htmlspecialchars($log['action_name']) ?></span></td>
+                                    <td><span class="badge bg-secondary opacity-75"><?= htmlspecialchars($log['action_name']) ?></span></td>
+                                    <td><small class="text-muted fw-semibold" style="font-size:0.7rem; letter-spacing:0.3px;"><?= htmlspecialchars($log['context'] ?? '--') ?></small></td>
                                     <td class="<?= $timeClass ?>"><?= number_format($log['execution_time_ms'], 1) ?> ms</td>
                                     <td class="<?= $memClass ?>"><?= number_format($log['memory_usage_mb'], 2) ?> MB</td>
                                 </tr>

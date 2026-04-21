@@ -73,6 +73,9 @@ header("Expires: 0"); // Proxies blockeren
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto align-items-center">
                     <?php if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'superadmin'): ?>
+                    <li class="nav-item"><a class="nav-link fw-bold" href="index.php">
+                        <i class="fa-solid fa-house me-2"></i>Dashboard
+                    </a></li>
                     <li class="nav-item"><a class="nav-link" href="manage_games.php">
                         <i class="fa-regular fa-calendar-days me-2"></i>Wedstrijden
                     </a></li>

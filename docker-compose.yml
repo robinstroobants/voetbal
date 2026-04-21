@@ -5,6 +5,7 @@ services:
     container_name: php-app
     volumes:
       - ./php:/var/www/html
+      - ./.git:/var/www/html/.git:ro
     environment:
       - DB_HOST=db
       - DB_NAME=${MYSQL_DATABASE}

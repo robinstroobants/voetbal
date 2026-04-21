@@ -768,7 +768,8 @@
       if (function_exists('logPerformance')) {
           $exec_time_ms = ($algo_end_time - $algo_start_time) * 1000;
           $mem_usage_mb = memory_get_peak_usage() / 1024 / 1024;
-          logPerformance('Generator Recursive Backtracking', $exec_time_ms, $mem_usage_mb, null);
+          $contextStr = "Format: " . ($format ?? '?') . " (" . count($squad ?? []) . " Spelers)";
+          logPerformance('Generator Recursive DFS', $exec_time_ms, $mem_usage_mb, null, $contextStr);
       }
   }
 

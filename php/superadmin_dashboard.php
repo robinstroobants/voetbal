@@ -8,6 +8,8 @@ if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'superadmin') {
 }
 
 $page_title = 'SaaS Beheer Dashboard';
+$success = '';
+$error = '';
 
 // Acties verwerken
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -61,25 +63,163 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $new_beta = $current_beta ? 0 : 1;
         $pdo->prepare("UPDATE users SET is_beta_user = ? WHERE id = ?")->execute([$new_beta, $user_id]);
         $success = "✅ BETA status bijgewerkt voor gebruiker!";
-    } elseif ($action === 'link_extra_team') {
-        $uId = (int)$_POST['user_id'];
-        $nTId = (int)$_POST['new_team_id'];
-        // Koppel of negeer indien al gekoppeld
-        $pdo->prepare("INSERT IGNORE INTO user_teams (user_id, team_id) VALUES (?, ?)")->execute([$uId, $nTId]);
-        $success = "✅ Extra Workspace gekoppeld aan gebruiker!";
+    } elseif ($action === 'delete_team') {
+        $team_id = (int)$_POST['team_id'];
+        
+        $stmtU = $pdo->prepare("SELECT user_id FROM user_teams WHERE team_id = ?");
+        $stmtU->execute([$team_id]);
+        $affected_users = $stmtU->fetchAll(PDO::FETCH_COLUMN);
+
+        $games = $pdo->prepare("SELECT id FROM games WHERE team_id = ?");
+        $games->execute([$team_id]);
+        $gameIds = $games->fetchAll(PDO::FETCH_COLUMN);
+        if ($gameIds) {
+            $inQ = implode(',', array_fill(0, count($gameIds), '?'));
+            $pdo->prepare("DELETE FROM game_lineups WHERE game_id IN ($inQ)")->execute($gameIds);
+            $pdo->prepare("DELETE FROM game_selections WHERE game_id IN ($inQ)")->execute($gameIds);
+        }
+        $pdo->prepare("DELETE FROM games WHERE team_id = ?")->execute([$team_id]);
+
+        $players = $pdo->prepare("SELECT id FROM players WHERE team_id = ?");
+        $players->execute([$team_id]);
+        $playerIds = $players->fetchAll(PDO::FETCH_COLUMN);
+        if ($playerIds) {
+            $inQ = implode(',', array_fill(0, count($playerIds), '?'));
+            $pdo->prepare("DELETE FROM player_scores WHERE player_id IN ($inQ)")->execute($playerIds);
+            $pdo->prepare("DELETE FROM gk_scores WHERE player_id IN ($inQ)")->execute($playerIds);
+        }
+        $pdo->prepare("DELETE FROM players WHERE team_id = ?")->execute([$team_id]);
+
+        $pdo->prepare("DELETE FROM coaches WHERE team_id = ?")->execute([$team_id]);
+        $pdo->prepare("DELETE FROM team_invitations WHERE team_id = ?")->execute([$team_id]);
+        $pdo->prepare("DELETE FROM user_teams WHERE team_id = ?")->execute([$team_id]);
+        $pdo->prepare("DELETE FROM teams WHERE id = ?")->execute([$team_id]);
+
+        foreach($affected_users as $uid) {
+            $check = $pdo->prepare("SELECT COUNT(*) FROM user_teams WHERE user_id = ?");
+            $check->execute([$uid]);
+            if ($check->fetchColumn() == 0) {
+                $pdo->prepare("DELETE FROM users WHERE id = ?")->execute([$uid]);
+            }
+        }
+        $success = "✅ Tenant omgeving volledig geliquideerd.";
+    } elseif ($action === 'edit_user') {
+        $uid = (int)$_POST['user_id'];
+        $fname = trim($_POST['first_name']);
+        $lname = trim($_POST['last_name']);
+        $eml = trim($_POST['email']);
+        $r = $_POST['role'];
+        $pdo->prepare("UPDATE users SET first_name = ?, last_name = ?, email = ?, role = ? WHERE id = ?")->execute([$fname, $lname, $eml, $r, $uid]);
+        $success = "✅ Gebruiker succesvol bijgewerkt!";
+    } elseif ($action === 'delete_user') {
+        $uid = (int)$_POST['user_id'];
+        $tid = (int)$_POST['team_id'];
+        
+        $pdo->prepare("DELETE FROM user_teams WHERE user_id = ? AND team_id = ?")->execute([$uid, $tid]);
+        
+        $check = $pdo->prepare("SELECT COUNT(*) FROM user_teams WHERE user_id = ?");
+        $check->execute([$uid]);
+        if ($check->fetchColumn() == 0) {
+            $pdo->prepare("DELETE FROM users WHERE id = ?")->execute([$uid]);
+        }
+        $success = "✅ Gebruiker ontkoppeld (en definitief gewist indien geen andere workspaces).";
+    } elseif ($action === 'invite_coach') {
+        $tid = (int)$_POST['team_id'];
+        $invite_email = filter_var($_POST['invite_email'] ?? '', FILTER_SANITIZE_EMAIL);
+        if ($invite_email && $tid) {
+            $stmtC = $pdo->prepare("SELECT COUNT(*) FROM user_teams WHERE team_id = ?");
+            $stmtC->execute([$tid]);
+            $c_coaches = (int)$stmtC->fetchColumn();
+
+            $stmtI = $pdo->prepare("SELECT COUNT(*) FROM team_invitations WHERE team_id = ? AND expires_at > NOW()");
+            $stmtI->execute([$tid]);
+            $p_invites = (int)$stmtI->fetchColumn();
+
+            if (($c_coaches + $p_invites) >= 3) {
+                $error = "De limiet van 3 coaches per team is bereikt voor deze workspace.";
+            } else {
+                $stmtCheck = $pdo->prepare("SELECT id, first_name FROM users WHERE email = ?");
+                $stmtCheck->execute([$invite_email]);
+                $existing_user = $stmtCheck->fetch();
+
+                if ($existing_user) {
+                    $stmtLinkCheck = $pdo->prepare("SELECT 1 FROM user_teams WHERE user_id = ? AND team_id = ?");
+                    $stmtLinkCheck->execute([$existing_user['id'], $tid]);
+                    if ($stmtLinkCheck->fetchColumn()) {
+                        $error = "Deze gebruiker heeft al toegang tot dit team.";
+                    } else {
+                        $pdo->prepare("INSERT IGNORE INTO user_teams (user_id, team_id) VALUES (?, ?)")->execute([$existing_user['id'], $tid]);
+                        $success = "✅ Bestaande gebruiker succesvol gekoppeld aan de workspace.";
+                    }
+                } else {
+                    $stmtInvCheck = $pdo->prepare("SELECT id FROM team_invitations WHERE email = ? AND team_id = ? AND expires_at > NOW()");
+                    $stmtInvCheck->execute([$invite_email, $tid]);
+                    if ($stmtInvCheck->fetchColumn()) {
+                        $error = "Er staat al een open uitnodiging voor dit e-mailadres in deze workspace.";
+                    } else {
+                        $token = bin2hex(random_bytes(32));
+                        $expires_at = date('Y-m-d H:i:s', strtotime('+7 days'));
+                        $pdo->prepare("INSERT INTO team_invitations (team_id, email, token, expires_at) VALUES (?, ?, ?, ?)")
+                            ->execute([$tid, $invite_email, $token, $expires_at]);
+                        
+                        $stmtTN = $pdo->prepare("SELECT name FROM teams WHERE id = ?");
+                        $stmtTN->execute([$tid]);
+                        $teamName = $stmtTN->fetchColumn();
+
+                        $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http");
+                        $host = $_SERVER['HTTP_HOST'];
+                        $invite_link = "$protocol://$host/register.php?invite_token=$token";
+                        
+                        $subject = "SaaS Uitnodiging om coach te worden van " . $teamName;
+                        $message = "Hallo,\n\nJe bent via the administrator uitgenodigd om co-coach te worden van het team: $teamName.\n\nKlik op de onderstaande link om gratis je account te activeren:\n$invite_link\n\nDeze link is 7 dagen geldig.";
+                        $headers = "From: noreply@$host\r\n";
+                        @mail($invite_email, $subject, $message, $headers);
+
+                        $success = "✅ Uitnodigingslink succesvol verstuurd naar $invite_email!";
+                    }
+                }
+            }
+        }
+    } elseif ($action === 'cancel_invite') {
+        $inv_id = (int)$_POST['invite_id'];
+        if ($inv_id) {
+            $pdo->prepare("DELETE FROM team_invitations WHERE id = ?")->execute([$inv_id]);
+            $success = "✅ Uitnodiging succesvol ingetrokken!";
+        }
     }
 }
 
-// 1. Haal alle teams op
-$stmtTeams = $pdo->query("SELECT * FROM teams ORDER BY id ASC");
+// Definieer Zoeken & Ajax parameters (Stap 1)
+$searchTerm = $_GET['ajax_q'] ?? '';
+$isAjax = isset($_GET['ajax_q']);
+
+$queryStr = "SELECT * FROM teams";
+$params = [];
+
+if ($searchTerm !== '') {
+    $queryStr .= " WHERE name LIKE ? OR id IN (SELECT ut.team_id FROM user_teams ut JOIN users u ON ut.user_id = u.id WHERE u.first_name LIKE ? OR u.last_name LIKE ?)";
+    $params = ["%$searchTerm%", "%$searchTerm%", "%$searchTerm%"];
+}
+
+$queryStr .= " ORDER BY id DESC LIMIT 10";
+
+$stmtTeams = $pdo->prepare($queryStr);
+$stmtTeams->execute($params);
 $teams = $stmtTeams->fetchAll(PDO::FETCH_ASSOC);
 
 // 2. Haal alle gebruikers op, gegroepeerd
 $users = [];
-$usersResult = $pdo->query("SELECT * FROM users ORDER BY created_at DESC")->fetchAll();
+$usersResult = $pdo->query("
+    SELECT u.*, ut.team_id as workspace_id 
+    FROM users u 
+    LEFT JOIN user_teams ut ON u.id = ut.user_id 
+    ORDER BY u.created_at DESC
+")->fetchAll();
+
 foreach ($usersResult as $u) {
-    if ($u['team_id']) {
-        $users[$u['team_id']][] = $u;
+    $tId = $u['workspace_id'] ?: $u['team_id'];
+    if ($tId) {
+        $users[$tId][$u['id']] = $u; 
     }
 }
 
@@ -87,7 +227,24 @@ foreach ($usersResult as $u) {
 $allUserTeams = [];
 $utResult = $pdo->query("SELECT ut.user_id, t.name, t.id as team_id FROM user_teams ut JOIN teams t ON ut.team_id = t.id")->fetchAll();
 foreach ($utResult as $ut) {
+    if (!isset($allUserTeams[$ut['user_id']])) $allUserTeams[$ut['user_id']] = [];
     $allUserTeams[$ut['user_id']][] = $ut;
+}
+
+// Haal actieve open invites op
+$invitesByTeam = [];
+$stmtInv = $pdo->query("SELECT id, team_id, email, created_at, expires_at FROM team_invitations WHERE expires_at > NOW()");
+foreach($stmtInv as $r) {
+    if (!isset($invitesByTeam[$r['team_id']])) {
+        $invitesByTeam[$r['team_id']] = [];
+    }
+    $invitesByTeam[$r['team_id']][] = $r;
+}
+
+// Als het een Ajax verzoek is, onderbreek the HTML rest render en spuug enkel the partial uit
+if ($isAjax) {
+    include '_superadmin_teams_list.php';
+    exit;
 }
 
 require_once 'header.php';
@@ -100,6 +257,9 @@ require_once 'header.php';
 
     <?php if (!empty($success)): ?>
         <div class="alert alert-success fw-bold shadow-sm"><i class="fa-solid fa-check-circle me-2"></i><?= htmlspecialchars($success) ?></div>
+    <?php endif; ?>
+    <?php if (!empty($error)): ?>
+        <div class="alert alert-danger fw-bold shadow-sm"><i class="fa-solid fa-circle-exclamation me-2"></i><?= htmlspecialchars($error) ?></div>
     <?php endif; ?>
 
     <div class="row">
@@ -132,177 +292,131 @@ require_once 'header.php';
                 </div>
             </div>
 
-            <div class="card shadow-sm border-0 border-top border-success border-4">
-                <div class="card-body">
-                    <h5 class="card-title"><i class="fa-solid fa-user-plus text-success me-2"></i>Nieuwe Login Aanmaken</h5>
-                    <form method="POST">
-                        <input type="hidden" name="action" value="create_user">
-                        <div class="mb-3">
-                            <label class="form-label">Koppel aan Team</label>
-                            <select name="team_id" class="form-select" required>
-                                <?php foreach ($teams as $t): ?>
-                                    <option value="<?= $t['id'] ?>"><?= htmlspecialchars($t['name']) ?></option>
-                                <?php endforeach; ?>
-                            </select>
-                        </div>
-                        <div class="row">
-                            <div class="col-6 mb-2"><input type="text" name="first_name" class="form-control" placeholder="Voornaam" required></div>
-                            <div class="col-6 mb-2"><input type="text" name="last_name" class="form-control" placeholder="Achternaam"></div>
-                        </div>
-                        <div class="mb-2"><input type="email" name="email" class="form-control" placeholder="E-mailadres" required></div>
-                        <div class="mb-3"><input type="password" name="password" class="form-control" placeholder="Wachtwoord" required></div>
-                        <div class="mb-3">
-                            <label class="form-label">Rechten (Rol)</label>
-                            <select name="role" class="form-select">
-                                <option value="coach">Coach (Normaal)</option>
-                                <option value="admin">Team Admin (Settings)</option>
-                                <option value="superadmin">Super Admin (Overal)</option>
-                            </select>
-                        </div>
-                        <button type="submit" class="btn btn-success w-100 fw-bold">Login Opslaan</button>
-                    </form>
-                </div>
-            </div>
         </div>
 
         <div class="col-md-8">
-            <h4 class="mb-3"><i class="fa-solid fa-building me-2"></i>Huidige SaaS Tenants</h4>
-            <div class="accordion shadow-sm" id="accordionTeams">
-                <?php foreach ($teams as $index => $t): 
-                    $isExpired = strtotime($t['subscription_valid_until']) < time();
-                ?>
-                <div class="accordion-item border-0 mb-2 rounded border">
-                    <h2 class="accordion-header">
-                        <button class="accordion-button <?= $index !== 0 ? 'collapsed' : '' ?> fw-bold d-flex justify-content-between" type="button" data-bs-toggle="collapse" data-bs-target="#collapse<?= $t['id'] ?>">
-                            <span><span class="badge bg-secondary me-2">ID: <?= $t['id'] ?></span> <?= htmlspecialchars($t['name']) ?></span>
-                            <span class="badge <?= $isExpired ? 'bg-danger' : 'bg-success' ?> ms-auto" style="margin-right: 15px;">
-                                <?= $isExpired ? '<i class="fa-solid fa-lock"></i> Verlopen' : '<i class="fa-solid fa-check"></i> Actief' ?>
-                            </span>
-                        </button>
-                    </h2>
-                    <div id="collapse<?= $t['id'] ?>" class="accordion-collapse collapse <?= $index === 0 ? 'show' : '' ?>" data-bs-parent="#accordionTeams">
-                        <div class="accordion-body bg-white rounded-bottom">
-                            
-                            <div class="row align-items-center p-3 mb-3" style="background:#f8f9fa; border-radius: 8px;">
-                                <div class="col-md-6">
-                                    <h6 class="mb-1 text-muted text-uppercase" style="font-size:0.75rem; letter-spacing:1px;">Facturatie</h6>
-                                    <div class="fs-5 fw-bold"><?= ucfirst($t['subscription_plan']) ?> <span class="ms-2 badge <?= $isExpired ? 'bg-danger' : 'bg-success' ?>"><?= date('d M Y - H:i', strtotime($t['subscription_valid_until'])) ?></span></div>
-                                </div>
-                                <div class="col-md-6 text-end">
-                                    <form method="POST" class="d-inline-flex gap-2">
-                                        <input type="hidden" name="action" value="extend_sub">
-                                        <input type="hidden" name="team_id" value="<?= $t['id'] ?>">
-                                        <select name="extra_months" class="form-select form-select-sm" style="width: auto;">
-                                            <option value="1">+ 1 Maand</option>
-                                            <option value="3">+ 3 Maanden</option>
-                                            <option value="12">+ 1 Jaar</option>
-                                        </select>
-                                        <button class="btn btn-warning btn-sm fw-bold"><i class="fa-solid fa-coins me-1"></i> Verleng</button>
-                                    </form>
-                                </div>
-                            </div>
-
-                            <h6 class="mb-2 fw-bold text-secondary">Gekoppelde Logins voor de Applicatie:</h6>
-                            <?php if (empty($users[$t['id']])): ?>
-                                <p class="small text-muted fst-italic">Geen gebruikers gekoppeld aan dit team. Toegang onmogelijk.</p>
-                            <?php else: ?>
-                                <div class="table-responsive">
-                                    <table class="table table-sm table-hover align-middle">
-                                        <thead class="table-light">
-                                            <tr>
-                                                <th>Naam</th>
-                                                <th>E-mailadres</th>
-                                                <th>Rechten Rol</th>
-                                                <th class="text-center">BETA Access</th>
-                                                <th class="text-end">Acties</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            <?php foreach ($users[$t['id']] as $user): ?>
-                                            <tr>
-                                                <td>
-                                                    <?= htmlspecialchars($user['first_name'] . ' ' . $user['last_name']) ?>
-                                                    <?php if(isset($allUserTeams[$user['id']]) && count($allUserTeams[$user['id']]) > 1): ?>
-                                                        <div class="small fw-semibold mt-1 text-primary">
-                                                            <i class="fa-solid fa-layer-group"></i> Workspaces: 
-                                                            <?php 
-                                                               $wsArr = array_map(function($w) { return htmlspecialchars($w['name']); }, $allUserTeams[$user['id']]);
-                                                               echo implode(', ', $wsArr);
-                                                            ?>
-                                                        </div>
-                                                    <?php endif; ?>
-                                                </td>
-                                                <td><a href="mailto:<?= htmlspecialchars($user['email']) ?>"><?= htmlspecialchars($user['email']) ?></a></td>
-                                                <td>
-                                                    <?php 
-                                                        $badge = 'bg-secondary';
-                                                        if($user['role'] == 'superadmin') $badge = 'bg-danger';
-                                                        if($user['role'] == 'admin') $badge = 'bg-primary';
-                                                    ?>
-                                                    <span class="badge <?= $badge ?>"><?= htmlspecialchars($user['role']) ?></span>
-                                                </td>
-                                                <td class="text-center">
-                                                    <form method="POST" style="display:inline;">
-                                                        <input type="hidden" name="action" value="toggle_beta">
-                                                        <input type="hidden" name="user_id" value="<?= $user['id'] ?>">
-                                                        <input type="hidden" name="current_beta" value="<?= $user['is_beta_user'] ?>">
-                                                        <button type="submit" class="btn btn-sm <?= $user['is_beta_user'] ? 'btn-warning text-dark fw-bold' : 'btn-outline-secondary' ?>">
-                                                            <i class="fa-solid <?= $user['is_beta_user'] ? 'fa-toggle-on' : 'fa-toggle-off' ?>"></i> 
-                                                            <?= $user['is_beta_user'] ? 'BETA AAN' : 'UIT' ?>
-                                                        </button>
-                                                    </form>
-                                                </td>
-                                                <td class="text-end">
-                                                    <?php if($user['role'] !== 'superadmin'): ?>
-                                                    <div class="d-flex justify-content-end gap-1">
-                                                        <form method="POST" action="impersonate.php?action=start" class="m-0">
-                                                            <input type="hidden" name="target_user_id" value="<?= $user['id'] ?>">
-                                                            <button type="submit" class="btn btn-sm btn-outline-primary" title="Log in als deze gebruiker">
-                                                                <i class="fa-solid fa-user-secret"></i>
-                                                            </button>
-                                                        </form>
-                                                        
-                                                        <form method="POST" action="" class="m-0 d-flex align-items-center">
-                                                            <input type="hidden" name="action" value="link_extra_team">
-                                                            <input type="hidden" name="user_id" value="<?= $user['id'] ?>">
-                                                            <select name="new_team_id" class="form-select form-select-sm d-inline-block" style="width:110px;" required>
-                                                                <option value="" disabled selected>+ Team</option>
-                                                                <?php foreach($teams as $teamOp): 
-                                                                        // Controleer of gebruiker al in deze workspace zit
-                                                                        $isIn = false;
-                                                                        if(isset($allUserTeams[$user['id']])){
-                                                                            foreach($allUserTeams[$user['id']] as $w) {
-                                                                                if($w['team_id'] == $teamOp['id']) $isIn = true;
-                                                                            }
-                                                                        }
-                                                                        if(!$isIn && $teamOp['id'] != $user['team_id']): 
-                                                                ?>
-                                                                    <option value="<?= $teamOp['id'] ?>"><?= htmlspecialchars($teamOp['name']) ?></option>
-                                                                <?php endif; endforeach; ?>
-                                                            </select>
-                                                            <button type="submit" class="btn btn-sm btn-outline-success ms-1" title="Koppel">
-                                                                <i class="fa-solid fa-link"></i>
-                                                            </button>
-                                                        </form>
-                                                    </div>
-                                                    <?php else: ?>
-                                                        <span class="badge bg-light text-muted border">Jezelf</span>
-                                                    <?php endif; ?>
-                                                </td>
-                                            </tr>
-                                            <?php endforeach; ?>
-                                        </tbody>
-                                    </table>
-                                </div>
-                            <?php endif; ?>
-
-                        </div>
-                    </div>
+            <div class="d-flex justify-content-between align-items-end mb-3">
+                <h4 class="mb-0"><i class="fa-solid fa-building me-2"></i>Huidige SaaS Tenants</h4>
+                <div style="width: 300px; position:relative;">
+                    <i class="fa-solid fa-magnifying-glass position-absolute text-muted" style="left:12px; top:12px;"></i>
+                    <input type="search" id="superadminSearch" class="form-control rounded-pill ps-5 bg-white shadow-sm border-0" placeholder="Zoek club of coach...">
                 </div>
-                <?php endforeach; ?>
+            </div>
+            <div class="accordion shadow-sm" id="accordionTeams">
+                <?php include '_superadmin_teams_list.php'; ?>
             </div>
         </div>
+
     </div>
 </div>
+
+<!-- Invite User Modal -->
+<div class="modal fade" id="inviteUserModal" tabindex="-1" aria-labelledby="inviteUserLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="POST">
+        <input type="hidden" name="action" value="invite_coach">
+        <input type="hidden" name="team_id" id="invite_team_id" value="">
+        <div class="modal-header bg-success text-white">
+          <h5 class="modal-title" id="inviteUserLabel"><i class="fa-solid fa-paper-plane me-2"></i>Gebruiker Uitnodigen</h5>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+            <div class="mb-3">
+                <label class="form-label small text-muted fw-bold">E-mailadres</label>
+                <input type="email" name="invite_email" class="form-control" required placeholder="email@voorbeeld.com">
+                <div class="form-text">Er wordt (indien onbekend) een veilige uitnodiging met link verzonden (7 dagen geldig).</div>
+            </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Annuleren</button>
+          <button type="submit" class="btn btn-success fw-bold">Stuur Uitnodiging</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- Edit User Modal -->
+<div class="modal fade" id="editUserModal" tabindex="-1" aria-labelledby="editUserLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <form method="POST">
+        <input type="hidden" name="action" value="edit_user">
+        <input type="hidden" name="user_id" id="edit_user_id" value="">
+        <div class="modal-header bg-warning text-dark">
+          <h5 class="modal-title" id="editUserLabel"><i class="fa-solid fa-pen me-2"></i>Gebruiker Bewerken</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+            <div class="mb-3">
+                <label class="form-label small text-muted fw-bold">Voornaam</label>
+                <input type="text" name="first_name" id="edit_first_name" class="form-control" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label small text-muted fw-bold">Achternaam</label>
+                <input type="text" name="last_name" id="edit_last_name" class="form-control">
+            </div>
+            <div class="mb-3">
+                <label class="form-label small text-muted fw-bold">E-mailadres</label>
+                <input type="email" name="email" id="edit_email" class="form-control" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label small text-muted fw-bold">Rol</label>
+                <select name="role" id="edit_role" class="form-select">
+                    <option value="coach">Coach</option>
+                    <option value="admin">Admin</option>
+                    <option value="superadmin">Superadmin</option>
+                </select>
+            </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-light" data-bs-dismiss="modal">Annuleren</button>
+          <button type="submit" class="btn btn-warning fw-bold">Opslaan</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+let searchTimeout;
+document.getElementById('superadminSearch').addEventListener('input', function(e) {
+    const term = e.target.value.trim();
+    clearTimeout(searchTimeout);
+    
+    // Add simple loading indicator classes if needed
+    document.getElementById('accordionTeams').style.opacity = '0.5';
+
+    searchTimeout = setTimeout(function() {
+        fetch('superadmin_dashboard.php?ajax_q=' + encodeURIComponent(term))
+            .then(res => res.text())
+            .then(html => {
+                document.getElementById('accordionTeams').innerHTML = html;
+                document.getElementById('accordionTeams').style.opacity = '1';
+            })
+            .catch(err => {
+                console.error(err);
+                document.getElementById('accordionTeams').style.opacity = '1';
+            });
+    }, 300); // 300ms debounce
+});
+
+function openInviteModal(team_id) {
+    document.getElementById('invite_team_id').value = team_id;
+    var myModal = new bootstrap.Modal(document.getElementById('inviteUserModal'));
+    myModal.show();
+}
+
+function openEditUserModal(user) {
+    document.getElementById('edit_user_id').value = user.id;
+    document.getElementById('edit_first_name').value = user.first_name;
+    document.getElementById('edit_last_name').value = user.last_name || '';
+    document.getElementById('edit_email').value = user.email;
+    document.getElementById('edit_role').value = user.role;
+    var myModal = new bootstrap.Modal(document.getElementById('editUserModal'));
+    myModal.show();
+}
+</script>
 
 <?php require_once 'footer.php'; ?>

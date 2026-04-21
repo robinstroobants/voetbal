@@ -7,7 +7,7 @@ $action = $_GET['action'] ?? '';
 if ($action === 'start') {
     // Prevent non-superadmins and already impersonating users
     if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'superadmin' || isset($_SESSION['original_user_id'])) {
-        header("Location: index.php");
+        header("Location: /");
         exit;
     }
 
@@ -60,11 +60,11 @@ if ($action === 'start') {
                 $_SESSION['is_read_only'] = false;
             }
 
-            header("Location: index.php");
+            header("Location: /");
             exit;
         }
     }
-    header("Location: superadmin_dashboard.php");
+    header("Location: /admin");
     exit;
 
 } elseif ($action === 'stop') {
@@ -90,13 +90,10 @@ if ($action === 'start') {
         unset($_SESSION['original_available_teams']);
         unset($_SESSION['impersonated_first_name']);
 
-        header("Location: superadmin_dashboard.php");
+        header("Location: /admin");
         exit;
     }
-    header("Location: index.php");
-    exit;
-} else {
-    header("Location: index.php");
+    header("Location: /");
     exit;
 }
 ?>

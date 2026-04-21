@@ -3,7 +3,10 @@ require_once 'getconn.php';
 
 $team_id = (int)($_SESSION['team_id'] ?? 0);
 
-// Superadmin check happens via central routing if needed, but if a superadmin manually visits / we let them see the dashboard.
+if (isset($_SESSION['role']) && $_SESSION['role'] === 'superadmin') {
+    header("Location: /admin");
+    exit;
+}
 
 // 1. Calculate Onboarding Status
 $stmtP = $pdo->prepare("SELECT COUNT(*) FROM players WHERE team_id = ?");

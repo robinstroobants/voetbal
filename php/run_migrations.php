@@ -1,4 +1,22 @@
 <?php
+// Beveiliging voor browser-executies: vereist superadmin login OF een specifieke deploy token (voor later mbv github actions)
+$is_cli = (php_sapi_name() === 'cli');
+if (!$is_cli) {
+    if (session_status() === PHP_SESSION_NONE) {
+        session_start();
+    }
+    
+    // Check if the user is a logged-in superadmin OR provided the correct secret token in the URL
+    $deploy_secret = 'super_secret_deploy_key_2026';
+    $is_superadmin = isset($_SESSION['role']) && $_SESSION['role'] === 'superadmin';
+    $has_token = isset($_GET['token']) && $_GET['token'] === $deploy_secret;
+
+    if (!$is_superadmin && !$has_token) {
+        http_response_code(403);
+        die("<h1>403 Forbidden</h1><p>You do not have permission to run migrations here. To automate this, pass the correct token.</p>");
+    }
+}
+
 require_once __DIR__ . '/getconn.php';
 
 echo "<h1>🚀 Database Migration Engine</h1>";

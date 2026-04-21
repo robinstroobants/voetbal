@@ -3,7 +3,7 @@
 $current_file = basename($_SERVER['PHP_SELF'] ?? '');
 $is_cli = (php_sapi_name() === 'cli');
 
-if (!$is_cli && !in_array($current_file, ['login.php', 'logout.php', 'reset_admin.php', 'register.php', 'verify.php', 'forgot_password.php', 'reset_password.php'])) {
+if (!$is_cli && !in_array($current_file, ['login.php', 'logout.php', 'reset_admin.php', 'register.php', 'verify.php', 'forgot_password.php', 'reset_password.php', 'run_migrations.php'])) {
     require_once __DIR__ . '/auth.php';
 }
 

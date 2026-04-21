@@ -1,6 +1,7 @@
 # Secrets
 .env
 .htaccess
+.antigravityrules
 db/
 /php/prompts/
 /php/vendor/

@@ -16,7 +16,7 @@ try {
     if ($conn->connect_error) {
         die("Connection failed: " . $conn->connect_error);
     }
-} catch (Exception $e) {
+} catch (\Throwable $e) {
     die("Database Connection Error (MySQLi): " . $e->getMessage());
 }
 

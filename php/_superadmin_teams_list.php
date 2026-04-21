@@ -157,6 +157,13 @@
                                 </td>
                                 <td class="text-end">
                                     <div class="d-flex justify-content-end flex-nowrap">
+                                        <?php 
+                                            $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http");
+                                            $inviteLink = "$protocol://{$_SERVER['HTTP_HOST']}/register.php?invite_token=" . $invite['token'];
+                                        ?>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary me-1" onclick="navigator.clipboard.writeText('<?= $inviteLink ?>'); alert('Link gekopieerd!');" title="Kopieer de invite link">
+                                            <i class="fa-regular fa-copy"></i>
+                                        </button>
                                         <form method="POST" class="m-0" onsubmit="return confirm('Zeker dat je deze uitnodiging wilt intrekken?');">
                                             <input type="hidden" name="action" value="cancel_invite">
                                             <input type="hidden" name="invite_id" value="<?= $invite['id'] ?>">

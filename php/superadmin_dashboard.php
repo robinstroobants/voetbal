@@ -233,7 +233,7 @@ foreach ($utResult as $ut) {
 
 // Haal actieve open invites op
 $invitesByTeam = [];
-$stmtInv = $pdo->query("SELECT id, team_id, email, created_at, expires_at FROM team_invitations WHERE expires_at > NOW()");
+$stmtInv = $pdo->query("SELECT id, team_id, email, token, created_at, expires_at FROM team_invitations WHERE expires_at > NOW()");
 foreach($stmtInv as $r) {
     if (!isset($invitesByTeam[$r['team_id']])) {
         $invitesByTeam[$r['team_id']] = [];

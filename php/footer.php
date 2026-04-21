@@ -11,15 +11,14 @@
             $versionFile2 = __DIR__ . '/version.txt';
             
             // 2. Controleer of het bestand bestaat en lees het uit (prioriteit aan site_version.txt)
-            $raw_version = false;
+            $raw_version = '';
             if (file_exists($versionFile1)) {
-                $raw_version = file_get_contents($versionFile1);
+                $raw_version = trim(file_get_contents($versionFile1));
             }
-            if ($raw_version === false && file_exists($versionFile2)) {
-                $raw_version = file_get_contents($versionFile2);
+            if (empty($raw_version) && file_exists($versionFile2)) {
+                $raw_version = trim(file_get_contents($versionFile2));
             }
-
-            if ($raw_version !== false) {
+            if ($raw_version !== false && $raw_version !== '') {
                 // Trim whitespace en sanitize de output tegen XSS (Cross-Site Scripting)
                 // Zelfs als je het bestand zelf beheert, is dit 'best practice'.
                 $version = htmlspecialchars(trim($raw_version), ENT_QUOTES, 'UTF-8');

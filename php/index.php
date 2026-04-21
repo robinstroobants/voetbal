@@ -3,10 +3,7 @@ require_once 'getconn.php';
 
 $team_id = (int)($_SESSION['team_id'] ?? 0);
 
-if (isset($_SESSION['role']) && $_SESSION['role'] === 'superadmin') {
-    header("Location: superadmin_dashboard.php");
-    exit;
-}
+// Superadmin check happens via central routing if needed, but if a superadmin manually visits / we let them see the dashboard.
 
 // 1. Calculate Onboarding Status
 $stmtP = $pdo->prepare("SELECT COUNT(*) FROM players WHERE team_id = ?");
@@ -219,7 +216,7 @@ require_once 'header.php';
                 <h4 class="fw-bold text-dark mb-0">Welkom terug, Coach! <i class="fa-solid fa-hand-wave text-warning" style="font-size: 0.9em;"></i></h4>
                 <p class="text-muted mb-0 mt-1 d-none d-md-block">Jouw dashboard voor team <?= htmlspecialchars($_SESSION['team_name'] ?? '') ?></p>
             </div>
-            <a href="manage_games.php" class="btn btn-primary shadow-sm fw-bold rounded-pill px-4">
+            <a href="/games" class="btn btn-primary shadow-sm fw-bold rounded-pill px-4">
                 <i class="fa-solid fa-plus me-1"></i> Wedstrijd Plannen
             </a>
         </div>
@@ -251,7 +248,7 @@ require_once 'header.php';
                                 $selection_color = $is_selection_ready ? 'success' : 'warning';
                                 $selection_icon = $has_selection ? 'fa-pen-to-square' : 'fa-plus';
                             ?>
-                            <a href="edit_selection.php?game_id=<?= $next_game['id'] ?>" class="text-decoration-none d-inline-flex align-items-center bg-white bg-opacity-10 rounded px-3 py-2 mt-2 transition-transform" style="transition: transform 0.2s; cursor: pointer;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+                            <a href="/games/<?= $next_game['id'] ?>/selection" class="text-decoration-none d-inline-flex align-items-center bg-white bg-opacity-10 rounded px-3 py-2 mt-2 transition-transform" style="transition: transform 0.2s; cursor: pointer;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
                                 <i class="fa-solid <?= $selection_icon ?> text-<?= $selection_color ?> fs-4 me-2"></i>
                                 <div>
                                     <div class="small text-white text-opacity-75" style="line-height: 1;">Actuele Selectie</div>
@@ -262,13 +259,13 @@ require_once 'header.php';
                             </a>
                         </div>
                         <div class="col-md-5 text-md-end text-start">
-                            <a href="manage_games.php?edit_game=<?= $next_game['id'] ?>" class="btn btn-light text-secondary fw-bold rounded-pill mx-1 mb-2" title="Bewerk details">
+                            <a href="/games/<?= $next_game['id'] ?>/edit" class="btn btn-light text-secondary fw-bold rounded-pill mx-1 mb-2" title="Bewerk details">
                                 <i class="fa-solid fa-pen"></i>
                             </a>
-                            <a href="edit_selection.php?game_id=<?= $next_game['id'] ?>" class="btn btn-light text-primary fw-bold rounded-pill mx-1 mb-2">
+                            <a href="/games/<?= $next_game['id'] ?>/selection" class="btn btn-light text-primary fw-bold rounded-pill mx-1 mb-2">
                                 <i class="fa-solid fa-users me-1"></i> Selectie
                             </a>
-                            <a href="lineup.php?wedstrijd=<?= $next_game['id'] ?>" class="btn <?= $next_game['selection_count'] > 0 ? 'btn-warning text-dark' : 'btn-outline-light disabled' ?> fw-bold rounded-pill mx-1 mb-2">
+                            <a href="/games/<?= $next_game['id'] ?>/lineup" class="btn <?= $next_game['selection_count'] > 0 ? 'btn-warning text-dark' : 'btn-outline-light disabled' ?> fw-bold rounded-pill mx-1 mb-2">
                                 <i class="fa-solid fa-wand-magic-sparkles me-1"></i> Maak Opstelling
                             </a>
                         </div>
@@ -280,7 +277,7 @@ require_once 'header.php';
                         <i class="fa-regular fa-calendar-xmark text-muted mb-3" style="font-size: 3rem;"></i>
                         <h4 class="fw-bold text-dark mb-1">Geen Aankomende Wedstrijden</h4>
                         <p class="text-muted">Er staan momenteel geen wedstrijden op de planning voor je team.</p>
-                        <a href="manage_games.php" class="btn btn-primary rounded-pill mt-2">
+                        <a href="/games" class="btn btn-primary rounded-pill mt-2">
                             <i class="fa-solid fa-plus me-1"></i> Nu Eentje Toevoegen
                         </a>
                     </div>
@@ -322,13 +319,13 @@ require_once 'header.php';
                                             <?= htmlspecialchars($game['opponent']) ?>
                                         </td>
                                         <td class="text-end pe-4 text-nowrap">
-                                            <a href="manage_games.php?edit_game=<?= $game['id'] ?>" class="btn btn-sm btn-light text-secondary fw-bold rounded-pill shadow-sm me-1" title="Bewerk details">
+                                            <a href="/games/<?= $game['id'] ?>/edit" class="btn btn-sm btn-light text-secondary fw-bold rounded-pill shadow-sm me-1" title="Bewerk details">
                                                 <i class="fa-solid fa-pen mt-1 mb-1"></i>
                                             </a>
-                                            <a href="manage_games.php?duplicate_game=<?= $game['id'] ?>" class="btn btn-sm btn-light text-warning fw-bold rounded-pill shadow-sm me-1" title="Dupliceer Wedstrijd">
+                                            <a href="/games/<?= $game['id'] ?>/duplicate" class="btn btn-sm btn-light text-warning fw-bold rounded-pill shadow-sm me-1" title="Dupliceer Wedstrijd">
                                                 <i class="fa-solid fa-copy me-1 mt-1 mb-1"></i> Dupliceer
                                             </a>
-                                            <a href="lineup.php?wedstrijd=<?= $game['id'] ?>" class="btn btn-sm btn-light text-primary fw-bold rounded-pill shadow-sm" title="Bekijk Opstelling">
+                                            <a href="/games/<?= $game['id'] ?>/lineup" class="btn btn-sm btn-light text-primary fw-bold rounded-pill shadow-sm" title="Bekijk Opstelling">
                                                 <i class="fa-solid fa-eye me-1 mt-1 mb-1"></i> Detail
                                             </a>
                                         </td>
@@ -354,7 +351,7 @@ require_once 'header.php';
                         <div>
                             <h6 class="fw-bold text-danger mb-1 mt-1">Matrix Update Nodig</h6>
                             <p class="text-secondary small mb-2">Er zijn momenteel <strong><?= $missing_matrix_count ?> spelers</strong> in je team zonder dat hun Score Matrix (volledig) is ingevuld.</p>
-                            <a href="edit_scores.php" class="btn btn-sm btn-outline-danger rounded-pill fw-bold">Nu Bijwerken</a>
+                            <a href="/scores" class="btn btn-sm btn-outline-danger rounded-pill fw-bold">Nu Bijwerken</a>
                         </div>
                     </div>
                 </div>
@@ -363,7 +360,7 @@ require_once 'header.php';
                 <!-- Stat Grid -->
                 <div class="row g-3 mb-4">
                     <div class="col-12 col-sm-6 col-lg-12">
-                        <a href="edit_players.php" class="text-decoration-none">
+                        <a href="/players" class="text-decoration-none">
                             <div class="card stat-card shadow-sm border-0 h-100">
                                 <div class="card-body d-flex align-items-center">
                                     <div class="bg-primary bg-opacity-10 text-primary rounded-circle d-flex justify-content-center align-items-center me-3" style="width: 48px; height: 48px;">
@@ -397,7 +394,7 @@ require_once 'header.php';
                         <div class="bg-white p-3 rounded shadow-sm border border-light">
                             <div class="fw-bold text-primary mb-1" style="font-size: 0.85rem;">Samenwerken <i class="fa-solid fa-users ms-1"></i></div>
                             <p class="small text-secondary mb-2" style="font-size: 0.85rem;">Je kan nog <strong><?= $available_coach_slots ?> extra co-coaches</strong> uitnodigen in dit teamaccount. Nodig je staf uit zodat zij ook opstellingen kunnen bouwen!</p>
-                            <a href="settings.php" class="btn btn-sm btn-light text-primary fw-bold w-100" style="font-size: 0.75rem;">Nu Uitnodigen</a>
+                            <a href="/settings" class="btn btn-sm btn-light text-primary fw-bold w-100" style="font-size: 0.75rem;">Nu Uitnodigen</a>
                         </div>
                         <?php elseif ($tip_of_the_day): ?>
                         <div class="bg-white p-3 rounded shadow-sm border border-light">

@@ -3,10 +3,7 @@
 $current_file = basename($_SERVER['PHP_SELF'] ?? '');
 $is_cli = (php_sapi_name() === 'cli');
 
-if (!$is_cli && !in_array($current_file, ['login.php', 'logout.php', 'reset_admin.php', 'register.php', 'verify.php', 'forgot_password.php', 'reset_password.php', 'run_migrations.php'])) {
-    require_once __DIR__ . '/auth.php';
-}
-
+// Auth is now managed centrally by router.php. getconn.php only handles database connection.
 $host = $_SERVER['DB_HOST'] ?? (getenv('DB_HOST') ?: 'db');
 $db = $_SERVER['DB_NAME'] ?? (getenv('DB_NAME') ?: 'lineup_db');
 $user = $_SERVER['DB_USER'] ?? (getenv('DB_USER') ?: 'app_user');

@@ -54,7 +54,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
     // Voorkom form resubmission bij refresh
-    header("Location: manage_games.php");
+    header("Location: /games");
     exit;
 }
 
@@ -240,13 +240,13 @@ require_once 'header.php';
                                         <?php endif; ?>
                                     </td>
                                     <td class="text-end pe-4" style="width: 25%">
-                                        <a href="edit_selection.php?game_id=<?= $game['id'] ?>" class="btn btn-sm btn-outline-success me-1" title="Beheer Selectie">
+                                        <a href="/games/<?= $game['id'] ?>/selection" class="btn btn-sm btn-outline-success me-1" title="Beheer Selectie">
                                             <i class="fa-solid fa-users-gear"></i>
                                         </a>
-                                        <a href="manage_games.php?duplicate_game=<?= $game['id'] ?>" class="btn btn-sm btn-outline-warning me-1" title="Dupliceer met Selectie">
+                                        <a href="/games/<?= $game['id'] ?>/duplicate" class="btn btn-sm btn-outline-warning me-1" title="Dupliceer met Selectie">
                                             <i class="fa-solid fa-copy"></i>
                                         </a>
-                                        <a href="lineup.php?wedstrijd=<?= $game['id'] ?>" class="btn btn-sm btn-outline-primary me-1 <?= $game['selection_count'] == 0 ? 'disabled' : '' ?>" title="Bereken Opstelling">
+                                        <a href="/games/<?= $game['id'] ?>/lineup" class="btn btn-sm btn-outline-primary me-1 <?= $game['selection_count'] == 0 ? 'disabled' : '' ?>" title="Bereken Opstelling">
                                             <i class="fa-solid fa-calculator"></i> Opstelling
                                         </a>
                                         <button class="btn btn-sm btn-outline-secondary me-1" title="Bewerk Data" 

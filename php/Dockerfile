@@ -3,6 +3,9 @@ FROM php:8.2-apache
 # Use the default production configuration
 RUN mv "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini"
 
+# Enable Apache mod_rewrite for router functionality
+RUN a2enmod rewrite
+
 # Install required packages
 RUN apt-get update && apt-get install -y git unzip msmtp \
     && rm -rf /var/lib/apt/lists/*

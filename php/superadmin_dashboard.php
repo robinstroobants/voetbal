@@ -1,11 +1,7 @@
 <?php
 require_once 'getconn.php';
 
-// Controleer of de gebruiker superadmin rechten heeft
-if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'superadmin') {
-    header("Location: index.php");
-    exit;
-}
+// Beveiliging loopt nu centraal via router.php
 
 $page_title = 'SaaS Beheer Dashboard';
 $success = '';

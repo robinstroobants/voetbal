@@ -2,7 +2,7 @@
 session_start();
 
 if (isset($_SESSION['user_id'])) {
-    header("Location: index.php");
+    header("Location: /");
     exit;
 }
 
@@ -68,9 +68,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             if ($user['role'] === 'superadmin') {
-                header("Location: superadmin_dashboard.php");
+                header("Location: /admin");
             } else {
-                header("Location: index.php");
+                header("Location: /");
             }
             exit;
             }

@@ -45,8 +45,10 @@ if ($onboarding_complete) {
     // 1. Eerstvolgende Wedstrijden
     $stmtNext = $pdo->prepare("
         SELECT g.*, 
-            (SELECT COUNT(*) FROM game_selections gs WHERE gs.game_id = g.id) as selection_count
+            (SELECT COUNT(*) FROM game_selections gs WHERE gs.game_id = g.id) as selection_count,
+            CONCAT(u.first_name, ' ', u.last_name) as coach_name
         FROM games g 
+        LEFT JOIN users u ON g.coach_id = u.id
         WHERE g.team_id = ? AND g.game_date >= CURDATE()
         ORDER BY g.game_date ASC
         LIMIT 2
@@ -63,6 +65,33 @@ if ($onboarding_complete) {
         ");
         $stmtSelected->execute([$next_game['id'], $team_id]);
         $next_game['players'] = $stmtSelected->fetchAll(PDO::FETCH_ASSOC);
+
+        // Genereer WhatsApp Bericht Template
+        $ts = strtotime($next_game['game_date']);
+        $dateStr = (date('H:i', $ts) === '00:00') ? date('d/m/Y', $ts) : date('d/m/Y', $ts);
+        $samenkomstStr = (date('H:i', $ts) === '00:00') ? "Nog te bepalen" : date('H:i', $ts - 3600);
+        
+        $wa_msg = "Beste ouders, hierbij de selectie voor de wedstrijd tegen *" . $next_game['opponent'] . "* op " . $dateStr . ".\n";
+        $wa_msg .= "Samenkomst: *" . $samenkomstStr . "* (60min voor de start).\n\n";
+        $wa_msg .= "*Selectie:*\n";
+        
+        $has_active_players = false;
+        foreach ($next_game['players'] as $p) {
+            if ($p['status_id'] != 1) { // Enkel aanwezigen
+                $wa_msg .= "- " . trim($p['first_name'] . ' ' . $p['last_name']);
+                if ($p['is_goalkeeper']) {
+                    $wa_msg .= " (K)";
+                }
+                $wa_msg .= "\n";
+                $has_active_players = true;
+            }
+        }
+        
+        if (!$has_active_players) {
+            $wa_msg .= "Nog geen spelers geselecteerd.\n";
+        }
+        $wa_msg .= "\nGroetjes,\nCoach " . ($next_game['coach_name'] ?? 'Team');
+        $next_game['whatsapp_msg'] = urlencode($wa_msg);
 
         // Speelminuten ophalen (match specifiek of seizoen historiek)
         $player_playtimes = [];
@@ -370,8 +399,11 @@ require_once 'header.php';
                                     $ts = strtotime($next_game['game_date']);
                                     echo (date('H:i', $ts) === '00:00') ? date('d/m/Y', $ts) : date('d/m/Y \o\m H:i', $ts);
                                 ?>
-                                <span class="mx-2">•</span> 
                                 <span class="badge bg-black bg-opacity-25 border border-white border-opacity-25"><?= htmlspecialchars($next_game['format']) ?></span>
+                                <?php if (!empty($next_game['coach_name'])): ?>
+                                    <span class="mx-2">•</span> 
+                                    <span class="badge bg-primary bg-opacity-50 border border-white border-opacity-25"><i class="fa-solid fa-user-tie me-1"></i><?= htmlspecialchars($next_game['coach_name']) ?></span>
+                                <?php endif; ?>
                             </p>
                             
                             <?php 
@@ -398,6 +430,16 @@ require_once 'header.php';
                                         <div class="fw-bold mt-1 text-dark" style="line-height: 1;">Opstelling</div>
                                     </div>
                                 </a>
+
+                                <?php if ($next_game['selection_count'] > 0): ?>
+                                <a href="https://wa.me/?text=<?= $next_game['whatsapp_msg'] ?>" target="_blank" class="btn btn-success fw-bold rounded px-3 py-2 shadow-sm d-inline-flex align-items-center transition-transform" style="transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+                                    <i class="fa-brands fa-whatsapp me-2 fs-5"></i>
+                                    <div class="text-start">
+                                        <div class="small text-white text-opacity-75" style="line-height: 1;">Delen</div>
+                                        <div class="fw-bold mt-1 text-white" style="line-height: 1;">WhatsApp</div>
+                                    </div>
+                                </a>
+                                <?php endif; ?>
                             </div>
                             
                             <?php if ($has_selection && !empty($next_game['players'])): ?>

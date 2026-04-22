@@ -190,7 +190,7 @@ if ($onboarding_complete) {
         LEFT JOIN users u ON g.coach_id = u.id
         WHERE g.team_id = ? AND g.game_date < CURDATE()
         ORDER BY g.game_date DESC
-        LIMIT 5
+        LIMIT 10
     ");
     $stmtPast->execute([$team_id]);
     $past_games = $stmtPast->fetchAll(PDO::FETCH_ASSOC);
@@ -353,11 +353,12 @@ require_once 'header.php';
 
         <div class="row g-4 mb-4">
             <!-- Linker Kolom: Top Acties & Eerstvolgende Match -->
-            <div class="col-lg-5 col-md-8 mb-4">
-                
+            <div class="col-lg-8 col-md-12">
+                <div class="row">
                 <?php if (!empty($next_games)): ?>
                 <?php foreach($next_games as $idx => $next_game): ?>
-                <div class="dashboard-hero p-4 shadow mb-4">
+                <div class="col-lg-6 col-md-6 mb-4">
+                <div class="dashboard-hero p-4 shadow h-100">
                     <span class="badge bg-white text-primary mb-3 fw-bold px-3 py-2 rounded-pill shadow-sm"><i class="fa-solid fa-calendar-day me-1"></i> <?= $idx === 0 ? 'Volgende Wedstrijd' : 'Daaropvolgende Wedstrijd' ?></span>
                     
                     <div class="row align-items-center">
@@ -438,9 +439,12 @@ require_once 'header.php';
                             <?php endif; ?>
                         </div>
                     </div>
+                    </div>
+                </div>
                 </div>
                 <?php endforeach; ?>
                 <?php else: ?>
+                <div class="col-12">
                 <div class="card shadow-sm border-0 mb-4 bg-light text-center" style="border-radius: 16px; border: 2px dashed var(--apple-border) !important;">
                     <div class="card-body py-5">
                         <i class="fa-regular fa-calendar-xmark text-muted mb-3" style="font-size: 3rem;"></i>
@@ -451,9 +455,9 @@ require_once 'header.php';
                         </a>
                     </div>
                 </div>
+                </div>
                 <?php endif; ?>
-
-
+                </div>
             </div>
 
             <!-- Rechterkolom: Quick Stats & Shortcuts -->
@@ -475,24 +479,7 @@ require_once 'header.php';
                 </div>
                 <?php endif; ?>
 
-                <!-- Stat Grid -->
-                <div class="row g-3 mb-4">
-                    <div class="col-12 col-sm-6 col-lg-12">
-                        <a href="/players" class="text-decoration-none">
-                            <div class="card stat-card shadow-sm border-0 h-100">
-                                <div class="card-body d-flex align-items-center">
-                                    <div class="bg-primary bg-opacity-10 text-primary rounded-circle d-flex justify-content-center align-items-center me-3" style="width: 48px; height: 48px;">
-                                        <i class="fa-solid fa-users fs-5"></i>
-                                    </div>
-                                    <div>
-                                        <div class="text-muted small fw-bold text-uppercase">Totaal Spelers</div>
-                                        <h3 class="fw-bold text-dark mb-0"><?= $players_count ?> <i class="fa-solid fa-chevron-right fs-6 text-muted mt-1 ms-1" style="vertical-align: middle;"></i></h3>
-                                    </div>
-                                </div>
-                            </div>
-                        </a>
-                    </div>
-                </div>
+                <!-- Removed Stat Grid (moved to next row) -->
 
                 <!-- Tips & Tricks Widget -->
                 <?php 
@@ -528,7 +515,7 @@ require_once 'header.php';
         </div>
 
         <div class="row mb-4">
-            <div class="col-12 col-lg-9">
+            <div class="col-12 col-lg-8">
                 <!-- Historiek Tabel -->
                 <h5 class="fw-bold text-dark mb-3"><i class="fa-solid fa-clock-rotate-left text-muted me-2"></i>Recente Historiek</h5>
                 <div class="card shadow-sm border-0 stat-card mb-4 mb-lg-0">
@@ -581,6 +568,24 @@ require_once 'header.php';
                         </div>
                     </div>
                 </div>
+            </div>
+
+            <!-- Totaal Spelers (Moved here) -->
+            <div class="col-12 col-lg-4">
+                <h5 class="fw-bold text-dark mb-3"><i class="fa-solid fa-users text-muted me-2"></i>Spelers</h5>
+                <a href="/players" class="text-decoration-none">
+                    <div class="card stat-card shadow-sm border-0 h-100 mb-4">
+                        <div class="card-body d-flex align-items-center">
+                            <div class="bg-primary bg-opacity-10 text-primary rounded-circle d-flex justify-content-center align-items-center me-3" style="width: 48px; height: 48px;">
+                                <i class="fa-solid fa-users fs-5"></i>
+                            </div>
+                            <div>
+                                <div class="text-muted small fw-bold text-uppercase">Totaal Spelers in Team</div>
+                                <h3 class="fw-bold text-dark mb-0"><?= $players_count ?> <i class="fa-solid fa-chevron-right fs-6 text-muted mt-1 ms-1" style="vertical-align: middle;"></i></h3>
+                            </div>
+                        </div>
+                    </div>
+                </a>
             </div>
         </div>
 

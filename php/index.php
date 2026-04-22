@@ -351,13 +351,13 @@ require_once 'header.php';
             </a>
         </div>
 
-        <div class="row g-4 mb-4">
-            <!-- Linker Kolom: Top Acties & Eerstvolgende Match -->
-            <div class="col-lg-8 col-md-12">
-                <div class="row">
+        <div class="row mb-4">
+            <!-- Aankomende Wedstrijden -->
+            <div class="col-12">
+                <div class="row g-4">
                 <?php if (!empty($next_games)): ?>
                 <?php foreach($next_games as $idx => $next_game): ?>
-                <div class="col-lg-6 col-md-6 mb-4">
+                <div class="col-lg-6 col-md-12">
                 <div class="dashboard-hero p-4 shadow h-100">
                     <span class="badge bg-white text-primary mb-3 fw-bold px-3 py-2 rounded-pill shadow-sm"><i class="fa-solid fa-calendar-day me-1"></i> <?= $idx === 0 ? 'Volgende Wedstrijd' : 'Daaropvolgende Wedstrijd' ?></span>
                     
@@ -439,7 +439,6 @@ require_once 'header.php';
                             <?php endif; ?>
                         </div>
                     </div>
-                    </div>
                 </div>
                 </div>
                 <?php endforeach; ?>
@@ -459,9 +458,9 @@ require_once 'header.php';
                 <?php endif; ?>
                 </div>
             </div>
+        </div>
 
-            <!-- Rechterkolom: Quick Stats & Shortcuts -->
-            <div class="col-lg-4">
+        <div class="row mb-4">
                 
                 <!-- Reminder Widget -->
                 <?php if ($missing_matrix_count > 0 && strpos($default_format, '11v11') === false): ?>
@@ -511,11 +510,8 @@ require_once 'header.php';
                 </div>
                 <?php endif; ?>
 
-            </div>
-        </div>
-
-        <div class="row mb-4">
-            <div class="col-12 col-lg-8">
+            <!-- Linker Kolom: Historiek Tabel -->
+            <div class="col-12 col-lg-8 mb-4 mb-lg-0">
                 <!-- Historiek Tabel -->
                 <h5 class="fw-bold text-dark mb-3"><i class="fa-solid fa-clock-rotate-left text-muted me-2"></i>Recente Historiek</h5>
                 <div class="card shadow-sm border-0 stat-card mb-4 mb-lg-0">
@@ -570,8 +566,56 @@ require_once 'header.php';
                 </div>
             </div>
 
-            <!-- Totaal Spelers (Moved here) -->
+            </div>
+
+            <!-- Rechter Kolom: Widgets & Spelers -->
             <div class="col-12 col-lg-4">
+                <!-- Reminder Widget -->
+                <?php if ($missing_matrix_count > 0 && strpos($default_format, '11v11') === false): ?>
+                <div class="card stat-card border-danger border-opacity-25 shadow-sm mb-4" style="background-color: #fffafb;">
+                    <div class="card-body d-flex align-items-start">
+                        <div class="bg-danger bg-opacity-10 text-danger rounded p-3 me-3">
+                            <i class="fa-solid fa-triangle-exclamation fs-4"></i>
+                        </div>
+                        <div>
+                            <h6 class="fw-bold text-danger mb-1 mt-1">Matrix Update Nodig</h6>
+                            <p class="text-secondary small mb-2">Er zijn momenteel <strong><?= $missing_matrix_count ?> spelers</strong> in je team zonder dat hun Score Matrix (volledig) is ingevuld.</p>
+                            <a href="/scores" class="btn btn-sm btn-outline-danger rounded-pill fw-bold">Nu Bijwerken</a>
+                        </div>
+                    </div>
+                </div>
+                <?php endif; ?>
+
+                <!-- Tips & Tricks Widget -->
+                <?php 
+                $show_invite = ($available_coach_slots > 0 && rand(1, 100) <= 50);
+                if (!$show_invite && !$tip_of_the_day && $available_coach_slots > 0) {
+                    $show_invite = true;
+                }
+                
+                if ($show_invite || $tip_of_the_day): 
+                ?>
+                <div class="card stat-card shadow-sm border-0 mb-4" style="background: linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%);">
+                    <div class="card-body">
+                        <h6 class="fw-bold text-dark mb-3"><i class="fa-regular fa-lightbulb text-warning me-2"></i>Inzicht & Tips</h6>
+                        
+                        <?php if ($show_invite): ?>
+                        <div class="bg-white p-3 rounded shadow-sm border border-light">
+                            <div class="fw-bold text-primary mb-1" style="font-size: 0.85rem;">Samenwerken <i class="fa-solid fa-users ms-1"></i></div>
+                            <p class="small text-secondary mb-2" style="font-size: 0.85rem;">Je kan nog <strong><?= $available_coach_slots ?> extra co-coaches</strong> uitnodigen in dit teamaccount. Nodig je staf uit zodat zij ook opstellingen kunnen bouwen!</p>
+                            <a href="/settings" class="btn btn-sm btn-light text-primary fw-bold w-100" style="font-size: 0.75rem;">Nu Uitnodigen</a>
+                        </div>
+                        <?php elseif ($tip_of_the_day): ?>
+                        <div class="bg-white p-3 rounded shadow-sm border border-light">
+                            <div class="fw-bold text-success mb-1" style="font-size: 0.85rem;">Coach Tip <i class="fa-solid fa-graduation-cap ms-1"></i></div>
+                            <p class="small text-secondary mb-0" style="font-size: 0.85rem; font-style: italic;">"<?= htmlspecialchars($tip_of_the_day) ?>"</p>
+                        </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                <?php endif; ?>
+
+                <!-- Totaal Spelers (Moved here) -->
                 <h5 class="fw-bold text-dark mb-3"><i class="fa-solid fa-users text-muted me-2"></i>Spelers</h5>
                 <a href="/players" class="text-decoration-none">
                     <div class="card stat-card shadow-sm border-0 h-100 mb-4">
@@ -586,7 +630,6 @@ require_once 'header.php';
                         </div>
                     </div>
                 </a>
-            </div>
         </div>
 
     <?php endif; ?>

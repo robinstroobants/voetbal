@@ -22,25 +22,6 @@ if (!$schemaId) {
                             <p class="text-muted">Analyseer en repareer wiskundige theoriematrices en JSON schema instellingen direct vanuit je browser.</p>
                         </div>
                         
-                       
-                        <form method="GET" class="border p-4 rounded bg-white shadow-sm mb-5">
-                            <h5 class="fw-bold mb-3"><i class="fa-solid fa-magnifying-glass me-2"></i>Specifieke Diagnose</h5>
-                            <p class="small text-muted mb-4">Kopieer de gegevens uit je PHPUnit mislukking (bv. <code>Bestand: DB_ID: 2 (8v8_0gk_4x15_9sp)</code>) en plak ze rechtstreeks hieronder.</p>
-                            
-                            <div class="row g-3 mb-4">
-                                <div class="col-md-7">
-                                    <label class="form-label fw-bold small text-muted">Bestandsnaam (Format)</label>
-                                    <input type="text" name="format" class="form-control form-control-lg border-2 shadow-sm" placeholder="Bv. 8v8_0gk_4x15_9sp" required>
-                                </div>
-                                <div class="col-md-5">
-                                    <label class="form-label fw-bold small text-muted">Schema / DB ID</label>
-                                    <input type="number" name="schema" class="form-control form-control-lg border-2 shadow-sm" placeholder="Bv. 2" required>
-                                </div>
-                            </div>
-                            
-                            <button type="submit" class="btn btn-primary w-100 fw-bold py-2"><i class="fa-solid fa-stethoscope me-2"></i>Laad in Viewer</button>
-                        </form>
-                        
                         <?php
                         // Auto-Scan all schemas!
                         $broken_schemas = [];
@@ -112,10 +93,9 @@ if (!$schemaId) {
                         }
                         ?>
                         
-                        <h5 class="fw-bold mb-3 mt-5"><i class="fa-solid fa-radar me-2 text-danger"></i>Actuele Unit Test Fouten</h5>
-                        <?php if (empty($broken_schemas)): ?>
-                            <div class="alert alert-success border-0 shadow-sm"><i class="fa-solid fa-check-circle me-2"></i>Jouw theorie database is volledig zuiver! Geen enkel schema rapporteert momenteel integriteitsfouten.</div>
-                        <?php else: ?>
+                        <?php if (!empty($broken_schemas)): ?>
+                        <div class="mb-5">
+                            <h5 class="fw-bold mb-3"><i class="fa-solid fa-radar me-2 text-danger"></i>Actuele Unit Test Fouten</h5>
                             <div class="alert alert-warning border-0 border-start border-warning border-4 shadow-sm mb-3">
                                 <strong>Let op:</strong> De onderstaande schema's produceren momenteel een fatale crash in the <code>SchemaValidationTest</code>.
                             </div>
@@ -133,7 +113,27 @@ if (!$schemaId) {
                                     </a>
                                 <?php endforeach; ?>
                             </div>
+                        </div>
                         <?php endif; ?>
+                       
+                        <form method="GET" class="border p-4 rounded bg-white shadow-sm mb-5">
+                            <h5 class="fw-bold mb-3"><i class="fa-solid fa-magnifying-glass me-2"></i>Specifieke Diagnose</h5>
+                            <p class="small text-muted mb-4">Kopieer de gegevens uit je PHPUnit mislukking (bv. <code>Bestand: DB_ID: 2 (8v8_0gk_4x15_9sp)</code>) en plak ze rechtstreeks hieronder.</p>
+                            
+                            <div class="row g-3 mb-4">
+                                <div class="col-md-7">
+                                    <label class="form-label fw-bold small text-muted">Bestandsnaam (Format)</label>
+                                    <input type="text" name="format" class="form-control form-control-lg border-2 shadow-sm" placeholder="Bv. 8v8_0gk_4x15_9sp" required>
+                                </div>
+                                <div class="col-md-5">
+                                    <label class="form-label fw-bold small text-muted">Schema / DB ID</label>
+                                    <input type="number" name="schema" class="form-control form-control-lg border-2 shadow-sm" placeholder="Bv. 2" required>
+                                </div>
+                            </div>
+                            
+                            <button type="submit" class="btn btn-primary w-100 fw-bold py-2"><i class="fa-solid fa-stethoscope me-2"></i>Laad in Viewer</button>
+                        </form>
+                        
                          <div class="bg-light p-4 rounded mb-4 shadow-sm border">
                             <h5 class="fw-bold text-dark"><i class="fa-solid fa-scale-balanced me-2"></i>De 3 Gouden Spelregels van het Algoritme</h5>
                             <p class="small text-muted mb-3">Wanneer een wisselschema faalt in je unit testen of vastloopt bij generatie, is één van onderstaande regels verbroken tijdens the creatie in de database.</p>

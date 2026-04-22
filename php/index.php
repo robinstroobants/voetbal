@@ -564,6 +564,7 @@ require_once 'header.php';
                                     <tr>
                                         <th class="ps-4">Datum</th>
                                         <th>Tegenstander</th>
+                                        <th>Coach</th>
                                         <th class="text-end pe-4">Acties</th>
                                     </tr>
                                 </thead>
@@ -580,13 +581,17 @@ require_once 'header.php';
                                      <tr>
                                         <td class="ps-4 fw-medium text-secondary small"><?= date('d/m/Y', strtotime($game['game_date'])) ?></td>
                                         <td class="fw-bold">
+                                            <?= htmlspecialchars($game['opponent']) ?>
+                                        </td>
+                                        <td>
                                             <?php if($game['coach_name']): 
                                                 $colors = ['bg-info text-dark', 'bg-danger', 'bg-success', 'bg-warning text-dark', 'bg-primary', 'bg-dark text-white'];
                                                 $cColor = $colors[abs(crc32($game['coach_name'])) % count($colors)];
                                             ?>
-                                                <span class="badge <?= $cColor ?> rounded-pill me-1"><?= htmlspecialchars($game['coach_name']) ?></span>
+                                                <span class="badge <?= $cColor ?> rounded-pill"><?= htmlspecialchars($game['coach_name']) ?></span>
+                                            <?php else: ?>
+                                                <span class="text-muted small italic">Geen</span>
                                             <?php endif; ?>
-                                            <?= htmlspecialchars($game['opponent']) ?>
                                         </td>
                                         <td class="text-end pe-4 text-nowrap">
                                             <a href="/games/<?= $game['id'] ?>/edit" class="btn btn-sm btn-light text-secondary fw-bold rounded-pill shadow-sm me-1" title="Bewerk details">

@@ -176,9 +176,9 @@ class MatchManager {
         try {
             $this->pdo->beginTransaction();
 
-            // Verwijder oude selectie (wipe and replace)
-            $stmtClear = $this->pdo->prepare("DELETE FROM game_selections WHERE game_id = ? AND status_id = ?");
-            $stmtClear->execute([$gameId, $statusId]);
+            // Verwijder oude selectie (volledige wipe and replace voor deze match)
+            $stmtClear = $this->pdo->prepare("DELETE FROM game_selections WHERE game_id = ?");
+            $stmtClear->execute([$gameId]);
 
             // Wis out-of-date opgeslagen theorie-schemas die gekoppeld zijn aan de oude spelers samenstelling
             if ($statusId == 2) {

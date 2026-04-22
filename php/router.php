@@ -53,6 +53,7 @@ $routes = [
     '/games' => ['target' => 'manage_games.php', 'auth' => true],
     '/players' => ['target' => 'edit_players.php', 'auth' => true],
     '/scores' => ['target' => 'edit_scores.php', 'auth' => true],
+    '/stats' => ['target' => 'stats.php', 'auth' => true],
     '/settings' => ['target' => 'settings.php', 'auth' => true]
 ];
 
@@ -71,6 +72,12 @@ if (isset($routes[$path])) {
         enforce_auth();
         enforce_role('superadmin');
         require_once __DIR__ . '/admin/index.php';
+        $route_matched = true;
+    }
+    elseif (preg_match('#^/admin/schemas$#', $path)) {
+        enforce_auth();
+        enforce_role('superadmin');
+        require_once __DIR__ . '/admin/manage_schemas.php';
         $route_matched = true;
     }
     elseif (preg_match('#^/admin/([a-zA-Z0-9_\-]+)$#', $path, $matches)) {

@@ -379,7 +379,7 @@ require_once 'header.php';
                                 $selection_color = $is_selection_ready ? 'success' : 'warning';
                                 $selection_icon = $has_selection ? 'fa-pen-to-square' : 'fa-plus';
                             ?>
-                            <div class="d-flex flex-wrap gap-2 mt-3 mb-2">
+                            <div class="d-flex flex-wrap justify-content-center gap-2 mt-3 mb-2">
                                 <a href="/games/<?= $next_game['id'] ?>/selection" class="text-decoration-none d-inline-flex align-items-center bg-white bg-opacity-10 rounded px-3 py-2 transition-transform shadow-sm border border-white border-opacity-10" style="transition: transform 0.2s; cursor: pointer;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
                                     <i class="fa-solid <?= $selection_icon ?> text-<?= $selection_color ?> fs-4 me-2"></i>
                                     <div>
@@ -428,7 +428,7 @@ require_once 'header.php';
                                             <?php if ($p['is_goalkeeper']): ?><i class="fa-solid fa-hands me-2 text-warning opacity-75"></i><?php endif; ?>
                                             <?= htmlspecialchars(stripslashes(trim($p['first_name'] . ' ' . $p['last_name']))) ?>
                                         </div>
-                                        <span class="badge <?= $p['status_id'] == 1 ? 'bg-danger text-white' : 'bg-white bg-opacity-25 text-white' ?> rounded-pill" style="min-width: 45px; font-size: 0.8rem;">
+                                        <span class="badge <?= $p['status_id'] == 1 ? 'bg-danger text-white' : 'bg-white bg-opacity-25 text-white' ?> rounded-pill" style="min-width: 45px; font-size: 0.8rem;" title="<?= round($pt / 60) ?> min gespeeld">
                                             <?= $p['status_id'] == 1 ? 'afwezig' : $ptFormatted ?>
                                         </span>
                                     </li>

@@ -22,10 +22,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $coachId = !empty($_POST['coach_id']) ? (int)$_POST['coach_id'] : null;
         
         if ($gameId) {
-            // Controleer of layout/format veranderd is ten opzichte van current
-            $stmtCheckFmt = $pdo->prepare("SELECT format FROM games WHERE id = ?");
-            $stmtCheckFmt->execute([$gameId]);
-            $oldFormat = $stmtCheckFmt->fetchColumn();
+            // Controleer of layout/format of coach veranderd is ten opzichte van current
+            $stmtCheck = $pdo->prepare("SELECT format, coach_id FROM games WHERE id = ?");
+            $stmtCheck->execute([$gameId]);
+            $oldData = $stmtCheck->fetch(PDO::FETCH_ASSOC);
+            $oldFormat = $oldData['format'] ?? null;
+            $oldCoachId = $oldData['coach_id'] ?? null;
 
             if ($oldFormat !== $format) {
                 // Formaat is gewijzigd, theorie is nu nutteloos, opruimen!
@@ -34,6 +36,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $stmt = $pdo->prepare("UPDATE games SET opponent = :opp, game_date = :gd, format = :fmt, min_pos = :mpos, coach_id = :cid WHERE id = :id");
             $stmt->execute(['opp' => $opponent, 'gd' => $gameDate, 'fmt' => $format, 'mpos' => $minPos, 'cid' => $coachId, 'id' => $gameId]);
+            
+            // Als de coach gewijzigd is, werk dan ook de logs bij (voor historische correctie)
+            if ($oldCoachId != $coachId) {
+                $stmtLogs = $pdo->prepare("UPDATE game_playtime_logs SET coach_id = :cid WHERE game_id = :id");
+                $stmtLogs->execute(['cid' => $coachId, 'id' => $gameId]);
+            }
         } else {
             $stmt = $pdo->prepare("INSERT INTO games (team_id, opponent, game_date, format, min_pos, coach_id) VALUES (:team_id, :opp, :gd, :fmt, :mpos, :cid)");
             $stmt->execute(['team_id' => $_SESSION['team_id'], 'opp' => $opponent, 'gd' => $gameDate, 'fmt' => $format, 'mpos' => $minPos, 'cid' => $coachId]);
@@ -60,23 +68,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Haal wedstrijden op
 $stmt = $pdo->prepare("
-    SELECT g.*, CONCAT(c.first_name, ' ', c.last_name) AS coach_name,
+    SELECT g.*, CONCAT(c.first_name, ' ', c.last_name) AS coach_name, c.first_name AS coach_first_name,
         (SELECT COUNT(*) FROM game_selections gs WHERE gs.game_id = g.id) as selection_count,
+        (SELECT GROUP_CONCAT(gs.player_id) FROM game_selections gs WHERE gs.game_id = g.id) as selected_player_ids,
         (SELECT score FROM game_lineups gl WHERE gl.game_id = g.id AND gl.is_final = 1 LIMIT 1) as final_score
     FROM games g 
     LEFT JOIN users c ON g.coach_id = c.id
     WHERE g.team_id = ?
-    ORDER BY g.game_date DESC
+    ORDER BY (g.coach_id IS NULL OR c.first_name IS NULL) DESC, g.game_date DESC
 ");
 $stmt->execute([$_SESSION['team_id']]);
 $games = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Groepeer de matchen dynamisch op Seizoen (juli-juni) en de jeugdreeks-fases (Fase 1/2) 
 $groupedGames = [];
-// ... (code will calculate onboarding status here)
-$stmtP = $pdo->prepare("SELECT COUNT(*) FROM players WHERE team_id = ?");
+$groupedByWeek = [];
+
+$stmtP = $pdo->prepare("SELECT id, first_name, last_name FROM players WHERE team_id = ?");
 $stmtP->execute([$_SESSION['team_id']]);
-$players_count = (int)$stmtP->fetchColumn();
+$players = $stmtP->fetchAll(PDO::FETCH_ASSOC);
+
+$firstNamesCount = [];
+foreach ($players as $p) {
+    $firstNamesCount[$p['first_name']] = ($firstNamesCount[$p['first_name']] ?? 0) + 1;
+}
+
+$playerDisplayNames = [];
+foreach ($players as $p) {
+    if ($firstNamesCount[$p['first_name']] > 1) {
+        $playerDisplayNames[$p['id']] = $p['first_name'] . ' ' . substr($p['last_name'], 0, 1) . '.';
+    } else {
+        $playerDisplayNames[$p['id']] = $p['first_name'];
+    }
+}
+$players_count = count($players);
 
 $stmtC = $pdo->prepare("SELECT COUNT(*) FROM coaches WHERE team_id = ?");
 $stmtC->execute([$_SESSION['team_id']]);
@@ -92,7 +116,13 @@ if (preg_match('/^(\d+)v\d+/', $default_format, $matches)) {
 }
 
 $onboarding_complete = ($players_count >= $required_players && $coaches_count >= 1);
+$missing_coaches_count = 0;
+
 foreach ($games as $game) {
+    if (empty(trim((string)$game['coach_name']))) {
+        $missing_coaches_count++;
+    }
+
     $time = strtotime($game['game_date']);
     $year = (int)date('Y', $time);
     $month = (int)date('n', $time);
@@ -109,7 +139,30 @@ foreach ($games as $game) {
     if (!isset($groupedGames[$season][$phase])) $groupedGames[$season][$phase] = [];
     
     $groupedGames[$season][$phase][] = $game;
+    
+    // Groepeer per week (ISO)
+    $weekNum = date('W', $time);
+    $yearNum = date('o', $time); // ISO-8601 year number (zorgt dat week 1 van volgend jaar goed gaat)
+    
+    // Bepaal de maandag en zondag van die week voor de label
+    $dt = new DateTime();
+    $dt->setISODate($yearNum, $weekNum);
+    $monday = $dt->format('d/m');
+    $dt->modify('+6 days');
+    $sunday = $dt->format('d/m');
+    
+    $sortKey = $yearNum . $weekNum;
+    if (!isset($groupedByWeek[$sortKey])) {
+        $groupedByWeek[$sortKey] = [
+            'label' => "Week $weekNum ($monday - $sunday)",
+            'games' => []
+        ];
+    }
+    $groupedByWeek[$sortKey]['games'][] = $game;
 }
+
+// Sorteer de weken van nieuw naar oud
+krsort($groupedByWeek);
 
 $available_formats_all = [
     '11v11',
@@ -188,8 +241,44 @@ require_once 'header.php';
     </div>
     <?php endif; ?>
 
-    <!-- Games Overzicht Gegroepeerd -->
-    <div class="accordion" id="seasonAccordion">
+    <?php if ($missing_coaches_count > 0): ?>
+    <div class="alert alert-info shadow-sm border-0 border-start border-info border-4 mb-4">
+        <i class="fa-solid fa-circle-info text-info fs-5 align-middle me-2"></i> 
+        Er zijn <strong><?= $missing_coaches_count ?> wedstrijden</strong> (bovenaan gesorteerd) waaraan nog geen coach is toegewezen. 
+        Koppel de juiste coach zodat de persoonlijke statistieken correct berekend kunnen worden. 
+        <a href="/missing_coaches.php" class="alert-link ms-2 text-decoration-underline"><i class="fa-solid fa-wrench"></i> Los ze snel hier op</a>
+    </div>
+    <?php endif; ?>
+
+    <!-- Filters -->
+    <div class="row mb-3 g-2 align-items-center">
+        <div class="col-md-5 col-12">
+            <div class="input-group shadow-sm">
+                <span class="input-group-text bg-white border-end-0"><i class="fa-solid fa-magnifying-glass text-muted"></i></span>
+                <input type="text" id="gameSearch" class="form-control border-start-0" placeholder="Zoek op tegenstander of datum...">
+            </div>
+        </div>
+        <div class="col-md-4 col-12">
+            <select id="coachFilter" class="form-select shadow-sm">
+                <option value="">Alle coaches (geen filter)</option>
+                <option value="NO_COACH">Geen coach toegewezen</option>
+                <?php foreach($coachesData as $coach): ?>
+                    <option value="<?= htmlspecialchars($coach['name']) ?>"><?= htmlspecialchars($coach['name']) ?></option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <div class="col-md-3 col-12 text-md-end text-center mt-3 mt-md-0">
+            <div class="form-check form-switch d-inline-block">
+                <input class="form-check-input" type="checkbox" id="groupByWeekToggle">
+                <label class="form-check-label fw-bold text-secondary" style="font-size: 0.9rem;" for="groupByWeekToggle">Groepeer per week</label>
+            </div>
+        </div>
+    </div>
+
+    <!-- Container for both views -->
+    <div id="viewSeasonPhase">
+        <!-- Games Overzicht Gegroepeerd -->
+        <div class="accordion" id="seasonAccordion">
         <?php if(empty($games)): ?>
             <div class="alert alert-light text-center border">
                 Geen wedstrijden gevonden! Tijd om er eentje te plannen.
@@ -222,37 +311,48 @@ require_once 'header.php';
                         <table class="table table-hover align-middle mb-0 border-bottom">
                             <tbody>
                                 <?php foreach($phases[$phase] as $game): ?>
-                                <tr>
-                                    <td class="ps-4 fw-medium text-muted" style="width: 15%"><?= date('d/m/Y', strtotime($game['game_date'])) ?></td>
-                                    <td class="fw-bold text-dark">
+                                <tr class="game-row" data-coach="<?= htmlspecialchars($game['coach_name'] ?: 'NO_COACH') ?>">
+                                    <td class="ps-4 fw-medium text-muted date-cell" style="width: 15%"><?= date('d/m/Y', strtotime($game['game_date'])) ?></td>
+                                    <td class="fw-bold text-dark opp-cell">
                                         <?php if($game['coach_name']): 
                                             $cColor = isset($coachColorMap[$game['coach_name']]) ? $coachColorMap[$game['coach_name']] : 'bg-secondary text-white';
                                         ?>
-                                            <span class="badge <?= $cColor ?> rounded-pill me-1"><?= htmlspecialchars($game['coach_name']) ?></span>
+                                            <span class="badge <?= $cColor ?> rounded-pill me-1"><?= htmlspecialchars($game['coach_first_name']) ?></span>
                                         <?php endif; ?>
-                                        <?= htmlspecialchars($game['opponent']) ?>
+                                        <a href="#" onclick="openGameModal(<?= htmlspecialchars(json_encode($game), ENT_QUOTES, 'UTF-8') ?>); return false;" class="text-decoration-none text-dark hover-primary" title="Bewerk Wedstrijd">
+                                            <?= htmlspecialchars($game['opponent']) ?>
+                                        </a>
                                     </td>
                                     <td>
-                                        <?php if($game['selection_count'] > 0): ?>
-                                            <span class="badge bg-success rounded-pill px-3 py-2 shadow-sm"><?= $game['selection_count'] ?> Spelers</span>
+                                        <?php if($game['selection_count'] > 0): 
+                                            $sel_ids = $game['selected_player_ids'] ? explode(',', $game['selected_player_ids']) : [];
+                                            $names = [];
+                                            foreach($sel_ids as $sid) {
+                                                if (isset($playerDisplayNames[$sid])) {
+                                                    $names[] = $playerDisplayNames[$sid];
+                                                }
+                                            }
+                                            $names_str = implode(', ', $names);
+                                        ?>
+                                            <div class="d-flex align-items-center">
+                                                <a href="/games/<?= $game['id'] ?>/selection" class="btn btn-sm btn-outline-success rounded-pill px-3 py-1 shadow-sm me-2 text-decoration-none" title="Beheer Selectie">
+                                                    <i class="fa-solid fa-users me-1"></i> <?= $game['selection_count'] ?>
+                                                </a>
+                                                <span class="small text-muted" style="line-height:1.2; display:inline-block; max-width:250px; white-space:normal;"><?= htmlspecialchars($names_str) ?></span>
+                                            </div>
                                         <?php else: ?>
-                                            <span class="badge bg-warning text-dark rounded-pill px-3 py-2 shadow-sm">Geen Selectie</span>
+                                            <a href="/games/<?= $game['id'] ?>/selection" class="btn btn-sm btn-outline-warning text-dark rounded-pill px-3 py-1 shadow-sm text-decoration-none" title="Maak Selectie">
+                                                <i class="fa-solid fa-users me-1"></i> 0
+                                            </a>
                                         <?php endif; ?>
                                     </td>
                                     <td class="text-end pe-4" style="width: 25%">
-                                        <a href="/games/<?= $game['id'] ?>/selection" class="btn btn-sm btn-outline-success me-1" title="Beheer Selectie">
-                                            <i class="fa-solid fa-users-gear"></i>
-                                        </a>
                                         <a href="/games/<?= $game['id'] ?>/duplicate" class="btn btn-sm btn-outline-warning me-1" title="Dupliceer met Selectie">
                                             <i class="fa-solid fa-copy"></i>
                                         </a>
                                         <a href="/games/<?= $game['id'] ?>/lineup" class="btn btn-sm btn-outline-primary me-1 <?= $game['selection_count'] == 0 ? 'disabled' : '' ?>" title="Bereken Opstelling">
-                                            <i class="fa-solid fa-calculator"></i> Opstelling
+                                            <i class="fa-solid fa-wand-magic-sparkles"></i> Opstelling
                                         </a>
-                                        <button class="btn btn-sm btn-outline-secondary me-1" title="Bewerk Data" 
-                                                onclick='openGameModal(<?= json_encode($game) ?>)'>
-                                            <i class="fa-solid fa-pen"></i>
-                                        </button>
                                         <form method="post" class="d-inline" onsubmit="return confirm('Wedstrijd verwijderen? Dit wist ook alle direct gekoppelde selecties.');">
                                             <input type="hidden" name="action" value="delete">
                                             <input type="hidden" name="game_id" value="<?= $game['id'] ?>">
@@ -277,6 +377,81 @@ require_once 'header.php';
             $season_counter++;
             endforeach; 
         ?>
+    </div>
+    </div> <!-- End viewSeasonPhase -->
+
+    <div id="viewByWeek" style="display: none;">
+        <?php if(empty($groupedByWeek)): ?>
+            <div class="alert alert-light text-center border">
+                Geen wedstrijden gevonden!
+            </div>
+        <?php endif; ?>
+        <?php foreach($groupedByWeek as $week): ?>
+            <div class="card shadow-sm border-0 mb-4 week-card">
+                <div class="card-header bg-light py-2 border-bottom fw-bold text-secondary">
+                    <i class="fa-regular fa-calendar-week me-2"></i> <?= htmlspecialchars($week['label']) ?>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <tbody>
+                            <?php foreach($week['games'] as $game): ?>
+                                <tr class="game-row" data-coach="<?= htmlspecialchars($game['coach_name'] ?: 'NO_COACH') ?>">
+                                    <td class="ps-4 fw-medium text-muted date-cell" style="width: 15%"><?= date('d/m/Y', strtotime($game['game_date'])) ?></td>
+                                    <td class="fw-bold text-dark opp-cell">
+                                        <?php if($game['coach_name']): 
+                                            $cColor = isset($coachColorMap[$game['coach_name']]) ? $coachColorMap[$game['coach_name']] : 'bg-secondary text-white';
+                                        ?>
+                                            <span class="badge <?= $cColor ?> rounded-pill me-1"><?= htmlspecialchars($game['coach_first_name']) ?></span>
+                                        <?php endif; ?>
+                                        <a href="#" onclick="openGameModal(<?= htmlspecialchars(json_encode($game), ENT_QUOTES, 'UTF-8') ?>); return false;" class="text-decoration-none text-dark hover-primary" title="Bewerk Wedstrijd">
+                                            <?= htmlspecialchars($game['opponent']) ?>
+                                        </a>
+                                    </td>
+                                    <td>
+                                        <?php if($game['selection_count'] > 0): 
+                                            $sel_ids = $game['selected_player_ids'] ? explode(',', $game['selected_player_ids']) : [];
+                                            $names = [];
+                                            foreach($sel_ids as $sid) {
+                                                if (isset($playerDisplayNames[$sid])) {
+                                                    $names[] = $playerDisplayNames[$sid];
+                                                }
+                                            }
+                                            $names_str = implode(', ', $names);
+                                        ?>
+                                            <div class="d-flex align-items-center">
+                                                <a href="/games/<?= $game['id'] ?>/selection" class="btn btn-sm btn-outline-success rounded-pill px-3 py-1 shadow-sm me-2 text-decoration-none" title="Beheer Selectie">
+                                                    <i class="fa-solid fa-users me-1"></i> <?= $game['selection_count'] ?>
+                                                </a>
+                                                <span class="small text-muted" style="line-height:1.2; display:inline-block; max-width:250px; white-space:normal;"><?= htmlspecialchars($names_str) ?></span>
+                                            </div>
+                                        <?php else: ?>
+                                            <a href="/games/<?= $game['id'] ?>/selection" class="btn btn-sm btn-outline-warning text-dark rounded-pill px-3 py-1 shadow-sm text-decoration-none" title="Maak Selectie">
+                                                <i class="fa-solid fa-users me-1"></i> 0
+                                            </a>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td class="text-end pe-4" style="width: 25%">
+                                        <a href="/games/<?= $game['id'] ?>/duplicate" class="btn btn-sm btn-outline-warning me-1" title="Dupliceer met Selectie">
+                                            <i class="fa-solid fa-copy"></i>
+                                        </a>
+                                        <a href="/games/<?= $game['id'] ?>/lineup" class="btn btn-sm btn-outline-primary me-1 <?= $game['selection_count'] == 0 ? 'disabled' : '' ?>" title="Bereken Opstelling">
+                                            <i class="fa-solid fa-wand-magic-sparkles"></i> Opstelling
+                                        </a>
+                                        <form method="post" class="d-inline" onsubmit="return confirm('Wedstrijd verwijderen? Dit wist ook alle direct gekoppelde selecties.');">
+                                            <input type="hidden" name="action" value="delete">
+                                            <input type="hidden" name="game_id" value="<?= $game['id'] ?>">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Verwijder">
+                                                <i class="fa-solid fa-trash"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        <?php endforeach; ?>
     </div>
 </div>
 
@@ -341,6 +516,76 @@ require_once 'header.php';
 </div>
 
 <script>
+document.addEventListener("DOMContentLoaded", function() {
+    const searchInput = document.getElementById('gameSearch');
+    const coachFilter = document.getElementById('coachFilter');
+
+    const groupByWeekToggle = document.getElementById('groupByWeekToggle');
+    const viewSeasonPhase = document.getElementById('viewSeasonPhase');
+    const viewByWeek = document.getElementById('viewByWeek');
+
+    // Herstel filters uit de sessie
+    const savedSearch = localStorage.getItem('manageGamesSearch');
+    const savedCoach = localStorage.getItem('manageGamesCoachFilter');
+    const savedToggle = localStorage.getItem('manageGamesGroupByWeek');
+    
+    if (savedSearch !== null) {
+        searchInput.value = savedSearch;
+    }
+    if (savedCoach !== null) {
+        coachFilter.value = savedCoach;
+    }
+    if (savedToggle !== null) {
+        groupByWeekToggle.checked = (savedToggle === 'true');
+    }
+
+    function toggleViews() {
+        if (groupByWeekToggle.checked) {
+            viewSeasonPhase.style.display = 'none';
+            viewByWeek.style.display = 'block';
+        } else {
+            viewSeasonPhase.style.display = 'block';
+            viewByWeek.style.display = 'none';
+        }
+        localStorage.setItem('manageGamesGroupByWeek', groupByWeekToggle.checked);
+    }
+
+    function filterGames() {
+        const query = searchInput.value.toLowerCase();
+        const coach = coachFilter.value;
+        const rows = document.querySelectorAll('.game-row');
+        
+        // Bewaar filters in sessie
+        localStorage.setItem('manageGamesSearch', searchInput.value);
+        localStorage.setItem('manageGamesCoachFilter', coachFilter.value);
+        
+        rows.forEach(row => {
+            const rowCoach = row.getAttribute('data-coach');
+            const oppText = row.querySelector('.opp-cell').textContent.toLowerCase();
+            const dateText = row.querySelector('.date-cell').textContent.toLowerCase();
+            
+            const matchSearch = (oppText.includes(query) || dateText.includes(query));
+            const matchCoach = (coach === '' || rowCoach === coach);
+            
+            if (matchSearch && matchCoach) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    }
+
+    if (searchInput && coachFilter) {
+        searchInput.addEventListener('input', filterGames);
+        coachFilter.addEventListener('change', filterGames);
+        groupByWeekToggle.addEventListener('change', toggleViews);
+        
+        // Pas filters direct toe op on page load
+        toggleViews();
+        filterGames();
+    }
+});
+
 function openGameModal(game = null, isDuplicate = false) {
     var modalEl = document.getElementById('gameModal');
     var modal = new bootstrap.Modal(modalEl);

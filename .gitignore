@@ -9,3 +9,4 @@ db/
 /php/php_errorlog
 *.sqlite
 *.db
+live_export.sql

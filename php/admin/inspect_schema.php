@@ -95,7 +95,7 @@ if (!$schemaId) {
                         
                         <?php if (!empty($broken_schemas)): ?>
                         <div class="mb-5">
-                            <h5 class="fw-bold mb-3"><i class="fa-solid fa-radar me-2 text-danger"></i>Actuele Unit Test Fouten</h5>
+                            <h5 class="fw-bold mb-3"><i class="fa-solid fa-bug me-2 text-danger"></i>Actuele Unit Test Fouten <span class="badge bg-danger rounded-pill fs-6 ms-2"><?= count($broken_schemas) ?></span></h5>
                             <div class="alert alert-warning border-0 border-start border-warning border-4 shadow-sm mb-3">
                                 <strong>Let op:</strong> De onderstaande schema's produceren momenteel een fatale crash in the <code>SchemaValidationTest</code>.
                             </div>
@@ -185,6 +185,60 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     }
 }
 
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'autofix_duplicates') {
+    $stmtSchema = $pdo->prepare("SELECT schema_data FROM lineups WHERE id = ?");
+    $stmtSchema->execute([$schemaId]);
+    $schema_json = $stmtSchema->fetchColumn();
+    if ($schema_json) {
+        $loaded_shifts = json_decode($schema_json, true);
+        
+        // Bepaal playercount altijd op basis van de array (betrouwbaarder dan de URL parameter)
+        $playercount = count($loaded_shifts[0]['lineup']) + count($loaded_shifts[0]['bench']);
+        
+        foreach ($loaded_shifts as $i => &$shift) {
+            if (!is_numeric($i)) continue;
+            
+            $fieldPlayers = array_values($shift['lineup'] ?? []);
+            $benchPlayers = array_values($shift['bench'] ?? []);
+            $allAssignedPlayers = array_merge($fieldPlayers, $benchPlayers);
+            $missing = array_diff(range(0, $playercount - 1), $allAssignedPlayers);
+            
+            if (!empty($missing)) {
+                $missing = array_values($missing);
+                $seen = [];
+                // Fix lineup
+                if (isset($shift['lineup'])) {
+                    foreach ($shift['lineup'] as $pos => $pid) {
+                        if (in_array($pid, $seen)) {
+                            if (count($missing) > 0) {
+                                $shift['lineup'][$pos] = array_shift($missing);
+                            }
+                        } else {
+                            $seen[] = $pid;
+                        }
+                    }
+                }
+                // Fix bench
+                if (isset($shift['bench'])) {
+                    foreach ($shift['bench'] as $idx => $pid) {
+                        if (in_array($pid, $seen)) {
+                            if (count($missing) > 0) {
+                                $shift['bench'][$idx] = array_shift($missing);
+                            }
+                        } else {
+                            $seen[] = $pid;
+                        }
+                    }
+                }
+            }
+        }
+        $stmtUpd = $pdo->prepare("UPDATE lineups SET schema_data = ? WHERE id = ?");
+        $stmtUpd->execute([json_encode($loaded_shifts), $schemaId]);
+        header("Location: /admin/inspect_schema?schema=" . urlencode($schemaId) . "&format=" . urlencode($format) . "&fixed_dup=1");
+        exit;
+    }
+}
+
 // Format fallback ophalen van de database als the parameter leeg was in de submit (want dat gebeurt soms bij handmatige ID's)
 if (empty($format) && $schemaId) {
     $stmtF = $pdo->prepare("SELECT game_format FROM lineups WHERE id = ?");
@@ -204,18 +258,17 @@ if (!$schema_json) {
 
 $shifts = json_decode($schema_json, true);
 
-// Fake player names database voor visualisatie - zorg voor genoeg namen om "dubbele" te vermijden!
-$fakeNames = ["Loris", "Arda", "Miel", "Jack", "Jayden", "Seppe", "Tiebe", "Murat", "Vinn", "Rune", "Staf", "Daan", "Bram", "Tom", "Lars", "Jesse", "Milan", "Noah", "Sem", "Lucas", "Liam", "Finn", "Mason", "Luuk"];
-
-// Extract playercount
-preg_match('/_(\\d+)sp$/', $format, $matches);
-$playercount = isset($matches[1]) ? (int)$matches[1] : 0;
-if ($playercount == 0) {
-    // deduce from first shift
+// Bepaal playercount ALTIJD op basis van de daadwerkelijke schema data, onafhankelijk van the URL format parameter
+if (isset($shifts[0]['lineup']) && isset($shifts[0]['bench'])) {
     $playercount = count($shifts[0]['lineup']) + count($shifts[0]['bench']);
+} else {
+    // Fallback if data is corrupt
+    preg_match('/_(\\d+)sp$/', $format, $matches);
+    $playercount = isset($matches[1]) ? (int)$matches[1] : 9;
 }
 
-// Genereer de unieke reeks playernames voor deze specifieke run
+// Fake player names database voor visualisatie - zorg voor genoeg namen om "dubbele" te vermijden!
+$fakeNames = ["Loris", "Arda", "Miel", "Jack", "Jayden", "Seppe", "Tiebe", "Murat", "Vinn", "Rune", "Staf", "Daan", "Bram", "Tom", "Lars", "Jesse", "Milan", "Noah", "Sem", "Lucas", "Liam", "Finn", "Mason", "Luuk"];
 $simPlayers = [];
 for ($i=0; $i<$playercount; $i++) {
     $simPlayers[$i] = $fakeNames[$i % count($fakeNames)] . " ($i)";
@@ -260,11 +313,15 @@ foreach ($shifts as $i => $shift) {
     $missing = array_diff(range(0, $playercount - 1), $allAssignedPlayers);
     $duplicate = array_diff_assoc($allAssignedPlayers, array_unique($allAssignedPlayers));
     
+    $has_duplicate_error = false;
+    
     if (!empty($missing)) {
         $logic_errors[] = "<strong>{$context}:</strong> Mist speler(s): " . implode(', ', array_map(function($id){return "<code>Speler {$id}</code>";},$missing));
+        $has_duplicate_error = true;
     }
     if (!empty($duplicate)) {
         $logic_errors[] = "<strong>{$context}:</strong> Heeft dubbele spelers in de array toegewezen.";
+        $has_duplicate_error = true;
     }
 
     // Check 3 en 4: Substituties en bankcontroles (op de 2e helft van een game / oneven index)
@@ -461,6 +518,13 @@ $is_broken = (count($unique_playtimes) > 2) || (count($logic_errors) > 0);
     </div>
     <?php endif; ?>
     
+    <?php if (isset($_GET['fixed_dup'])): ?>
+    <div class="alert alert-success shadow-sm fw-bold border-0 border-start border-success border-4 mb-4">
+        <i class="fa-solid fa-check-circle text-success me-2 fs-5"></i>
+        Dubbele/ontbrekende spelers zijn succesvol gerepareerd in Schema <?= $schemaId ?>! Let op: vergeet niet ook op "Repareer Subs" te klikken indien er daarna nog fouten zijn.
+    </div>
+    <?php endif; ?>
+    
     <!-- Diagnose box & Real-World Timeline verplaatst naar boven -->
 <?php
         $suggested_fixes = [];
@@ -519,13 +583,23 @@ $is_broken = (count($unique_playtimes) > 2) || (count($logic_errors) > 0);
                             <li><?= $le ?></li>
                         <?php endforeach; ?>
                     </ul>
-                    <?php if ($has_subs_error): ?>
-                        <div class="alert alert-warning mt-3">
+                    <?php if (isset($has_subs_error) && $has_subs_error): ?>
+                        <div class="alert alert-warning mt-3 border-warning">
                             <i class="fa-solid fa-triangle-exclamation me-2"></i> <strong>Subs Array Validatie Fout</strong> 
                             <p class="mb-2 mt-1 small">De <code>subs->in</code> of <code>subs->out</code> tabellen zijn waarschijnlijk historisch defect geraakt. Omdat the drag-and-drop editor visueel deze abstracte metadata niet toont, kan je dit nu hier in 1 klap mathematisch kalibreren d.m.v the lineup rijen met elkaar te vergelijken.</p>
-                            <form method="POST">
+                            <form method="POST" class="d-inline">
                                 <input type="hidden" name="action" value="autofix_subs">
                                 <button type="submit" class="btn btn-sm btn-success fw-bold"><i class="fa-solid fa-wand-magic-sparkles me-2"></i> Repareer Subs Automatisch</button>
+                            </form>
+                        </div>
+                    <?php endif; ?>
+                    <?php if (isset($has_duplicate_error) && $has_duplicate_error): ?>
+                        <div class="alert alert-warning mt-3 border-warning">
+                            <i class="fa-solid fa-triangle-exclamation me-2"></i> <strong>Dubbele/Ontbrekende Spelers</strong> 
+                            <p class="mb-2 mt-1 small">Sommige speelblokken hebben dubbel toegewezen spelers en tegelijkertijd spelers die ontbreken. Je kan dit automatisch laten fixen door the dubbelgangers the vervangen door the ontbrekende nummers.</p>
+                            <form method="POST" class="d-inline">
+                                <input type="hidden" name="action" value="autofix_duplicates">
+                                <button type="submit" class="btn btn-sm btn-warning fw-bold text-dark"><i class="fa-solid fa-clone me-2"></i> Repareer Dubbels Automatisch</button>
                             </form>
                         </div>
                     <?php endif; ?>

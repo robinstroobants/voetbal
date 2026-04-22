@@ -135,8 +135,11 @@ require_once 'header.php';
                     <td data-sort="<?= $updated_ts ?>">
                         <span class="small text-muted fw-medium"><?= !empty($row['updated_at']) ? date("Y-m-d H:i", strtotime($row['updated_at'])) : '-' ?></span>
                     </td>
-                    <td class="text-end" style="min-width: 90px; cursor: pointer;">
-                        <span class="view-mode text-muted small fst-italic"><i class="fa-solid fa-pen"></i></span>
+                    <td class="text-end" style="min-width: 120px; cursor: pointer;">
+                        <span class="view-mode">
+                            <a href="/player_dashboard.php?id=<?= $row['id'] ?>" class="btn btn-sm btn-outline-primary py-0 px-2 me-2" title="Profiel & Dashboard"><i class="fa-solid fa-user"></i></a>
+                            <span class="text-muted small fst-italic" title="Snel bewerken"><i class="fa-solid fa-pen"></i></span>
+                        </span>
                         <button type="button" class="btn btn-primary btn-sm save-btn d-none" data-id="<?= $row['id'] ?>"><i class="fa-solid fa-check"></i></button>
                     </td>
                 </tr>
@@ -200,8 +203,8 @@ document.addEventListener("DOMContentLoaded", function() {
     
     // Zorg ervoor dat klikken op een rij inline edit mode aanzet
     $('#playersTable tbody').on('click', 'tr', function(e) {
-        // Als we niet op de save-knop zelf klikken, activeer focus
-        if (!e.target.closest('.save-btn')) {
+        // Als we niet op de save-knop zelf klikken of een link, activeer focus
+        if (!e.target.closest('.save-btn') && !e.target.closest('a')) {
             let tr = $(this);
             if (!tr.hasClass('editing')) {
                 tr.addClass('editing');

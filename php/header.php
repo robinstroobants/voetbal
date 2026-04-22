@@ -79,6 +79,9 @@ header("Expires: 0"); // Proxies blockeren
                     <li class="nav-item"><a class="nav-link" href="/games">
                         <i class="fa-regular fa-calendar-days me-2"></i>Wedstrijden
                     </a></li>
+                    <li class="nav-item"><a class="nav-link" href="/stats">
+                        <i class="fa-solid fa-chart-line me-2"></i>Statistieken
+                    </a></li>
                     <?php endif; ?>
                     
                     <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'superadmin'): ?>
@@ -88,6 +91,7 @@ header("Expires: 0"); // Proxies blockeren
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="adminDropdown">
                             <li><a class="dropdown-item" href="/admin"><i class="fa-solid fa-server me-2"></i>Dashboard</a></li>
+                            <li><a class="dropdown-item" href="/admin/schemas"><i class="fa-solid fa-sitemap text-primary me-2"></i>Schema Beheer</a></li>
                             <li><a class="dropdown-item" href="/admin/inspect_schema"><i class="fa-solid fa-stethoscope text-info me-2"></i>Schema Diagnose</a></li>
                             <li><a class="dropdown-item" href="/admin/performance"><i class="fa-solid fa-gauge-high text-warning me-2"></i>Performance</a></li>
                         </ul>

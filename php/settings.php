@@ -164,6 +164,20 @@ require_once 'header.php';
         </div>
     </div>
 
+    <!-- PERIODES SECTION -->
+    <h3 class="mt-5"><i class="fa-solid fa-calendar-week me-2 text-primary"></i> Seizoensperiodes</h3>
+    <p class="text-muted">Splits je statistieken en speelminuten op in gedetailleerde periodes (bv. Voorbereiding, Najaar).</p>
+    
+    <div class="card shadow-sm border-0 mt-3">
+        <div class="card-body d-flex justify-content-between align-items-center">
+            <div>
+                <strong>Beheer Periodes</strong><br>
+                <small class="text-muted">Stel start- en einddatums in voor periodes binnen het actieve seizoen.</small>
+            </div>
+            <a href="/manage_periods.php" class="btn btn-outline-primary"><i class="fa-solid fa-arrow-right me-2"></i> Beheren</a>
+        </div>
+    </div>
+
     <!-- UITNODIGINGEN SECTION -->
     <h3 class="mt-5"><i class="fa-solid fa-user-plus me-2 text-primary"></i> Team Coaches</h3>
     <p class="text-muted">Nodig tot 3 extra stafleden uit om dit team (Workspace) samen te beheren.</p>

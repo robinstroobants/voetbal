@@ -361,15 +361,19 @@ class MatchManager {
             if (!is_numeric($shift_idx)) continue;
             
             $duration = (int)($shift['duration'] ?? 0);
+            $players_on_field = [];
 
             // Veldspelers en Doelman
             if (isset($shift['lineup']) && is_array($shift['lineup'])) {
                 foreach ($shift['lineup'] as $pos => $p_idx) {
                     if (isset($player_order[$p_idx])) {
-                        $real_pid = $player_order[$p_idx];
+                        $real_pid = trim($player_order[$p_idx]);
+                        if (empty($real_pid)) continue;
+                        
                         $stmtShift->execute([$gameId, $real_pid, $shift_idx, (string)$pos, $duration]);
                         
                         $totals[$real_pid]['played'] += $duration;
+                        $players_on_field[] = $real_pid;
                         if ((int)$pos === 1) { // pos 1 is doelman
                             $totals[$real_pid]['gk'] += $duration;
                         }
@@ -377,15 +381,12 @@ class MatchManager {
                 }
             }
 
-            // Bankzitters
-            if (isset($shift['bench']) && is_array($shift['bench'])) {
-                foreach ($shift['bench'] as $p_idx) {
-                    if (isset($player_order[$p_idx])) {
-                        $real_pid = $player_order[$p_idx];
-                        $stmtShift->execute([$gameId, $real_pid, $shift_idx, 'BANK', $duration]);
-                        
-                        $totals[$real_pid]['bank'] += $duration;
-                    }
+            // Iedereen die niet op het veld staat, zit op de bank
+            foreach ($player_order as $pid) {
+                $pid = trim($pid);
+                if (!empty($pid) && !in_array($pid, $players_on_field)) {
+                    $stmtShift->execute([$gameId, $pid, $shift_idx, 'BANK', $duration]);
+                    $totals[$pid]['bank'] += $duration;
                 }
             }
         }

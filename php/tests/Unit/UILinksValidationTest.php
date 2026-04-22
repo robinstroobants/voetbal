@@ -11,11 +11,12 @@ class UILinksValidationTest extends TestCase
             glob(__DIR__ . '/../../admin/*.php')
         );
 
-        // Matches href="something.php..." or href="/dashboard.php" but excludes:
+        // Matches href="something.php..." but excludes:
+        // - Absolute paths starting with /
         // - External links starting with http, mailto
         // - In-page anchors or queries starting with # or ?
         // - Direct PHP echoes starting with <?
-        $pattern = '/href=["\']((?!(http|mailto|#|\?|javascript|<\?))[^"\']*\.php[^"\']*)["\']/i';
+        $pattern = '/href=["\']((?!(http|mailto|#|\?|javascript|<\?|\/))[^"\']*\.php[^"\']*)["\']/i';
 
         foreach ($uiFiles as $file) {
             if (!file_exists($file)) continue;

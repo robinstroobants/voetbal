@@ -241,7 +241,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <?php endif; ?>
 
         <div class="switch-link mt-4">
-            <a href="login.php"><i class="fa-solid fa-arrow-left me-1"></i> Terug naar inloggen</a>
+            <a href="/login"><i class="fa-solid fa-arrow-left me-1"></i> Terug naar inloggen</a>
         </div>
         
         <div class="footer-text">

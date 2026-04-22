@@ -184,7 +184,7 @@ require_once 'header.php';
     <div class="alert alert-warning shadow-sm border-0 border-start border-warning border-4 fw-bold mb-4">
         <i class="fa-solid fa-triangle-exclamation text-warning fs-5 align-middle me-2"></i> 
         Je voldoet nog niet aan de ploegvereisten (minstens <?= $required_players ?> spelers en 1 coach).
-        <a href="index.php" class="alert-link text-decoration-underline ms-2">Keer terug naar het dashboard</a> om je inschrijving af te ronden!
+        <a href="/" class="alert-link text-decoration-underline ms-2">Keer terug naar het dashboard</a> om je inschrijving af te ronden!
     </div>
     <?php endif; ?>
 

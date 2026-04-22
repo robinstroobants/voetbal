@@ -350,13 +350,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     </div>
                     
                     <div style="text-align: right; margin-bottom: 20px;">
-                        <a href="forgot_password.php" style="color: var(--apple-blue); text-decoration: none; font-size: 0.85rem; font-weight: 500;">Wachtwoord vergeten?</a>
+                        <a href="/forgot_password" style="color: var(--apple-blue); text-decoration: none; font-size: 0.85rem; font-weight: 500;">Wachtwoord vergeten?</a>
                     </div>
 
                     <button type="submit" class="btn-submit">Ga verder</button>
                     
                     <div class="switch-link">
-                        Nog geen account? <a href="register.php">Ontdek Lineup</a>
+                        Nog geen account? <a href="/register">Ontdek Lineup</a>
                     </div>
                 </form>
             </div>

@@ -42,11 +42,14 @@
       </div>
       
       <div class="d-print-none text-center mb-4 mt-2">
-          <a href="manage_games.php?edit_game=<?= $gameId ?>" class="btn btn-outline-secondary btn-sm">
+          <a href="/games/<?= $gameId ?>/edit" class="btn btn-outline-secondary btn-sm">
               <i class="fa-solid fa-pen me-1"></i> Wijzig Match
           </a>
-          <a href="edit_selection.php?game_id=<?= $gameId ?>" class="btn btn-outline-success btn-sm ms-2">
+          <a href="/games/<?= $gameId ?>/selection" class="btn btn-outline-success btn-sm ms-2">
               <i class="fa-solid fa-users-gear me-1"></i> Wijzig Selectie
+          </a>
+          <a href="/games/<?= $gameId ?>/builder" class="btn btn-warning btn-sm ms-2 fw-bold text-dark">
+              <i class="fa-solid fa-hammer me-1"></i> Bouw Zelf
           </a>
           <button onclick="window.print()" class="btn btn-outline-danger btn-sm ms-2">
               <i class="fa-solid fa-file-pdf me-1"></i> Opslaan als PDF
@@ -155,13 +158,13 @@
               <button class="btn btn-sm btn-outline-success" onclick="savePreselection(this, <?= $gameId ?>, <?= $selected['ws_id'] ?>, '<?= implode(',', array_keys($lineup->playerindex)) ?>', <?= $t_opt['rating'] ?>)">
                   <i class="fa-solid fa-floppy-disk"></i> Bewaar #<?= $tab_idx + 1 ?> in Voorselecties
               </button>
-              <a href="schema_editor.php?game_id=<?= $gameId ?>&schema_id=<?= $selected['ws_id'] ?>&volgorde=<?= urlencode(implode(',', array_keys($lineup->playerindex))) ?>" class="btn btn-sm btn-outline-warning ms-2">
+              <a href="/schema_editor?game_id=<?= $gameId ?>&schema_id=<?= $selected['ws_id'] ?>&volgorde=<?= urlencode(implode(',', array_keys($lineup->playerindex))) ?>" class="btn btn-sm btn-outline-warning ms-2">
                   <i class="fa-solid fa-pen-ruler"></i> Bewerk dit Schema
               </a>
           </div>
       <?php else: ?>
           <div class="d-print-none text-center mb-4 mt-2">
-              <a href="schema_editor.php?game_id=<?= $gameId ?>&schema_id=<?= $selected['ws_id'] ?>&volgorde=<?= urlencode(implode(',', array_keys($lineup->playerindex))) ?>" class="btn btn-sm btn-outline-warning">
+              <a href="/schema_editor?game_id=<?= $gameId ?>&schema_id=<?= $selected['ws_id'] ?>&volgorde=<?= urlencode(implode(',', array_keys($lineup->playerindex))) ?>" class="btn btn-sm btn-outline-warning">
                   <i class="fa-solid fa-pen-ruler"></i> Bewerk Huidig Schema
               </a>
           </div>

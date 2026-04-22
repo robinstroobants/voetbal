@@ -211,7 +211,7 @@ if (!$user && empty($_POST)) {
         
         <?php if (!$user && empty($_POST)): ?>
             <div class="switch-link mt-4">
-                <a href="forgot_password.php"><i class="fa-solid fa-arrow-left me-1"></i> Vraag een nieuwe link aan</a>
+                <a href="/forgot_password"><i class="fa-solid fa-arrow-left me-1"></i> Vraag een nieuwe link aan</a>
             </div>
         <?php else: ?>
             <form method="POST" action="">

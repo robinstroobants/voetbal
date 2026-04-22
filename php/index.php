@@ -36,23 +36,150 @@ $remaining_players = max(0, $max_players - $players_count);
 $onboarding_complete = ($players_count >= $required_players && $coaches_count >= 1);
 
 // Haal de Dashboard Data op indien onboarding compleet is
-$next_game = null;
+$next_games = [];
 $past_games = [];
 $future_games_count = 0;
 $missing_matrix_count = 0;
 
 if ($onboarding_complete) {
-    // 1. Eerstvolgende Wedstrijd
+    // 1. Eerstvolgende Wedstrijden
     $stmtNext = $pdo->prepare("
         SELECT g.*, 
             (SELECT COUNT(*) FROM game_selections gs WHERE gs.game_id = g.id) as selection_count
         FROM games g 
         WHERE g.team_id = ? AND g.game_date >= CURDATE()
         ORDER BY g.game_date ASC
-        LIMIT 1
+        LIMIT 2
     ");
     $stmtNext->execute([$team_id]);
-    $next_game = $stmtNext->fetch(PDO::FETCH_ASSOC);
+    $next_games = $stmtNext->fetchAll(PDO::FETCH_ASSOC);
+
+    foreach ($next_games as &$next_game) {
+        $stmtSelected = $pdo->prepare("
+            SELECT p.id, p.first_name, p.last_name, gs.status_id, gs.is_goalkeeper 
+            FROM game_selections gs 
+            JOIN players p ON gs.player_id = p.id 
+            WHERE gs.game_id = ? AND p.team_id = ?
+        ");
+        $stmtSelected->execute([$next_game['id'], $team_id]);
+        $next_game['players'] = $stmtSelected->fetchAll(PDO::FETCH_ASSOC);
+
+        // Speelminuten ophalen (match specifiek of seizoen historiek)
+        $player_playtimes = [];
+        $player_available = [];
+        $is_match_playtime = false;
+        
+        $stmtLineup = $pdo->prepare("SELECT schema_id, player_order FROM game_lineups WHERE game_id = ? ORDER BY is_final DESC, score DESC LIMIT 1");
+        $stmtLineup->execute([$next_game['id']]);
+        $lineup = $stmtLineup->fetch(PDO::FETCH_ASSOC);
+
+        if ($lineup) {
+            $is_match_playtime = true;
+            $schema_id = $lineup['schema_id'];
+            $players_arr = explode(',', $lineup['player_order']);
+            $stmtSch = $pdo->prepare("SELECT schema_data FROM lineups WHERE id = ?");
+            $stmtSch->execute([$schema_id]);
+            $schema_json = $stmtSch->fetchColumn();
+            if ($schema_json) {
+                $schema = json_decode($schema_json, true);
+                if (isset($schema['game_parts'])) {
+                    $schema = $schema['game_parts'];
+                }
+                $schema_total_dur = 0;
+                foreach ($schema as $idx => $part) {
+                    if (!is_numeric($idx)) continue;
+                    $dur = $part['duration'] ?? 0;
+                    $schema_total_dur += $dur;
+                    if (isset($part['lineup'])) {
+                        foreach ($part['lineup'] as $pos => $pIndex) {
+                            if (isset($players_arr[$pIndex])) {
+                                $pId = $players_arr[$pIndex];
+                                $player_playtimes[$pId] = ($player_playtimes[$pId] ?? 0) + $dur;
+                            }
+                        }
+                    }
+                }
+                foreach ($players_arr as $pId) {
+                    if (trim($pId) !== '') $player_available[$pId] = $schema_total_dur;
+                }
+            }
+        } else {
+            $season_start = null;
+            $season_end = null;
+            $stmtHist = $pdo->prepare("SELECT l.schema_id, l.player_order, g.game_date FROM game_lineups l JOIN games g ON l.game_id = g.id WHERE l.is_final = 1 AND g.team_id = ?");
+            $stmtHist->execute([$team_id]);
+            while ($row = $stmtHist->fetch(PDO::FETCH_ASSOC)) {
+                $gDate = strtotime($row['game_date']);
+                if ($season_start === null || $gDate < $season_start) $season_start = $gDate;
+                if ($season_end === null || $gDate > $season_end) $season_end = $gDate;
+
+                $schema_id = $row['schema_id'];
+                $players_arr = explode(',', $row['player_order']);
+                $stmtSch = $pdo->prepare("SELECT schema_data FROM lineups WHERE id = ?");
+                $stmtSch->execute([$schema_id]);
+                $schema_json = $stmtSch->fetchColumn();
+                if ($schema_json) {
+                    $schema = json_decode($schema_json, true);
+                    if (isset($schema['game_parts'])) {
+                        $schema = $schema['game_parts'];
+                    }
+                    $schema_total_dur = 0;
+                    foreach ($schema as $idx => $part) {
+                        if (!is_numeric($idx)) continue;
+                        $dur = $part['duration'] ?? 0;
+                        $schema_total_dur += $dur;
+                        if (isset($part['lineup'])) {
+                            foreach ($part['lineup'] as $pos => $pIndex) {
+                                if (isset($players_arr[$pIndex])) {
+                                    $pId = $players_arr[$pIndex];
+                                    $player_playtimes[$pId] = ($player_playtimes[$pId] ?? 0) + $dur;
+                                }
+                            }
+                        }
+                    }
+                    foreach ($players_arr as $pId) {
+                        if (trim($pId) !== '') {
+                            $player_available[$pId] = ($player_available[$pId] ?? 0) + $schema_total_dur;
+                        }
+                    }
+                }
+            }
+            if ($season_start !== null) {
+                $next_game['season_start_fmt'] = date('d/m/Y', $season_start);
+                $next_game['season_end_fmt'] = date('d/m/Y', $season_end);
+            }
+        }
+        $next_game['is_match_playtime'] = $is_match_playtime;
+        $next_game['playtimes'] = $player_playtimes;
+        $next_game['available'] = $player_available;
+
+        // Sort players by status (present first) and then by playtime percentage (lowest first)
+        usort($next_game['players'], function($a, $b) use ($player_playtimes, $player_available) {
+            // Status: absent (1) to the bottom
+            if ($a['status_id'] != $b['status_id']) {
+                return $a['status_id'] <=> $b['status_id'];
+            }
+            
+            // Calculate percentage for a
+            $ptA = $player_playtimes[$a['id']] ?? 0;
+            $avA = $player_available[$a['id']] ?? 0;
+            $percA = $avA > 0 ? ($ptA / $avA) : 0;
+            
+            // Calculate percentage for b
+            $ptB = $player_playtimes[$b['id']] ?? 0;
+            $avB = $player_available[$b['id']] ?? 0;
+            $percB = $avB > 0 ? ($ptB / $avB) : 0;
+            
+            // Sort by percentage ASC
+            if (abs($percA - $percB) > 0.0001) {
+                return $percA <=> $percB;
+            }
+            
+            // Fallback to name ASC
+            return strcasecmp($a['first_name'], $b['first_name']);
+        });
+    }
+    unset($next_game);
 
     // 2. Historiek (Laatste gespeelde wedstrijden)
     $stmtPast = $pdo->prepare("
@@ -226,14 +353,15 @@ require_once 'header.php';
 
         <div class="row g-4 mb-4">
             <!-- Linker Kolom: Top Acties & Eerstvolgende Match -->
-            <div class="col-lg-8">
+            <div class="col-lg-5 col-md-8 mb-4">
                 
-                <?php if ($next_game): ?>
+                <?php if (!empty($next_games)): ?>
+                <?php foreach($next_games as $idx => $next_game): ?>
                 <div class="dashboard-hero p-4 shadow mb-4">
-                    <span class="badge bg-white text-primary mb-3 fw-bold px-3 py-2 rounded-pill shadow-sm"><i class="fa-solid fa-calendar-day me-1"></i> Volgende Wedstrijd</span>
+                    <span class="badge bg-white text-primary mb-3 fw-bold px-3 py-2 rounded-pill shadow-sm"><i class="fa-solid fa-calendar-day me-1"></i> <?= $idx === 0 ? 'Volgende Wedstrijd' : 'Daaropvolgende Wedstrijd' ?></span>
                     
                     <div class="row align-items-center">
-                        <div class="col-md-7 mb-3 mb-md-0">
+                        <div class="col-12 text-start">
                             <h2 class="fw-bold mb-1 text-truncate" title="<?= htmlspecialchars($next_game['opponent']) ?>"><?= htmlspecialchars($next_game['opponent']) ?></h2>
                             <p class="mb-2 fs-5 opacity-75">
                                 <i class="fa-regular fa-clock me-1"></i> 
@@ -251,29 +379,67 @@ require_once 'header.php';
                                 $selection_color = $is_selection_ready ? 'success' : 'warning';
                                 $selection_icon = $has_selection ? 'fa-pen-to-square' : 'fa-plus';
                             ?>
-                            <a href="/games/<?= $next_game['id'] ?>/selection" class="text-decoration-none d-inline-flex align-items-center bg-white bg-opacity-10 rounded px-3 py-2 mt-2 transition-transform" style="transition: transform 0.2s; cursor: pointer;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
-                                <i class="fa-solid <?= $selection_icon ?> text-<?= $selection_color ?> fs-4 me-2"></i>
-                                <div>
-                                    <div class="small text-white text-opacity-75" style="line-height: 1;">Actuele Selectie</div>
-                                    <div class="fw-bold mt-1 text-white" style="line-height: 1;">
-                                        <?= $has_selection ? $next_game['selection_count'] . ' opgeroepen' : 'Nog geen spelers' ?>
+                            <div class="d-flex flex-wrap gap-2 mt-3 mb-2">
+                                <a href="/games/<?= $next_game['id'] ?>/selection" class="text-decoration-none d-inline-flex align-items-center bg-white bg-opacity-10 rounded px-3 py-2 transition-transform shadow-sm border border-white border-opacity-10" style="transition: transform 0.2s; cursor: pointer;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+                                    <i class="fa-solid <?= $selection_icon ?> text-<?= $selection_color ?> fs-4 me-2"></i>
+                                    <div>
+                                        <div class="small text-white text-opacity-75" style="line-height: 1;">Actuele Selectie</div>
+                                        <div class="fw-bold mt-1 text-white" style="line-height: 1;">
+                                            <?= $has_selection ? $next_game['selection_count'] . ' opgeroepen' : 'Nog geen spelers' ?>
+                                        </div>
                                     </div>
-                                </div>
-                            </a>
-                        </div>
-                        <div class="col-md-5 text-md-end text-start">
-                            <a href="/games/<?= $next_game['id'] ?>/edit" class="btn btn-light text-secondary fw-bold rounded-pill mx-1 mb-2" title="Bewerk details">
-                                <i class="fa-solid fa-pen"></i>
-                            </a>
-                            <a href="/games/<?= $next_game['id'] ?>/selection" class="btn btn-light text-primary fw-bold rounded-pill mx-1 mb-2">
-                                <i class="fa-solid fa-users me-1"></i> Selectie
-                            </a>
-                            <a href="/games/<?= $next_game['id'] ?>/lineup" class="btn <?= $next_game['selection_count'] > 0 ? 'btn-warning text-dark' : 'btn-outline-light disabled' ?> fw-bold rounded-pill mx-1 mb-2">
-                                <i class="fa-solid fa-wand-magic-sparkles me-1"></i> Maak Opstelling
-                            </a>
+                                </a>
+
+                                <a href="/games/<?= $next_game['id'] ?>/lineup" class="btn <?= $next_game['selection_count'] > 0 ? 'btn-warning text-dark' : 'btn-outline-light disabled' ?> fw-bold rounded px-3 py-2 shadow-sm d-inline-flex align-items-center transition-transform" style="transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+                                    <i class="fa-solid fa-wand-magic-sparkles me-2 fs-5"></i>
+                                    <div class="text-start">
+                                        <div class="small text-dark text-opacity-75" style="line-height: 1;">Schema</div>
+                                        <div class="fw-bold mt-1 text-dark" style="line-height: 1;">Opstelling</div>
+                                    </div>
+                                </a>
+                            </div>
+                            
+                            <?php if ($has_selection && !empty($next_game['players'])): ?>
+                            <div class="mt-4 text-start">
+                                <?php if ($next_game['is_match_playtime']): ?>
+                                    <div class="small text-white text-opacity-75 fw-bold mb-2 text-uppercase" style="letter-spacing: 0.5px;"><i class="fa-regular fa-clock me-1"></i> Voorziene Speeltijd (Match)</div>
+                                <?php else: ?>
+                                    <div class="small text-white text-opacity-75 fw-bold mb-2 text-uppercase" style="letter-spacing: 0.5px;">
+                                        <i class="fa-solid fa-clock-rotate-left me-1"></i> 
+                                        Speelminuten 
+                                        <?php if (!empty($next_game['season_start_fmt'])): ?>
+                                            (<?= $next_game['season_start_fmt'] ?> - <?= $next_game['season_end_fmt'] ?>)
+                                        <?php else: ?>
+                                            (Historiek)
+                                        <?php endif; ?>
+                                    </div>
+                                <?php endif; ?>
+                                <ul class="list-group shadow-sm border-0 bg-transparent">
+                                <?php foreach($next_game['players'] as $p): 
+                                    $pt = $next_game['playtimes'][$p['id']] ?? 0;
+                                    $av = $next_game['available'][$p['id']] ?? 0;
+                                    $ptFormatted = "0%";
+                                    if ($av > 0) {
+                                        $ptFormatted = round(($pt / $av) * 100) . "%";
+                                    }
+                                ?>
+                                    <li class="list-group-item d-flex justify-content-between align-items-center py-2 px-3 border-white border-opacity-25" style="background: rgba(255, 255, 255, <?= $p['status_id'] == 1 ? '0.05' : '0.1' ?>); border-top: none; border-left: none; border-right: none;">
+                                        <div class="text-truncate text-white <?= $p['status_id'] == 1 ? 'text-decoration-line-through opacity-50' : '' ?>" style="max-width: 180px; font-size: 0.9rem;">
+                                            <?php if ($p['is_goalkeeper']): ?><i class="fa-solid fa-hands me-2 text-warning opacity-75"></i><?php endif; ?>
+                                            <?= htmlspecialchars(stripslashes(trim($p['first_name'] . ' ' . $p['last_name']))) ?>
+                                        </div>
+                                        <span class="badge <?= $p['status_id'] == 1 ? 'bg-danger text-white' : 'bg-white bg-opacity-25 text-white' ?> rounded-pill" style="min-width: 45px; font-size: 0.8rem;">
+                                            <?= $p['status_id'] == 1 ? 'afwezig' : $ptFormatted ?>
+                                        </span>
+                                    </li>
+                                <?php endforeach; ?>
+                                </ul>
+                            </div>
+                            <?php endif; ?>
                         </div>
                     </div>
                 </div>
+                <?php endforeach; ?>
                 <?php else: ?>
                 <div class="card shadow-sm border-0 mb-4 bg-light text-center" style="border-radius: 16px; border: 2px dashed var(--apple-border) !important;">
                     <div class="card-body py-5">
@@ -287,58 +453,7 @@ require_once 'header.php';
                 </div>
                 <?php endif; ?>
 
-                <!-- Historiek Tabel -->
-                <h5 class="fw-bold text-dark mb-3"><i class="fa-solid fa-clock-rotate-left text-muted me-2"></i>Recente Historiek</h5>
-                <div class="card shadow-sm border-0 stat-card mb-4 mb-lg-0">
-                    <div class="card-body p-0">
-                        <div class="table-responsive">
-                            <table class="table table-hover align-middle mb-0">
-                                <thead class="table-light">
-                                    <tr>
-                                        <th class="ps-4">Datum</th>
-                                        <th>Tegenstander</th>
-                                        <th class="text-end pe-4">Acties</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <?php if(empty($past_games)): ?>
-                                        <tr>
-                                            <td colspan="4" class="text-center py-4 text-muted">
-                                                Nog geen wedstrijden gespeeld in het verleden.
-                                            </td>
-                                        </tr>
-                                    <?php endif; ?>
-                                    
-                                    <?php foreach($past_games as $game): ?>
-                                     <tr>
-                                        <td class="ps-4 fw-medium text-secondary small"><?= date('d/m/Y', strtotime($game['game_date'])) ?></td>
-                                        <td class="fw-bold">
-                                            <?php if($game['coach_name']): 
-                                                $colors = ['bg-info text-dark', 'bg-danger', 'bg-success', 'bg-warning text-dark', 'bg-primary', 'bg-dark text-white'];
-                                                $cColor = $colors[abs(crc32($game['coach_name'])) % count($colors)];
-                                            ?>
-                                                <span class="badge <?= $cColor ?> rounded-pill me-1"><?= htmlspecialchars($game['coach_name']) ?></span>
-                                            <?php endif; ?>
-                                            <?= htmlspecialchars($game['opponent']) ?>
-                                        </td>
-                                        <td class="text-end pe-4 text-nowrap">
-                                            <a href="/games/<?= $game['id'] ?>/edit" class="btn btn-sm btn-light text-secondary fw-bold rounded-pill shadow-sm me-1" title="Bewerk details">
-                                                <i class="fa-solid fa-pen mt-1 mb-1"></i>
-                                            </a>
-                                            <a href="/games/<?= $game['id'] ?>/duplicate" class="btn btn-sm btn-light text-warning fw-bold rounded-pill shadow-sm me-1" title="Dupliceer Wedstrijd">
-                                                <i class="fa-solid fa-copy me-1 mt-1 mb-1"></i> Dupliceer
-                                            </a>
-                                            <a href="/games/<?= $game['id'] ?>/lineup" class="btn btn-sm btn-light text-primary fw-bold rounded-pill shadow-sm" title="Bekijk Opstelling">
-                                                <i class="fa-solid fa-eye me-1 mt-1 mb-1"></i> Detail
-                                            </a>
-                                        </td>
-                                    </tr>
-                                    <?php endforeach; ?>
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
+
             </div>
 
             <!-- Rechterkolom: Quick Stats & Shortcuts -->
@@ -409,6 +524,63 @@ require_once 'header.php';
                 </div>
                 <?php endif; ?>
 
+            </div>
+        </div>
+
+        <div class="row mb-4">
+            <div class="col-12 col-lg-9">
+                <!-- Historiek Tabel -->
+                <h5 class="fw-bold text-dark mb-3"><i class="fa-solid fa-clock-rotate-left text-muted me-2"></i>Recente Historiek</h5>
+                <div class="card shadow-sm border-0 stat-card mb-4 mb-lg-0">
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th class="ps-4">Datum</th>
+                                        <th>Tegenstander</th>
+                                        <th class="text-end pe-4">Acties</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <?php if(empty($past_games)): ?>
+                                        <tr>
+                                            <td colspan="4" class="text-center py-4 text-muted">
+                                                Nog geen wedstrijden gespeeld in het verleden.
+                                            </td>
+                                        </tr>
+                                    <?php endif; ?>
+                                    
+                                    <?php foreach($past_games as $game): ?>
+                                     <tr>
+                                        <td class="ps-4 fw-medium text-secondary small"><?= date('d/m/Y', strtotime($game['game_date'])) ?></td>
+                                        <td class="fw-bold">
+                                            <?php if($game['coach_name']): 
+                                                $colors = ['bg-info text-dark', 'bg-danger', 'bg-success', 'bg-warning text-dark', 'bg-primary', 'bg-dark text-white'];
+                                                $cColor = $colors[abs(crc32($game['coach_name'])) % count($colors)];
+                                            ?>
+                                                <span class="badge <?= $cColor ?> rounded-pill me-1"><?= htmlspecialchars($game['coach_name']) ?></span>
+                                            <?php endif; ?>
+                                            <?= htmlspecialchars($game['opponent']) ?>
+                                        </td>
+                                        <td class="text-end pe-4 text-nowrap">
+                                            <a href="/games/<?= $game['id'] ?>/edit" class="btn btn-sm btn-light text-secondary fw-bold rounded-pill shadow-sm me-1" title="Bewerk details">
+                                                <i class="fa-solid fa-pen mt-1 mb-1"></i>
+                                            </a>
+                                            <a href="/games/<?= $game['id'] ?>/duplicate" class="btn btn-sm btn-light text-warning fw-bold rounded-pill shadow-sm me-1" title="Dupliceer Wedstrijd">
+                                                <i class="fa-solid fa-copy me-1 mt-1 mb-1"></i> Dupliceer
+                                            </a>
+                                            <a href="/games/<?= $game['id'] ?>/lineup" class="btn btn-sm btn-light text-primary fw-bold rounded-pill shadow-sm" title="Bekijk Opstelling">
+                                                <i class="fa-solid fa-eye me-1 mt-1 mb-1"></i> Detail
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    <?php endforeach; ?>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 

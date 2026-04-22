@@ -57,11 +57,11 @@ function getPlayerName($pid, $volgorde_arr, $gk_count, $schema_idx) {
     // Goalies have fixed IDs often or are indices < gk_count
     if ($schema_idx < $gk_count) {
         $real_id = $volgorde_arr[$schema_idx] ?? 0;
-        return ($playersMap[$real_id] ?? 'Doelman') . " (GK)";
+        return "[$schema_idx] " . ($playersMap[$real_id] ?? 'Doelman') . " (GK)";
     }
     
     $real_id = $volgorde_arr[$schema_idx] ?? 0;
-    return $playersMap[$real_id] ?? "Speler $schema_idx";
+    return "[$schema_idx] " . ($playersMap[$real_id] ?? "Speler");
 }
 
 $page_title = "Bewerk Wisselschema";
@@ -139,7 +139,7 @@ require_once 'header.php';
             <p class="text-muted mb-0">Base Schema: <strong><?= $schemaId ?></strong> &middot; Veld: <strong><?= $search_format ?></strong></p>
         </div>
         <div>
-            <a href="lineup.php?wedstrijd=<?= $gameId ?>" class="btn btn-outline-secondary me-2"><i class="fa-solid fa-arrow-left me-1"></i> Terug</a>
+            <a href="/games/<?= $gameId ?>/lineup" class="btn btn-outline-secondary me-2"><i class="fa-solid fa-arrow-left me-1"></i> Terug</a>
             <?php if (!empty($overwriteMode)): ?>
                 <button class="btn btn-warning fw-bold text-dark" onclick="saveSchema()"><i class="fa-solid fa-floppy-disk me-1"></i> Wijzigingen Overschrijven</button>
             <?php else: ?>
@@ -473,9 +473,8 @@ function saveSchema(forceUpdate = false) {
     
     let btn = document.querySelector('button[onclick="saveSchema()"]');
     btn.innerHTML = '<i class=\"fa-solid fa-spinner fa-spin\"></i> Bezig...';
-    btn.disabled = true;
-
-    fetch('api_save_schema.php', {
+    // Verzend naar beveiligde API met clean URL via router
+    fetch('/api_save_schema', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -513,9 +512,9 @@ function saveSchema(forceUpdate = false) {
             }
             
             if (data.is_overwrite) {
-                window.location.href = 'inspect_schema.php?format=<?= $full_format ?>&schema=' + data.new_id;
+                window.location.href = '/admin/inspect_schema?format=<?= $full_format ?>&schema=' + data.new_id;
             } else {
-                window.location.href = 'lineup.php?wedstrijd=<?= $gameId ?>&preview=' + data.lineup_id;
+                window.location.href = '/games/<?= $gameId ?>/lineup?preview=' + data.lineup_id;
             }
         } else {
             alert('Fout: ' + (data.error || 'Onbekende fout'));

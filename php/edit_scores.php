@@ -15,7 +15,7 @@ if (strpos($default_format, '2v2') === 0 || strpos($default_format, '3v3') === 0
     echo '  <i class="fa-solid fa-face-smile-wink fa-3x text-primary mb-3"></i>';
     echo '  <h3>Fun Formats hebben geen Matrix nodig!</h3>';
     echo '  <p class="mb-0">Bij 2v2 en 3v3 draait het volledig om plezier. De exacte opstelling of matrix scores maken hier niets uit en the generator verdeelt de speeltijd gewoon eerlijk.</p>';
-    echo '  <a href="index.php" class="btn btn-primary mt-4"><i class="fa-solid fa-arrow-left me-2"></i>Terug naar dashboard</a>';
+    echo '  <a href="/" class="btn btn-primary mt-4"><i class="fa-solid fa-arrow-left me-2"></i>Terug naar dashboard</a>';
     echo '</div>';
     echo '</div>';
     require_once 'footer.php';

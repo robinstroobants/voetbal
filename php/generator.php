@@ -179,7 +179,7 @@
               echo "Zoek in database: " . $format . " " . $aantal . "sp<br/>";
           }
 
-          $stmtSchemas = $pdo->prepare("SELECT id, schema_data FROM lineups WHERE game_format = ? AND player_count = ? AND team_id = ?");
+          $stmtSchemas = $pdo->prepare("SELECT id, schema_data FROM lineups WHERE game_format = ? AND player_count = ? AND (team_id = ? OR team_id IS NULL)");
           $stmtSchemas->execute([$format, $aantal, $_SESSION['team_id']]);
           $ws = [];
           while($s_row = $stmtSchemas->fetch(PDO::FETCH_ASSOC)) {
@@ -511,7 +511,7 @@
           echo "<div style='font-family: sans-serif; padding: 20px; border: 2px solid red; background: #fff5f5; margin:20px;'>";
           echo "<h2 style='color: #d9534f;'>❌ Schema Niet Compatibel</h2>";
           echo "<p>Het opgevraagde wisselschema bestaat niet (meer) voor de huidige selectie (<strong>" . count($list_of_players) . " spelers</strong>).<br/>Dit gebeurt meestal als je een opgeslagen opstelling bekijkt, maar intussen spelers hebt toegevoegd of verwijderd aan de 'Wedstrijd Selectie'.</p>";
-          echo "<a href='lineup.php?wedstrijd=" . (isset($gameId) ? $gameId : 0) . "' style='display:inline-block; padding: 10px 15px; background: #d9534f; color: #fff; text-decoration: none; border-radius: 4px;'>Ga terug naar de vernieuwde opstelling</a>";
+          echo "<a href='/games/" . (isset($gameId) ? $gameId : 0) . "/lineup' style='display:inline-block; padding: 10px 15px; background: #d9534f; color: #fff; text-decoration: none; border-radius: 4px;'>Ga terug naar de vernieuwde opstelling</a>";
           echo "</div>";
           return;
       }

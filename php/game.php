@@ -380,28 +380,27 @@ class Game
     
     private function initSquad($spelers) {
       
-      $player_scores = $this->playerscores;
       $all_players = array();
-      foreach ($this->playerscores as $player=>$scores){
-        arsort($scores);
+      foreach ($spelers as $player_id){
+        $scores = $this->playerscores[$player_id] ?? [];
+        if (!empty($scores)) arsort($scores);
         $all_players[] = array(          
-          "name" => $player
+          "name" => $player_id
             , "positions" => array_keys($scores)
         );
       }
-      //pr($spelers,__LINE__);
      
       $playernames = array();
       $playerfullnames = array();
       $squad = array();
-      //dpr($all_players);
-      // code herschreven dat shuffle in index gebeurd....
+
       foreach($spelers as $naam){
         foreach($all_players as $player){
           if($player["name"] == $naam){
             array_push($squad,$player);
             array_push($playernames,$player["name"]);
-            array_push($playerfullnames,$player["name"] . " " . $this->playerinfo[$player["name"]]["name"]);
+            $fname = isset($this->playerinfo[$player["name"]]["name"]) ? $this->playerinfo[$player["name"]]["name"] : $player["name"];
+            array_push($playerfullnames,$player["name"] . " " . $fname);
           }
         }
       }

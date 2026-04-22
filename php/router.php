@@ -50,7 +50,6 @@ $routes = [
     '/login' => ['target' => 'login.php', 'auth' => false],
     '/logout' => ['target' => 'logout.php', 'auth' => false],
     '/register' => ['target' => 'register.php', 'auth' => false],
-    '/admin' => ['target' => 'superadmin_dashboard.php', 'auth' => true, 'role' => 'superadmin'],
     '/games' => ['target' => 'manage_games.php', 'auth' => true],
     '/players' => ['target' => 'edit_players.php', 'auth' => true],
     '/scores' => ['target' => 'edit_scores.php', 'auth' => true],
@@ -62,12 +61,29 @@ if (isset($routes[$path])) {
     if ($r['auth']) enforce_auth();
     if (isset($r['role'])) enforce_role($r['role']);
     
-    // Bestanden inladen, zij zullen niet meer zelf redirecten wegens centralisatie
     require_once __DIR__ . '/' . $r['target'];
     $route_matched = true;
 } else {
     // 3. Dynamic Parameter Routes via Regex
-    if (preg_match('#^/games/(\d+)/edit$#', $path, $matches)) {
+    
+    // ADMIN SUB-DIRECTORY ROUTING
+    if (preg_match('#^/admin$#', $path)) {
+        enforce_auth();
+        enforce_role('superadmin');
+        require_once __DIR__ . '/admin/index.php';
+        $route_matched = true;
+    }
+    elseif (preg_match('#^/admin/([a-zA-Z0-9_\-]+)$#', $path, $matches)) {
+        enforce_auth();
+        enforce_role('superadmin');
+        $real_file = __DIR__ . '/admin/' . $matches[1] . '.php';
+        if (file_exists($real_file)) {
+            require_once $real_file;
+            $route_matched = true;
+        }
+    }
+    // OUDE GAME ROUTES
+    elseif (preg_match('#^/games/(\d+)/edit$#', $path, $matches)) {
         enforce_auth();
         $_GET['edit_game'] = $matches[1];
         require_once __DIR__ . '/manage_games.php';
@@ -92,18 +108,36 @@ if (isset($routes[$path])) {
         require_once __DIR__ . '/manage_games.php';
         $route_matched = true;
     }
+    elseif (preg_match('#^/games/(\d+)/builder$#', $path, $matches)) {
+        enforce_auth();
+        $_GET['game_id'] = $matches[1];
+        require_once __DIR__ . '/schema_builder.php';
+        $route_matched = true;
+    }
 }
 
 // 4. Fallback voor native requests (.php, scripts, API)
 // Op deze manier breekt AJAX en form afhandeling niet onmiddellijk tijdens de migratie.
 if (!$route_matched) {
+    if (preg_match('/^\/([a-zA-Z0-9_\-]+)$/', $path, $m)) {
+        $real_file = __DIR__ . '/' . $m[1] . '.php';
+        if (file_exists($real_file)) {
+            $public_files = ['login.php', 'register.php', 'logout.php', 'run_migrations.php', 'cron_cleanup.php'];
+            if (!in_array(basename($real_file), $public_files)) {
+                enforce_auth();
+            }
+            require_once $real_file;
+            $route_matched = true;
+        }
+    }
+}
+
+if (!$route_matched) {
     if (preg_match('/\.php$/', $path)) {
         $real_file = __DIR__ . '/' . ltrim($path, '/');
         if (file_exists($real_file)) {
-            // Apply a default auth limit for most native PHP scripts except open ones
             $public_files = ['login.php', 'register.php', 'logout.php', 'run_migrations.php', 'cron_cleanup.php'];
-            $script_name = basename($real_file);
-            if (!in_array($script_name, $public_files)) {
+            if (!in_array(basename($real_file), $public_files)) {
                 enforce_auth();
             }
             require_once $real_file;

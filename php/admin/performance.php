@@ -1,5 +1,5 @@
 <?php
-require_once 'getconn.php';
+require_once __DIR__ . '/../getconn.php';
 $page_title = "Performance Dashboard";
 
 // Ophalen van stats over de afgelopen 24 uur
@@ -32,7 +32,7 @@ $logs = $logs_stmt->fetchAll(PDO::FETCH_ASSOC);
     </style>
 </head>
 <body class="bg-light">
-    <?php include 'header.php'; ?>
+    <?php include __DIR__ . '/../header.php'; ?>
 
     <div class="container mt-4">
         <div class="d-flex justify-content-between align-items-center mb-4">
@@ -126,4 +126,4 @@ $logs = $logs_stmt->fetchAll(PDO::FETCH_ASSOC);
             window.location.reload();
         }, 5000);
     </script>
-    <?php include 'footer.php'; ?>
+    <?php include __DIR__ . '/../footer.php'; ?>

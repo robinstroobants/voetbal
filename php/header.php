@@ -36,7 +36,7 @@ header("Expires: 0"); // Proxies blockeren
     <?php if (isset($_SESSION['original_user_id'])): ?>
     <div class="alert alert-warning text-center fw-bold py-2 mb-0 rounded-0 border-bottom border-warning shadow-sm sticky-top" style="z-index: 1050;">
         <i class="fa-solid fa-user-secret me-2"></i> Je bent actief als coach: <span class="text-dark bg-white px-2 py-1 rounded ms-1 border border-warning shadow-sm"><?= htmlspecialchars($_SESSION['impersonated_first_name'] ?? 'Coach') ?></span>
-        <a href="impersonate.php?action=stop" class="btn btn-danger btn-sm ms-3 fw-bold rounded-pill shadow-sm"><i class="fa-solid fa-right-from-bracket me-1"></i> Terug naar Beheerders-weergave</a>
+        <a href="/admin/impersonate?action=stop" class="btn btn-danger btn-sm ms-3 fw-bold rounded-pill shadow-sm"><i class="fa-solid fa-right-from-bracket me-1"></i> Terug naar Beheerders-weergave</a>
     </div>
     <?php endif; ?>
     <nav class="navbar navbar-expand-lg bg-dark mb-4 w-100 d-print-none" data-bs-theme="dark">
@@ -82,15 +82,16 @@ header("Expires: 0"); // Proxies blockeren
                     <?php endif; ?>
                     
                     <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'superadmin'): ?>
-                    <li class="nav-item"><a class="nav-link fw-bold text-success" href="/admin">
-                        <i class="fa-solid fa-server me-1"></i> SaaS Beheer
-                    </a></li>
-                    <?php endif; ?>
-                    
-                    <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'superadmin'): ?>
-                    <li class="nav-item"><a class="nav-link" href="dashboard_performance.php">
-                        <i class="fa-solid fa-gauge-high me-2 text-warning"></i>Performance
-                    </a></li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle fw-bold text-success" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fa-solid fa-user-shield me-1"></i> Admin
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="adminDropdown">
+                            <li><a class="dropdown-item" href="/admin"><i class="fa-solid fa-server me-2"></i>Dashboard</a></li>
+                            <li><a class="dropdown-item" href="/admin/inspect_schema"><i class="fa-solid fa-stethoscope text-info me-2"></i>Schema Diagnose</a></li>
+                            <li><a class="dropdown-item" href="/admin/performance"><i class="fa-solid fa-gauge-high text-warning me-2"></i>Performance</a></li>
+                        </ul>
+                    </li>
                     <?php endif; ?>
 
                     <?php if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'superadmin'): ?>
@@ -107,7 +108,7 @@ header("Expires: 0"); // Proxies blockeren
                             ?>
                             <li><a class="dropdown-item" href="/scores"><i class="fa-solid fa-star me-2"></i>Score Matrix</a></li>
                             <?php if (isset($_SESSION['is_beta_user']) && $_SESSION['is_beta_user'] == 1): ?>
-                            <li><a class="dropdown-item" href="edit_rankings.php"><i class="fa-solid fa-flask text-warning me-2"></i>Rankings <span class="badge bg-warning text-dark ms-1" style="font-size:0.6rem;">BETA</span></a></li>
+                            <li><a class="dropdown-item" href="/edit_rankings"><i class="fa-solid fa-flask text-warning me-2"></i>Rankings <span class="badge bg-warning text-dark ms-1" style="font-size:0.6rem;">BETA</span></a></li>
                             <?php endif; ?>
                             <?php endif; ?>
                             

@@ -1,5 +1,5 @@
 <?php
-require_once 'getconn.php';
+require_once __DIR__ . '/../getconn.php';
 
 // Beveiliging loopt nu centraal via router.php
 
@@ -182,6 +182,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pdo->prepare("DELETE FROM team_invitations WHERE id = ?")->execute([$inv_id]);
             $success = "✅ Uitnodiging succesvol ingetrokken!";
         }
+    } elseif ($action === 'cleanup_dummies') {
+        $stmtDummies = $pdo->prepare("SELECT id FROM games WHERE opponent LIKE '%DUMMY REVISOR MATCH%' AND created_at < NOW() - INTERVAL 1 HOUR");
+        $stmtDummies->execute();
+        $dummyIds = $stmtDummies->fetchAll(PDO::FETCH_COLUMN);
+
+        // Fallback: Als er uitsluitend nieuwe dummy tests zijn en de gebruiker forceert de purge (of indien er geen timestamps inzaten oorspronkelijk).
+        if (empty($dummyIds) && isset($_POST['force_all'])) {
+            $stmtDummies = $pdo->prepare("SELECT id FROM games WHERE opponent LIKE '%DUMMY REVISOR MATCH%'");
+            $stmtDummies->execute();
+            $dummyIds = $stmtDummies->fetchAll(PDO::FETCH_COLUMN);
+        }
+
+        if ($dummyIds) {
+            $inQ = implode(',', array_fill(0, count($dummyIds), '?'));
+            $pdo->prepare("DELETE FROM game_lineups WHERE game_id IN ($inQ)")->execute($dummyIds);
+            $pdo->prepare("DELETE FROM game_selections WHERE game_id IN ($inQ)")->execute($dummyIds);
+            $pdo->prepare("DELETE FROM games WHERE id IN ($inQ)")->execute($dummyIds);
+            $success = "✅ " . count($dummyIds) . " dummy test sessies succesvol opgeruimd!";
+        } else {
+            $success = "ℹ️ Geen dummy wedstrijden gevonden om op te ruimen.";
+        }
     }
 }
 
@@ -237,19 +258,43 @@ foreach($stmtInv as $r) {
     $invitesByTeam[$r['team_id']][] = $r;
 }
 
+// Haal dummy metrics op voor dashboard
+$stmtDummyC = $pdo->query("SELECT SUM(CASE WHEN created_at < NOW() - INTERVAL 1 HOUR THEN 1 ELSE 0 END) as expired_count, COUNT(*) as total_count FROM games WHERE opponent LIKE '%DUMMY REVISOR MATCH%'");
+$dummyStats = $stmtDummyC->fetch(PDO::FETCH_ASSOC);
+
 // Als het een Ajax verzoek is, onderbreek the HTML rest render en spuug enkel the partial uit
 if ($isAjax) {
-    include '_superadmin_teams_list.php';
+    include __DIR__ . '/_teams_list.php';
     exit;
 }
 
-require_once 'header.php';
+require_once __DIR__ . '/../header.php';
 ?>
 
 <div class="container mt-4 mb-5">
     <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom border-dark">
         <h2><i class="fa-solid fa-server text-warning me-2"></i> SaaS Tenant & Abonnementen Beheer</h2>
     </div>
+
+    <!-- Systeem Alerts / Revisor Dummies -->
+    <?php if ($dummyStats && $dummyStats['total_count'] > 0): ?>
+    <div class="alert bg-black bg-opacity-25 border border-warning border-opacity-50 text-white d-flex align-items-center justify-content-between rounded-3 mb-4">
+        <div>
+            <h6 class="fw-bold mb-1"><i class="fa-solid fa-spider text-warning me-2"></i> Tijdelijke Revisor Sessies Gevonden (<?= $dummyStats['total_count'] ?>)</h6>
+            <div class="small text-white text-opacity-75">
+                Deze onzichtbare (dummy) wedstrijden worden door het systeem tijdelijk in de database geplaatst zodra een coach de "schema editor" debugt.
+                Er zijn momenteel <strong><?= (int)$dummyStats['expired_count'] ?></strong> dummies ouder dan 1 uur. 
+            </div>
+        </div>
+        <form method="POST" class="ms-3 flex-shrink-0">
+            <input type="hidden" name="action" value="cleanup_dummies">
+            <input type="hidden" name="force_all" value="1">
+            <button type="submit" class="btn btn-sm btn-warning fw-bold text-dark" onclick="return confirm('Dit opruimen zal vervallen (+1u) of, indien aangevraagd, alle beschikbare revisor-sessies wissen. Dit heeft géén impact op live data. OK?')">
+                <i class="fa-solid fa-broom me-1"></i> Opruimen
+            </button>
+        </form>
+    </div>
+    <?php endif; ?>
 
     <?php if (!empty($success)): ?>
         <div class="alert alert-success fw-bold shadow-sm"><i class="fa-solid fa-check-circle me-2"></i><?= htmlspecialchars($success) ?></div>
@@ -299,7 +344,7 @@ require_once 'header.php';
                 </div>
             </div>
             <div class="accordion shadow-sm" id="accordionTeams">
-                <?php include '_superadmin_teams_list.php'; ?>
+                <?php include __DIR__ . '/_teams_list.php'; ?>
             </div>
         </div>
 
@@ -413,6 +458,46 @@ function openEditUserModal(user) {
     var myModal = new bootstrap.Modal(document.getElementById('editUserModal'));
     myModal.show();
 }
+
+document.addEventListener('DOMContentLoaded', function() {
+    const accordionTeams = document.getElementById('accordionTeams');
+    if (!accordionTeams) return;
+
+    // Bewaar het geopende paneel in LocalStorage
+    accordionTeams.addEventListener('shown.bs.collapse', function (e) {
+        localStorage.setItem('superadmin_last_tenant', e.target.id);
+    });
+
+    // Herstel de staat tijdens page-load (tenzij we aan het zoeken zijn)
+    function restoreState() {
+        if (document.getElementById('superadminSearch').value.trim() !== '') return;
+        
+        const lastOpen = localStorage.getItem('superadmin_last_tenant');
+        if (lastOpen) {
+            const target = document.getElementById(lastOpen);
+            if (target) {
+                // Sluit eventuele andere open tabs die door backend als default zijn opengezet
+                accordionTeams.querySelectorAll('.collapse.show').forEach(el => {
+                    if (el.id !== lastOpen) {
+                        el.classList.remove('show');
+                        const relatedBtn = accordionTeams.querySelector(`[data-bs-target="#${el.id}"]`);
+                        if (relatedBtn) relatedBtn.classList.add('collapsed');
+                    }
+                });
+                
+                // Open de werkelijke target
+                target.classList.add('show');
+                const btn = document.querySelector(`[data-bs-target="#${lastOpen}"]`);
+                if (btn) {
+                    btn.classList.remove('collapsed');
+                    setTimeout(() => btn.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150);
+                }
+            }
+        }
+    }
+    
+    restoreState();
+});
 </script>
 
-<?php require_once 'footer.php'; ?>
+<?php require_once __DIR__ . '/../footer.php'; ?>

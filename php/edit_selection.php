@@ -93,7 +93,7 @@ require_once 'header.php';
             </p>
         </div>
         <div>
-            <a href="manage_games.php" class="btn btn-outline-secondary me-2"><i class="fa-solid fa-arrow-left me-2"></i>Terug</a>
+            <a href="/games" class="btn btn-outline-secondary me-2"><i class="fa-solid fa-arrow-left me-2"></i>Terug</a>
         </div>
     </div>
 

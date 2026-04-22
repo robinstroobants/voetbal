@@ -113,7 +113,7 @@
                                 <td class="text-end">
                                     <?php if($user['role'] !== 'superadmin'): ?>
                                     <div class="d-flex justify-content-end gap-1 flex-nowrap">
-                                        <form method="POST" action="impersonate.php?action=start" class="m-0">
+                                        <form method="POST" action="/admin/impersonate?action=start" class="m-0">
                                             <input type="hidden" name="target_user_id" value="<?= $user['id'] ?>">
                                             <button type="submit" class="btn btn-sm btn-outline-primary" title="Log in als deze gebruiker">
                                                 <i class="fa-solid fa-user-secret"></i>

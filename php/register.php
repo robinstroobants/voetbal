@@ -420,7 +420,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error) {
                     <button type="submit" class="btn-submit">Account Aanmaken</button>
                     
                     <div class="switch-link">
-                        Heb je al een account? <a href="login.php">Log in</a>
+                        Heb je al een account? <a href="/login">Log in</a>
                     </div>
                 </form>
             </div>

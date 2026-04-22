@@ -52,7 +52,7 @@ if (isset($_GET['token'])) {
         <i class="fa-solid fa-triangle-exclamation text-danger mb-4" style="font-size: 3rem;"></i>
         <h3 class="fw-bold">Verificatie Mislukt</h3>
         <p class="text-muted mt-2 fw-medium"><?= htmlspecialchars($error) ?></p>
-        <a href="login.php" class="btn btn-primary mt-4 w-100 rounded-pill py-2 fw-bold text-white shadow-sm">Terug naar Inloggen</a>
+        <a href="/login" class="btn btn-primary mt-4 w-100 rounded-pill py-2 fw-bold text-white shadow-sm">Terug naar Inloggen</a>
     </div>
 </body>
 </html>

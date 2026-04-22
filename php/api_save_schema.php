@@ -1,4 +1,5 @@
 <?php
+ini_set('display_errors', 0);
 header('Content-Type: application/json');
 require_once 'getconn.php';
 require_once 'MatchManager.php';
@@ -18,15 +19,18 @@ $originalId = (int)$data['original_schema_id'];
 $blocks = $data['blocks'];
 $force_update = !empty($data['force_settings_update']);
 
-$stmtSchema = $pdo->prepare("SELECT schema_data FROM lineups WHERE id = ?");
-$stmtSchema->execute([$originalId]);
-$schema_json = $stmtSchema->fetchColumn();
+$old_schema = [];
+if ($originalId > 0) {
+    $stmtSchema = $pdo->prepare("SELECT schema_data FROM lineups WHERE id = ?");
+    $stmtSchema->execute([$originalId]);
+    $schema_json = $stmtSchema->fetchColumn();
 
-if (!$schema_json) {
-    die(json_encode(['success' => false, 'error' => 'Origineel schema (ID '.$originalId.') onbekend!']));
+    if (!$schema_json) {
+        die(json_encode(['success' => false, 'error' => 'Origineel schema (ID '.$originalId.') onbekend!']));
+    }
+
+    $old_schema = json_decode($schema_json, true);
 }
-
-$old_schema = json_decode($schema_json, true);
 $new_schema = [];
 
 $gk_count_schema = 0;
@@ -37,8 +41,16 @@ if (preg_match('/_(\d+)gk_/', $format, $m)) {
 foreach ($blocks as $idx => $b_data) {
     $shift_idx = (int)$b_data['shift'];
     
-    // Copy the base parameters (duration, game_counter, start) from the original
-    $new_block = $old_schema[$shift_idx];
+    // Copy the base parameters (duration, game_counter, start) from the original or payload
+    if ($originalId > 0) {
+        $new_block = $old_schema[$shift_idx];
+    } else {
+        $new_block = [
+            'duration' => (int)$b_data['duration'],
+            'game_counter' => (int)$b_data['game_counter'],
+            'start' => $b_data['start']
+        ];
+    }
     
     // Update lineup en bench met the dragged data
     $new_block['lineup'] = $b_data['lineup'];
@@ -88,6 +100,12 @@ foreach ($blocks as $idx => $b_data) {
     
     $new_schema[$shift_idx] = $new_block;
 }
+
+// 0. Payload Beveiliging: Voorkom dat half-geladen of corrupte payloads een heel schema overschrijven
+if (count($new_schema) < 2) {
+    die(json_encode(['success' => false, 'error' => 'Data corruptie beveiliging: Het netwerk heeft een incompleet schema (slechts 1 helft) doorgestuurd. Actie afgebroken om the database te beschermen.']));
+}
+
 
 // Nu berekenen we de min_pos categorie in the back ground
 $min_pos = 999;
@@ -148,7 +166,7 @@ $overwrite = isset($data['overwrite_mode']) ? filter_var($data['overwrite_mode']
 
 $duplicate_id = null;
 if (!$overwrite) {
-    $stmtDup = $pdo->prepare("SELECT id, schema_data FROM lineups WHERE game_format = ? AND player_count = ? AND team_id = ?");
+    $stmtDup = $pdo->prepare("SELECT id, schema_data FROM lineups WHERE game_format = ? AND player_count = ? AND (team_id = ? OR team_id IS NULL)");
     $stmtDup->execute([$format, $aantal, $_SESSION['team_id']]);
     while ($row = $stmtDup->fetch()) {
         $db_schema = json_decode($row['schema_data'], true);

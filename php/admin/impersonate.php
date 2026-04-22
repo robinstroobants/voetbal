@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once 'getconn.php';
+require_once dirname(__DIR__) . '/getconn.php';
 
 $action = $_GET['action'] ?? '';
 

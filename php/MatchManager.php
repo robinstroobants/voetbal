@@ -13,8 +13,13 @@ class MatchManager {
      */
     public function getSelection(int $gameId): array {
         // 1. Haal basis match informatie op
-        $stmtGame = $this->pdo->prepare("SELECT opponent, game_date, format, min_pos FROM games WHERE id = :id AND team_id = :team_id");
-        $stmtGame->execute(['id' => $gameId, 'team_id' => $_SESSION['team_id']]);
+        if (isset($_SESSION['role']) && $_SESSION['role'] === 'superadmin') {
+            $stmtGame = $this->pdo->prepare("SELECT opponent, game_date, format, min_pos FROM games WHERE id = :id");
+            $stmtGame->execute(['id' => $gameId]);
+        } else {
+            $stmtGame = $this->pdo->prepare("SELECT opponent, game_date, format, min_pos FROM games WHERE id = :id AND team_id = :team_id");
+            $stmtGame->execute(['id' => $gameId, 'team_id' => $_SESSION['team_id']]);
+        }
         $game = $stmtGame->fetch(PDO::FETCH_ASSOC);
 
         if (!$game) {
@@ -202,16 +207,27 @@ class MatchManager {
      * Haalt alle speelminuten historiek op uit de database op basis van bewaarde "finale" selecties.
      * Berekeningen gebeuren dynamisch door de wisselschemas uit te voeren met de opgeslagen speler-volgorde.
      */
-    public function getHistoricalPlaytime(): array {
+    public function getHistoricalPlaytime(?int $teamId = null): array {
+        if ($teamId === null && isset($_SESSION['team_id'])) {
+            $teamId = (int)$_SESSION['team_id'];
+        }
 
-        $stmt = $this->pdo->query("
+        $query = "
             SELECT l.game_id, l.schema_id, l.player_order, g.game_date, g.opponent, g.format,
                    (SELECT COUNT(*) FROM game_selections gs WHERE gs.game_id = g.id AND gs.is_goalkeeper = 1) as gk_count
             FROM game_lineups l 
             JOIN games g ON l.game_id = g.id 
             WHERE l.is_final = 1
-            ORDER BY g.game_date ASC
-        ");
+        ";
+        $params = [];
+        if ($teamId) {
+            $query .= " AND g.team_id = ? ";
+            $params[] = $teamId;
+        }
+        $query .= " ORDER BY g.game_date ASC";
+
+        $stmt = $this->pdo->prepare($query);
+        $stmt->execute($params);
 
         $pt_all_games = [];
 

@@ -615,21 +615,7 @@ require_once 'header.php';
                 </div>
                 <?php endif; ?>
 
-                <!-- Totaal Spelers (Moved here) -->
-                <h5 class="fw-bold text-dark mb-3"><i class="fa-solid fa-users text-muted me-2"></i>Spelers</h5>
-                <a href="/players" class="text-decoration-none">
-                    <div class="card stat-card shadow-sm border-0 h-100 mb-4">
-                        <div class="card-body d-flex align-items-center">
-                            <div class="bg-primary bg-opacity-10 text-primary rounded-circle d-flex justify-content-center align-items-center me-3" style="width: 48px; height: 48px;">
-                                <i class="fa-solid fa-users fs-5"></i>
-                            </div>
-                            <div>
-                                <div class="text-muted small fw-bold text-uppercase">Totaal Spelers in Team</div>
-                                <h3 class="fw-bold text-dark mb-0"><?= $players_count ?> <i class="fa-solid fa-chevron-right fs-6 text-muted mt-1 ms-1" style="vertical-align: middle;"></i></h3>
-                            </div>
-                        </div>
-                    </div>
-                </a>
+
         </div>
 
     <?php endif; ?>

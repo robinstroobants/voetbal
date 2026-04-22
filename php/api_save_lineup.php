@@ -57,11 +57,19 @@ try {
         // Set this one to final
         $pdo->prepare("UPDATE game_lineups SET is_final = 1 WHERE id = ?")->execute([$lineup_id]);
         
+        require_once 'MatchManager.php';
+        $mm = new MatchManager($pdo);
+        $mm->syncGameLogs($game_id);
+        
         echo json_encode(["status" => "success"]);
     }
     elseif ($action === 'unlock') {
         // Unlock all lineups for generating mode
         $pdo->prepare("UPDATE game_lineups SET is_final = 0 WHERE game_id = ?")->execute([$game_id]);
+        
+        require_once 'MatchManager.php';
+        $mm = new MatchManager($pdo);
+        $mm->syncGameLogs($game_id);
         
         echo json_encode(["status" => "success"]);
     }

@@ -314,4 +314,86 @@ class MatchManager {
 
         return $pt_all_games;
     }
+
+    /**
+     * Synchroniseer de speelminuten logtabellen voor een specifieke wedstrijd
+     * op basis van de actueel "finale" opstelling.
+     */
+    public function syncGameLogs(int $gameId): void {
+        // 1. Verwijder altijd eerst de bestaande logs voor deze game
+        $this->pdo->prepare("DELETE FROM game_playtime_logs WHERE game_id = ?")->execute([$gameId]);
+        $this->pdo->prepare("DELETE FROM game_shift_logs WHERE game_id = ?")->execute([$gameId]);
+
+        // 2. Zoek de finale opstelling voor deze game
+        $stmtL = $this->pdo->prepare("
+            SELECT gl.schema_id, gl.player_order, g.coach_id, l.schema_data 
+            FROM game_lineups gl
+            JOIN games g ON g.id = gl.game_id
+            JOIN lineups l ON l.id = gl.schema_id
+            WHERE gl.game_id = ? AND gl.is_final = 1
+        ");
+        $stmtL->execute([$gameId]);
+        $lData = $stmtL->fetch(PDO::FETCH_ASSOC);
+
+        if (!$lData || empty($lData['schema_data']) || empty($lData['player_order'])) {
+            return; // Geen finale opstelling, dus ook geen speelminuten
+        }
+
+        $coach_id = $lData['coach_id'];
+        $player_order = explode(',', $lData['player_order']);
+        $schema_data = json_decode($lData['schema_data'], true);
+
+        if (!is_array($schema_data)) {
+            return;
+        }
+
+        $totals = [];
+        foreach ($player_order as $pid) {
+            $pid = trim($pid);
+            if (!empty($pid)) {
+                $totals[$pid] = ['played' => 0, 'bank' => 0, 'gk' => 0];
+            }
+        }
+
+        $stmtShift = $this->pdo->prepare("INSERT INTO game_shift_logs (game_id, player_id, shift_index, position, duration_seconds) VALUES (?, ?, ?, ?, ?)");
+
+        foreach ($schema_data as $shift_idx => $shift) {
+            if (!is_numeric($shift_idx)) continue;
+            
+            $duration = (int)($shift['duration'] ?? 0);
+
+            // Veldspelers en Doelman
+            if (isset($shift['lineup']) && is_array($shift['lineup'])) {
+                foreach ($shift['lineup'] as $pos => $p_idx) {
+                    if (isset($player_order[$p_idx])) {
+                        $real_pid = $player_order[$p_idx];
+                        $stmtShift->execute([$gameId, $real_pid, $shift_idx, (string)$pos, $duration]);
+                        
+                        $totals[$real_pid]['played'] += $duration;
+                        if ((int)$pos === 1) { // pos 1 is doelman
+                            $totals[$real_pid]['gk'] += $duration;
+                        }
+                    }
+                }
+            }
+
+            // Bankzitters
+            if (isset($shift['bench']) && is_array($shift['bench'])) {
+                foreach ($shift['bench'] as $p_idx) {
+                    if (isset($player_order[$p_idx])) {
+                        $real_pid = $player_order[$p_idx];
+                        $stmtShift->execute([$gameId, $real_pid, $shift_idx, 'BANK', $duration]);
+                        
+                        $totals[$real_pid]['bank'] += $duration;
+                    }
+                }
+            }
+        }
+
+        // Sla geaggregeerde totalen op
+        $stmtTotals = $this->pdo->prepare("INSERT INTO game_playtime_logs (game_id, player_id, coach_id, seconds_played, seconds_bank, seconds_gk) VALUES (?, ?, ?, ?, ?, ?)");
+        foreach ($totals as $pid => $t) {
+            $stmtTotals->execute([$gameId, $pid, $coach_id, $t['played'], $t['bank'], $t['gk']]);
+        }
+    }
 }

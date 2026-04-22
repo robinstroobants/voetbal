@@ -231,6 +231,10 @@ if ($overwrite && !empty($data['original_schema_id'])) {
     $new_id = (int)$data['original_schema_id'];
     $stmtUpd = $pdo->prepare("UPDATE lineups SET schema_data = ? WHERE id = ?");
     $stmtUpd->execute([json_encode($new_schema), $new_id]);
+    
+    // Zorg dat the playtimelogs herrekend worden nu het schema (dat finaal kon zijn) is gewijzigd
+    $mm = new MatchManager($pdo);
+    $mm->syncGameLogs($gameId);
 } else {
     // Nieuw schema opslaan, eventueel met parent_id = originalId
     $stmtIns = $pdo->prepare("INSERT INTO lineups (game_format, player_count, legacy_id, parent_id, schema_data, is_original, team_id) VALUES (?, ?, 0, ?, ?, 0, ?)");

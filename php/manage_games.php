@@ -54,8 +54,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $check = $pdo->prepare("SELECT id FROM games WHERE id = ? AND team_id = ?");
                 $check->execute([$sourceGameId, $_SESSION['team_id']]);
                 if ($check->fetchColumn()) {
-                    $pdo->prepare("INSERT INTO game_selections (game_id, player_id, is_goalkeeper) 
-                                   SELECT ?, player_id, is_goalkeeper FROM game_selections WHERE game_id = ?")
+                    $pdo->prepare("INSERT INTO game_selections (game_id, player_id, status_id, is_goalkeeper) 
+                                   SELECT ?, player_id, status_id, is_goalkeeper FROM game_selections WHERE game_id = ?")
                         ->execute([$newGameId, $sourceGameId]);
                 }
             }

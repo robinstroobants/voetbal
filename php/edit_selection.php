@@ -13,7 +13,7 @@ $stmt->execute(['id' => $gameId, 'team_id' => $_SESSION['team_id']]);
 $game = $stmt->fetch(PDO::FETCH_ASSOC);
 
 if (!$game) {
-    header("Location: manage_games.php");
+    header("Location: /games");
     exit;
 }
 
@@ -71,7 +71,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     }
     
     // Redirect direct naar de opstellingengenerator na opslaan
-    header("Location: lineup.php?wedstrijd=" . $gameId);
+    header("Location: /games/" . $gameId . "/lineup");
     exit;
 }
 

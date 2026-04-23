@@ -96,9 +96,24 @@ if ($game_duration_min == 15 && $nr_of_games >= 2) {
             $blocks[] = 5; $blocks[] = 10;
         }
     }
-    $patterns['custom_10_5'] = [
-        'name' => "W1&W2 halften, W3(10m-5m), W4(5m-10m)",
+    $patterns['custom_10_5_end'] = [
+        'name' => "W1&W2 helften, W3(10m-5m), W4(5m-10m)",
         'blocks' => $blocks
+    ];
+    
+    $blocks_start = [];
+    for ($i=0; $i<$nr_of_games; $i++) {
+        if ($i >= 2) {
+            $blocks_start[] = 7.5; $blocks_start[] = 7.5;
+        } else if ($i % 2 == 0) {
+            $blocks_start[] = 10; $blocks_start[] = 5;
+        } else {
+            $blocks_start[] = 5; $blocks_start[] = 10;
+        }
+    }
+    $patterns['custom_10_5_start'] = [
+        'name' => "W1(10m-5m), W2(5m-10m), W3&W4 helften",
+        'blocks' => $blocks_start
     ];
     
     $blocks2 = [];
@@ -113,9 +128,22 @@ if ($game_duration_min == 15 && $nr_of_games >= 2) {
         'name' => "Afwisselend 10m-5m en 5m-10m per wedstrijd",
         'blocks' => $blocks2
     ];
+    
+    $blocks3 = [];
+    for ($i=0; $i<$nr_of_games; $i++) {
+        if ($i % 2 == 0) {
+            $blocks3[] = 5; $blocks3[] = 10;
+        } else {
+            $blocks3[] = 10; $blocks3[] = 5;
+        }
+    }
+    $patterns['custom_5_10_all'] = [
+        'name' => "Afwisselend 5m-10m en 10m-5m per wedstrijd",
+        'blocks' => $blocks3
+    ];
 }
 
-$selected_pattern_key = $_GET['pattern'] ?? 'default';
+$selected_pattern_key = $_GET['pattern'] ?? (isset($patterns['half']) ? 'half' : 'default');
 if (!isset($patterns[$selected_pattern_key])) {
     $selected_pattern_key = array_key_first($patterns);
 }

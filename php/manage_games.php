@@ -436,25 +436,20 @@ require_once 'header.php';
                         <tbody>
                             <?php foreach($week['games'] as $game): ?>
                                 <tr class="game-row" data-coach="<?= htmlspecialchars($game['coach_name'] ?: 'NO_COACH') ?>">
-                                    <td class="ps-4 fw-medium text-muted date-cell" style="width: 15%">
-                                        <?php 
+                                    <td class="ps-4 fw-medium text-muted date-cell playdate-cell" title="<?= date('d/m/Y', strtotime($game['game_date'])) ?>">
+                                        <span><?php 
                                             $t_date = strtotime($game['game_date']);
                                             $has_time = date('H:i:s', $t_date) !== '00:00:00';
                                             $is_future = $t_date >= strtotime('today');
-                                            echo date('d/m/Y', $t_date);
-                                        ?>
+                                            echo date('d/m', $t_date);
+                                        ?></span>
                                         <?php if ($has_time): ?>
                                             <br><small><i class="fa-regular fa-clock"></i> <?= date('H:i', $t_date) ?></small>
                                         <?php elseif ($is_future): ?>
                                             <br><a href="#" onclick="openGameModal(<?= htmlspecialchars(json_encode($game), ENT_QUOTES, 'UTF-8') ?>); return false;" class="text-danger fw-bold small text-decoration-none" title="Tijd instellen!"><i class="fa-solid fa-triangle-exclamation"></i> Tijd?</a>
                                         <?php endif; ?>
                                     </td>
-                                    <td class="fw-bold text-dark opp-cell">
-                                        <?php if($game['coach_name']): 
-                                            $cColor = isset($coachColorMap[$game['coach_name']]) ? $coachColorMap[$game['coach_name']] : 'bg-secondary text-white';
-                                        ?>
-                                            <span class="badge <?= $cColor ?> rounded-pill me-1"><?= htmlspecialchars($game['coach_first_name']) ?></span>
-                                        <?php endif; ?>
+                                    <td class="fw-bold text-dark opp-cell" nowrap>
                                         <a href="#" onclick="openGameModal(<?= htmlspecialchars(json_encode($game), ENT_QUOTES, 'UTF-8') ?>); return false;" class="text-decoration-none text-dark hover-primary" title="Bewerk Wedstrijd">
                                             <?php if(isset($game['is_home']) && $game['is_home'] == 0): ?>
                                                 <i class="fa-solid fa-plane text-secondary me-1" title="Uit"></i>
@@ -464,7 +459,15 @@ require_once 'header.php';
                                             <?= htmlspecialchars($game['opponent']) ?>
                                         </a>
                                     </td>
-                                    <td>
+                                    <td class="coach-cell">
+<?php if($game['coach_name']): 
+                                            $cColor = isset($coachColorMap[$game['coach_name']]) ? $coachColorMap[$game['coach_name']] : 'bg-secondary text-white';
+                                        ?>
+                                            <span class="badge <?= $cColor ?> rounded-pill me-1"><?= htmlspecialchars($game['coach_first_name']) ?></span>
+                                        <?php endif; ?>
+                                    </td>
+                                    
+                                    <td nowrap>
                                         <?php if($game['selection_count'] > 0): 
                                             $sel_ids = $game['selected_player_ids'] ? explode(',', $game['selected_player_ids']) : [];
                                             $names = [];

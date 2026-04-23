@@ -167,3 +167,20 @@ table.table,
 .timetable .col {
     padding: 0 !important;
 }
+
+.playdate-cell {
+    width: 95px;
+    text-align: center;
+}
+
+.playdate-cell>span {
+    font-size: 19px;
+}
+
+.coach-cell {
+    min-width: 90px;
+}
+
+.opp-cell {
+    width: 150px;
+}

@@ -168,14 +168,13 @@ require_once 'header.php';
         <div class="card-body">
             <form method="POST">
                 <input type="hidden" name="action" value="save_settings">
-                <div class="mb-3">
-                    <label class="form-label fw-bold">Ploegnaam</label>
-                    <input type="text" name="team_name" class="form-control" value="<?= htmlspecialchars($team['name'] ?? '') ?>" required>
-                </div>
-                
-                <div class="row mb-4">
-                    <div class="col-md-6">
-                        <label class="form-label fw-bold">Aantal Spelers</label>
+                <div class="row">
+                    <div class="col-md-3 mb-4">
+                         <label class="form-label fw-bold">Ploegnaam</label>
+                         <input type="text" name="team_name" class="form-control" value="<?= htmlspecialchars($team['name'] ?? '') ?>" required>
+                    </div>
+                    <div class="col-md-1">
+                        <label class="form-label fw-bold">Format</label>
                         <select name="default_format" id="default_format" class="form-select border-secondary">
                             <option value="11v11" <?= ($team['default_format'] == '11v11') ? 'selected' : '' ?>>11v11</option>
                             <option value="8v8" <?= ($team['default_format'] == '8v8') ? 'selected' : '' ?>>8v8</option>
@@ -183,26 +182,26 @@ require_once 'header.php';
                             <option value="3v3" <?= ($team['default_format'] == '3v3') ? 'selected' : '' ?>>3v3</option>
                             <option value="2v2" <?= ($team['default_format'] == '2v2') ? 'selected' : '' ?>>2v2</option>
                         </select>
-                        <div class="form-text">De basis grootte van jouw team.</div>
                     </div>
-                    <div class="col-md-6 mt-3 mt-md-0">
-                        <label class="form-label fw-bold">Wedstrijdindeling</label>
+                    <div class="col-md-2 mt-3 mt-md-0">
+                        <label class="form-label fw-bold">Wedstrijdduur</label>
                         <select name="default_game_parts" id="default_game_parts" class="form-select border-secondary">
                             <!-- Opties worden ingevuld via JS -->
                         </select>
-                        <div class="form-text">Beschikbare indelingen gebaseerd op de matrix.</div>
                     </div>
+                    <div class="col-md-3 mt-3 mt-md-0">
+                        <label class="form-label fw-bold">Samenkomsttijd</label>
+                        <div class="input-group">
+                            <input type="number" name="meeting_time_offset" class="form-control" value="<?= htmlspecialchars($team['meeting_time_offset'] ?? 45) ?>" min="0" required>
+                            <span class="input-group-text">min voor de match</span>
+                        </div>
+                    </div>
+
+
+
                 </div>
 
-                <div class="mb-4">
-                    <label class="form-label fw-bold">Samenkomsttijd</label>
-                    <div class="input-group">
-                        <input type="number" name="meeting_time_offset" class="form-control" value="<?= htmlspecialchars($team['meeting_time_offset'] ?? 45) ?>" min="0" required>
-                        <span class="input-group-text">minuten voor de match</span>
-                    </div>
-                    <div class="form-text">Standaardwaarde die gebruikt wordt bij het genereren van het WhatsApp bericht.</div>
-                </div>
-
+               
                 <script>
                 document.addEventListener('DOMContentLoaded', function() {
                     const availableParts = <?= $json_available_parts ?>;
@@ -235,15 +234,16 @@ require_once 'header.php';
                     updateParts(); // Initial call
                 });
                 </script>
+                        <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk me-2"></i> Opslaan</button>
 
-                <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk me-2"></i> Wijzigingen Opslaan</button>
+                
             </form>
         </div>
     </div>
 
     <!-- PERIODES SECTION -->
     <h3 class="mt-5"><i class="fa-solid fa-calendar-week me-2 text-primary"></i> Seizoensperiodes</h3>
-    <p class="text-muted">Splits je statistieken en speelminuten op in gedetailleerde periodes (bv. Voorbereiding, Najaar).</p>
+    <p class="text-muted">Splits je statistieken en speelminuten op in gedetailleerde periodes (bv. Voorbereiding, Najaar, 6 weken, ...).</p>
     
     <div class="card shadow-sm border-0 mt-3">
         <div class="card-body d-flex justify-content-between align-items-center">

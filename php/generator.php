@@ -120,6 +120,7 @@
       $locked_lineup = null;
       $preview_lineup = null;
       $preview_id = $_GET['preview'] ?? null;
+      $generate_requested = (isset($_GET['generate']) && $_GET['generate'] == 1);
 
       foreach ($saved_lineups as $sl) {
           if ($preview_id && $sl['id'] == $preview_id) {
@@ -131,6 +132,12 @@
       }
 
       $active_lineup = $preview_lineup ?? $locked_lineup;
+
+      // Optimalisatie: Voorkom overbodige herberekeningen
+      if (!$active_lineup && !empty($saved_lineups) && !$generate_requested) {
+          $active_lineup = $saved_lineups[0]; // Laad simpelweg de 1e (beste) opgeslagen optie
+          $preview_lineup = $active_lineup; // Behandel het in de UI als een preview
+      }
 
       if ($active_lineup) {
           $shuffle_type = "coach";

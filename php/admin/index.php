@@ -306,8 +306,8 @@ require_once __DIR__ . '/../header.php';
     <?php endif; ?>
 
     <div class="row mb-4">
-        <div class="col-md-4 mb-2">
-            <div class="card shadow-sm border-0 bg-primary text-white h-100">
+        <div class="col-md-6 mb-2">
+            <div class="card shadow-sm border-0 bg-primary text-white h-100 position-relative" style="transition: transform 0.2s; cursor: pointer;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
                 <div class="card-body d-flex align-items-center">
                     <i class="fa-solid fa-user-plus fa-2x opacity-50 me-3"></i>
                     <div>
@@ -315,26 +315,20 @@ require_once __DIR__ . '/../header.php';
                         <h3 class="mb-0 fw-bold"><?= $admin_stats['new_users_7d'] ?></h3>
                     </div>
                 </div>
+                <a href="#superadminSearch" class="stretched-link" onclick="setTimeout(() => document.getElementById('superadminSearch').focus(), 100);"></a>
             </div>
         </div>
-        <div class="col-md-4 mb-2">
+        <div class="col-md-6 mb-2">
             <div class="card shadow-sm border-0 bg-success text-white h-100">
                 <div class="card-body d-flex align-items-center">
                     <i class="fa-solid fa-envelope-circle-check fa-2x opacity-50 me-3"></i>
                     <div>
-                        <h6 class="mb-1 opacity-75 fw-normal">Geaccepteerde Invites</h6>
-                        <h3 class="mb-0 fw-bold"><?= $admin_stats['invites_accepted'] ?></h3>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-4 mb-2">
-            <div class="card shadow-sm border-0 bg-secondary text-white h-100">
-                <div class="card-body d-flex align-items-center">
-                    <i class="fa-solid fa-envelope-open-text fa-2x opacity-50 me-3"></i>
-                    <div>
-                        <h6 class="mb-1 opacity-75 fw-normal">Openstaande Invites</h6>
-                        <h3 class="mb-0 fw-bold"><?= $admin_stats['invites_pending'] ?></h3>
+                        <h6 class="mb-1 opacity-75 fw-normal">Team Invitaties</h6>
+                        <h4 class="mb-0 fw-bold">
+                            <span title="Geaccepteerd"><?= $admin_stats['invites_accepted'] ?> <i class="fa-solid fa-check small opacity-75"></i></span> 
+                            <span class="opacity-50 mx-2">|</span> 
+                            <span title="Openstaand"><?= $admin_stats['invites_pending'] ?> <i class="fa-solid fa-clock small opacity-75"></i></span>
+                        </h4>
                     </div>
                 </div>
             </div>

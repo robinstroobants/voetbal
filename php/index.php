@@ -18,9 +18,11 @@ $stmtC->execute([$team_id]);
 $coaches_count = (int)$stmtC->fetchColumn();
 
 // Extraheer format requirements
-$stmtF = $pdo->prepare("SELECT default_format FROM teams WHERE id = ?");
+$stmtF = $pdo->prepare("SELECT default_format, meeting_time_offset FROM teams WHERE id = ?");
 $stmtF->execute([$_SESSION['team_id']]);
-$default_format = $stmtF->fetchColumn() ?: '8v8';
+$teamData = $stmtF->fetch(PDO::FETCH_ASSOC);
+$default_format = $teamData['default_format'] ?? '8v8';
+$meeting_time_offset = $teamData['meeting_time_offset'] ?? 45;
 
 $required_players = 8;
 if (preg_match('/^(\d+)v\d+/', $default_format, $matches)) {
@@ -69,10 +71,10 @@ if ($onboarding_complete) {
         // Genereer WhatsApp Bericht Template
         $ts = strtotime($next_game['game_date']);
         $dateStr = (date('H:i', $ts) === '00:00') ? date('d/m/Y', $ts) : date('d/m/Y', $ts);
-        $samenkomstStr = (date('H:i', $ts) === '00:00') ? "Nog te bepalen" : date('H:i', $ts - 3600);
+        $samenkomstStr = (date('H:i', $ts) === '00:00') ? "Nog te bepalen" : date('H:i', $ts - ($meeting_time_offset * 60));
         
         $wa_msg = "Beste ouders, hierbij de selectie voor de wedstrijd tegen *" . $next_game['opponent'] . "* op " . $dateStr . ".\n";
-        $wa_msg .= "Samenkomst: *" . $samenkomstStr . "* (60min voor de start).\n\n";
+        $wa_msg .= "Samenkomst: *" . $samenkomstStr . "* (" . $meeting_time_offset . "min voor de start).\n\n";
         $wa_msg .= "*Selectie:*\n";
         
         $has_active_players = false;

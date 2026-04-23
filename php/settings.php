@@ -13,13 +13,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $team_name = trim($_POST['team_name'] ?? '');
         $default_format = trim($_POST['default_format'] ?? '8v8');
         $default_game_parts = trim($_POST['default_game_parts'] ?? '4x15');
+        $meeting_time_offset = (int)($_POST['meeting_time_offset'] ?? 45);
 
         if ($team_name) {
-            $stmt = $pdo->prepare("UPDATE teams SET name = ?, default_format = ?, default_game_parts = ? WHERE id = ?");
-            if ($stmt->execute([$team_name, $default_format, $default_game_parts, $team_id])) {
+            $stmt = $pdo->prepare("UPDATE teams SET name = ?, default_format = ?, default_game_parts = ?, meeting_time_offset = ? WHERE id = ?");
+            if ($stmt->execute([$team_name, $default_format, $default_game_parts, $meeting_time_offset, $team_id])) {
                 $_SESSION['team_name'] = $team_name;
                 $_SESSION['default_format'] = $default_format;
                 $_SESSION['default_game_parts'] = $default_game_parts;
+                $_SESSION['meeting_time_offset'] = $meeting_time_offset;
                 $success = "De instellingen zijn succesvol opgeslagen.";
             } else {
                 $error = "Er liep iets mis bij het opslaan.";
@@ -95,7 +97,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $success = "Uitnodiging geannuleerd.";
     } elseif ($action === 'remove_coach') {
         $rem_user_id = (int)$_POST['user_id'];
-        if ($rem_user_id !== (int)$_SESSION['user_id']) { 
+        
+        $stmtOwner = $pdo->prepare("SELECT user_id FROM teams WHERE id = ?");
+        $stmtOwner->execute([$team_id]);
+        $owner_id = (int)$stmtOwner->fetchColumn();
+
+        if ($rem_user_id === $owner_id) {
+            $error = "De eigenaar van het team kan niet verwijderd worden.";
+        } elseif ($rem_user_id !== (int)$_SESSION['user_id']) { 
             $pdo->prepare("DELETE FROM user_teams WHERE user_id = ? AND team_id = ?")->execute([$rem_user_id, $team_id]);
             $success = "Coach verwijderd uit het team.";
         } else {
@@ -105,7 +114,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // Ophalen van bestaande team_data
-$stmt = $pdo->prepare("SELECT name, default_format, default_game_parts FROM teams WHERE id = ?");
+$stmt = $pdo->prepare("SELECT name, default_format, default_game_parts, meeting_time_offset, user_id as owner_id FROM teams WHERE id = ?");
 $stmt->execute([$team_id]);
 $team = $stmt->fetch();
 
@@ -185,6 +194,15 @@ require_once 'header.php';
                     </div>
                 </div>
 
+                <div class="mb-4">
+                    <label class="form-label fw-bold">Samenkomsttijd</label>
+                    <div class="input-group">
+                        <input type="number" name="meeting_time_offset" class="form-control" value="<?= htmlspecialchars($team['meeting_time_offset'] ?? 45) ?>" min="0" required>
+                        <span class="input-group-text">minuten voor de match</span>
+                    </div>
+                    <div class="form-text">Standaardwaarde die gebruikt wordt bij het genereren van het WhatsApp bericht.</div>
+                </div>
+
                 <script>
                 document.addEventListener('DOMContentLoaded', function() {
                     const availableParts = <?= $json_available_parts ?>;
@@ -250,14 +268,16 @@ require_once 'header.php';
                     <strong class="d-block text-dark"><?= htmlspecialchars($c['first_name'] . ' ' . $c['last_name']) ?> <span class="badge bg-success ms-1" style="font-size:0.6rem;">Actief</span></strong>
                     <span class="text-muted small"><?= htmlspecialchars($c['email']) ?></span>
                 </div>
-                <?php if($c['id'] != $_SESSION['user_id']): ?>
+                <?php if($c['id'] == $team['owner_id']): ?>
+                    <span class="badge bg-primary text-white border"><i class="fa-solid fa-crown me-1"></i>Eigenaar</span>
+                <?php elseif($c['id'] == $_SESSION['user_id']): ?>
+                    <span class="badge bg-light text-muted border">Jezelf</span>
+                <?php else: ?>
                 <form method="POST" onsubmit="return confirm('Weet je zeker dat je deze coach uit het team wil verwijderen?');" class="m-0">
                     <input type="hidden" name="action" value="remove_coach">
                     <input type="hidden" name="user_id" value="<?= $c['id'] ?>">
                     <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fa-solid fa-trash me-1"></i> Ontkoppel</button>
                 </form>
-                <?php else: ?>
-                    <span class="badge bg-light text-muted border">Jezelf</span>
                 <?php endif; ?>
             </li>
             <?php endforeach; ?>

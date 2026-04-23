@@ -123,6 +123,11 @@ if (isset($routes[$path])) {
         require_once __DIR__ . '/schema_builder.php';
         $route_matched = true;
     }
+    elseif (preg_match('#^/share/([a-zA-Z0-9]+)$#', $path, $matches)) {
+        $_GET['token'] = $matches[1];
+        require_once __DIR__ . '/public_share.php';
+        $route_matched = true;
+    }
 }
 
 // 4. Fallback voor native requests (.php, scripts, API)

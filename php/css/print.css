@@ -1,0 +1,161 @@
+@page {
+    margin-top: 0.5cm;
+    margin-bottom: 0.5cm;
+}
+
+body,
+body.premium-bg {
+    background: transparent !important;
+    color: #000 !important;
+    font-size: 10pt !important;
+    /* Base font smaller */
+    min-height: auto !important;
+    height: auto !important;
+    display: block !important;
+}
+
+/* Fallback for Safari/Chrome ignoring @page margins */
+main>.container {
+    padding-top: 0 !important;
+    display: block !important;
+}
+
+.row {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+}
+
+.new-print-page {
+    page-break-before: always !important;
+    padding-top: 0 !important;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+label,
+li,
+.text-primary {
+    color: #000 !important;
+}
+
+
+.mb-4,
+.my-4,
+.mt-4 {
+    margin-bottom: 5px !important;
+    margin-top: 5px !important;
+}
+
+/* Hide elements not needed in print */
+.glass-nav,
+.btn,
+.d-print-none,
+.no-print {
+    display: none !important;
+}
+
+/* Remove glass effects, keep it clean/black-and-white */
+.card,
+.timetable>div,
+.bg-light,
+table.table,
+.table td,
+.table th,
+.list-group-item {
+    background: transparent !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    box-shadow: none !important;
+    color: #000 !important;
+}
+
+h5 {
+    margin-bottom: 2px !important;
+}
+
+hr {
+    margin: 10px 0 !important;
+}
+
+table.table,
+.table th,
+.table td {
+    border-color: #000 !important;
+    border: 1px solid #000 !important;
+    padding: 1px 2px !important;
+    /* Compact table cells */
+    font-size: 8pt !important;
+    /* Reduce text in lineup tables */
+}
+
+/* Print-friendly list items (save ink) */
+.list-group-item {
+    border: none !important;
+    border-bottom: 1px solid #ddd !important;
+}
+
+/* Page Breaks */
+.new-print-page {
+    page-break-before: always !important;
+}
+
+/* Force stats table to next page */
+.timetable:first-of-type {
+    page-break-before: always !important;
+}
+
+/* Badges as simple outlined text */
+.badge.bg-primary {
+    background: transparent !important;
+    color: #000 !important;
+    border: 1px solid #000 !important;
+    font-size: 12px !important;
+    padding: 2px 5px !important;
+    margin-top: 5px !important;
+}
+
+/* Compact lineup */
+.lineup-col {
+    line-height: 1.1 !important;
+    font-size: 13px !important;
+    padding: 0 !important;
+}
+
+
+.pos-num {
+    font-size: 10px !important;
+    font-weight: bold !important;
+    color: #555 !important;
+}
+
+/* Forceer de zichtbaarheid van de actieve tab */
+.tab-content>.tab-pane {
+    display: none !important;
+    visibility: hidden !important;
+    height: 0 !important;
+    overflow: hidden !important;
+}
+
+.tab-content>.active {
+    display: block !important;
+    visibility: visible !important;
+    height: auto !important;
+    opacity: 1 !important;
+}
+
+/* Zorg dat de Bootstrap 'fade' animatie de print niet verpest */
+.fade {
+    opacity: 1 !important;
+    transition: none !important;
+}
+
+/* Zorg dat de main container en main tags zichtbaar zijn */
+main,
+.tab-content {
+    display: block !important;
+}

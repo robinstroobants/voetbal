@@ -45,8 +45,14 @@ try {
         // Add to game_lineups
         $stmt = $pdo->prepare("INSERT INTO game_lineups (game_id, schema_id, player_order, score, is_final) VALUES (?, ?, ?, ?, 0)");
         $stmt->execute([$game_id, $schema_id, $player_order, $score]);
+        
+        $new_id = $pdo->lastInsertId();
 
-        echo json_encode(["status" => "success", "message" => "Voorselectie opgeslagen!"]);
+        echo json_encode([
+            "status" => "success", 
+            "message" => "Voorselectie opgeslagen!",
+            "lineup_id" => $new_id
+        ]);
     } 
     elseif ($action === 'set_final') {
         $lineup_id = (int)($_POST['lineup_id'] ?? 0);
@@ -66,6 +72,9 @@ try {
     elseif ($action === 'unlock') {
         // Unlock all lineups for generating mode
         $pdo->prepare("UPDATE game_lineups SET is_final = 0 WHERE game_id = ?")->execute([$game_id]);
+        
+        // Breek actieve share tokens
+        $pdo->prepare("UPDATE games SET share_token = NULL, share_expires_at = NULL WHERE id = ?")->execute([$game_id]);
         
         require_once 'MatchManager.php';
         $mm = new MatchManager($pdo);

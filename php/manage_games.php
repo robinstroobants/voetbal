@@ -15,7 +15,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif ($action === 'save') {
         $gameId = !empty($_POST['game_id']) ? (int)$_POST['game_id'] : null;
         $opponent = trim($_POST['opponent']);
-        $gameDate = $_POST['game_date'];
+        
+        $gameDateInput = $_POST['game_date'];
+        $gameTimeInput = !empty($_POST['game_time']) ? trim($_POST['game_time']) : '00:00:00';
+        if (strlen($gameTimeInput) === 5) {
+            $gameTimeInput .= ':00'; // Append seconds for MySQL format
+        }
+        $gameDate = $gameDateInput . ' ' . $gameTimeInput;
+
         $baseFormat = $_POST['format'];
         $gameParts = $_POST['game_parts'];
         $format = $baseFormat . '_' . $gameParts;
@@ -323,7 +330,19 @@ require_once 'header.php';
                             <tbody>
                                 <?php foreach($phases[$phase] as $game): ?>
                                 <tr class="game-row" data-coach="<?= htmlspecialchars($game['coach_name'] ?: 'NO_COACH') ?>">
-                                    <td class="ps-4 fw-medium text-muted date-cell" style="width: 15%"><?= date('d/m/Y', strtotime($game['game_date'])) ?></td>
+                                    <td class="ps-4 fw-medium text-muted date-cell" style="width: 15%">
+                                        <?php 
+                                            $t_date = strtotime($game['game_date']);
+                                            $has_time = date('H:i:s', $t_date) !== '00:00:00';
+                                            $is_future = $t_date >= strtotime('today');
+                                            echo date('d/m/Y', $t_date);
+                                        ?>
+                                        <?php if ($has_time): ?>
+                                            <br><small><i class="fa-regular fa-clock"></i> <?= date('H:i', $t_date) ?></small>
+                                        <?php elseif ($is_future): ?>
+                                            <br><a href="#" onclick="openGameModal(<?= htmlspecialchars(json_encode($game), ENT_QUOTES, 'UTF-8') ?>); return false;" class="text-danger fw-bold small text-decoration-none" title="Tijd instellen!"><i class="fa-solid fa-triangle-exclamation"></i> Tijd?</a>
+                                        <?php endif; ?>
+                                    </td>
                                     <td class="fw-bold text-dark opp-cell">
                                         <?php if($game['coach_name']): 
                                             $cColor = isset($coachColorMap[$game['coach_name']]) ? $coachColorMap[$game['coach_name']] : 'bg-secondary text-white';
@@ -407,7 +426,19 @@ require_once 'header.php';
                         <tbody>
                             <?php foreach($week['games'] as $game): ?>
                                 <tr class="game-row" data-coach="<?= htmlspecialchars($game['coach_name'] ?: 'NO_COACH') ?>">
-                                    <td class="ps-4 fw-medium text-muted date-cell" style="width: 15%"><?= date('d/m/Y', strtotime($game['game_date'])) ?></td>
+                                    <td class="ps-4 fw-medium text-muted date-cell" style="width: 15%">
+                                        <?php 
+                                            $t_date = strtotime($game['game_date']);
+                                            $has_time = date('H:i:s', $t_date) !== '00:00:00';
+                                            $is_future = $t_date >= strtotime('today');
+                                            echo date('d/m/Y', $t_date);
+                                        ?>
+                                        <?php if ($has_time): ?>
+                                            <br><small><i class="fa-regular fa-clock"></i> <?= date('H:i', $t_date) ?></small>
+                                        <?php elseif ($is_future): ?>
+                                            <br><a href="#" onclick="openGameModal(<?= htmlspecialchars(json_encode($game), ENT_QUOTES, 'UTF-8') ?>); return false;" class="text-danger fw-bold small text-decoration-none" title="Tijd instellen!"><i class="fa-solid fa-triangle-exclamation"></i> Tijd?</a>
+                                        <?php endif; ?>
+                                    </td>
                                     <td class="fw-bold text-dark opp-cell">
                                         <?php if($game['coach_name']): 
                                             $cColor = isset($coachColorMap[$game['coach_name']]) ? $coachColorMap[$game['coach_name']] : 'bg-secondary text-white';
@@ -485,9 +516,15 @@ require_once 'header.php';
                   <label class="form-label text-muted small fw-bold">TEGENSTANDER</label>
                   <input type="text" class="form-control" name="opponent" id="modal_opponent" required placeholder="BV. FC Barcelona">
               </div>
-              <div class="mb-3">
-                  <label class="form-label text-muted small fw-bold">DATUM</label>
-                  <input type="date" class="form-control" name="game_date" id="modal_game_date" required>
+              <div class="row mb-3">
+                  <div class="col-md-6">
+                      <label class="form-label text-muted small fw-bold">DATUM</label>
+                      <input type="date" class="form-control" name="game_date" id="modal_game_date" required>
+                  </div>
+                  <div class="col-md-6">
+                      <label class="form-label text-muted small fw-bold">STARTUUR</label>
+                      <input type="time" class="form-control" name="game_time" id="modal_game_time">
+                  </div>
               </div>
               <div class="mb-3">
                   <label class="form-label text-muted small fw-bold">MIN. POSITIES PER SPELER</label>
@@ -639,6 +676,7 @@ function openGameModal(game = null, isDuplicate = false) {
         document.getElementById('modal_game_id').value = game.id;
         document.getElementById('modal_opponent').value = game.opponent;
         document.getElementById('modal_game_date').value = game.game_date ? game.game_date.split(' ')[0] : '';
+        document.getElementById('modal_game_time').value = (game.game_date && game.game_date.includes(' ') && !game.game_date.includes('00:00:00')) ? game.game_date.split(' ')[1].substring(0, 5) : '';
         document.getElementById('modal_min_pos').value = game.min_pos || '0';
         document.getElementById('modal_coach_id').value = game.coach_id || '';
         
@@ -660,6 +698,7 @@ function openGameModal(game = null, isDuplicate = false) {
         document.getElementById('modal_source_game_id').value = game.id;
         document.getElementById('modal_opponent').value = '';
         document.getElementById('modal_game_date').value = new Date().toISOString().split('T')[0];
+        document.getElementById('modal_game_time').value = '';
         document.getElementById('modal_min_pos').value = game.min_pos || '0';
         document.getElementById('modal_coach_id').value = game.coach_id || '';
         
@@ -679,6 +718,7 @@ function openGameModal(game = null, isDuplicate = false) {
     } else {
         document.getElementById('gameModalLabel').innerText = 'Nieuwe Wedstrijd Plannen';
         document.getElementById('modal_game_date').value = new Date().toISOString().split('T')[0];
+        document.getElementById('modal_game_time').value = '';
         document.getElementById('modal_min_pos').value = '0';
         document.getElementById('modal_coach_id').value = '';
         

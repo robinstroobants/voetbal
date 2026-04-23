@@ -13,6 +13,7 @@
     
   <main>
     <div class="container">
+      <?php if (!defined('PUBLIC_SHARE_MODE')): ?>
       <div class="d-flex justify-content-between align-items-center pt-3 pb-2">
           <div>
               <?php if ($prevGame): ?>
@@ -40,7 +41,13 @@
               <?php endif; ?>
           </div>
       </div>
+      <?php else: ?>
+          <h4 class="mb-4 mt-3 text-center" id="dynamic-page-title">
+              <i class="fa-solid fa-futbol me-2 text-primary"></i> <?= htmlspecialchars($matchData['game']['opponent'] ?? 'Opstelling') ?>
+          </h4>
+      <?php endif; ?>
       
+      <?php if (!$locked_lineup && !defined('PUBLIC_SHARE_MODE')): ?>
       <div class="d-print-none text-center mb-4 mt-2">
           <a href="/games/<?= $gameId ?>/edit" class="btn btn-outline-secondary btn-sm">
               <i class="fa-solid fa-pen me-1"></i> Wijzig Match
@@ -55,11 +62,15 @@
               <i class="fa-solid fa-file-pdf me-1"></i> Opslaan als PDF
           </button>
       </div>
+      <?php endif; ?>
       
-      <?php if (!empty($saved_lineups) && !$locked_lineup): ?>
-      <div class="card mb-4 border-primary d-print-none shadow-sm">
-          <div class="card-header bg-primary text-white">
-              <i class="fa-solid fa-star"></i> <strong>Opgeslagen Voorselecties</strong>
+      <?php if (!defined('PUBLIC_SHARE_MODE')): ?>
+      <div class="card mb-4 border-primary d-print-none shadow-sm" id="saved-lineups-container" style="<?= empty($saved_lineups) || $locked_lineup ? 'display:none;' : '' ?>">
+          <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+              <div><i class="fa-solid fa-star"></i> <strong>Opgeslagen Voorselecties</strong></div>
+              <a href="<?= build_url($base_url, ['wedstrijd' => $gameId, 'generate' => 1]) ?>" class="btn btn-sm btn-warning fw-bold text-dark shadow-sm">
+                  <i class="fa-solid fa-wand-magic-sparkles"></i> Genereer Nieuwe Opties
+              </a>
           </div>
           <div class="card-body p-0">
               <table class="table table-hover mb-0">
@@ -71,23 +82,24 @@
                           <th class="text-end">Acties</th>
                       </tr>
                   </thead>
-                  <tbody>
+                  <tbody id="saved-lineups-tbody">
+                  <?php if (!empty($saved_lineups)): ?>
                   <?php foreach ($saved_lineups as $idx => $sl): ?>
-                      <tr>
+                      <tr id="sl-row-<?= $sl['id'] ?>">
                           <td class="align-middle"><strong>#<?= htmlspecialchars($sl['schema_id']) ?></strong></td>
                           <td class="align-middle"><?= round($sl['score'], 2) ?>%</td>
                           <td class="align-middle text-muted small">
                               <?php
                                   $p_ids = explode(',', $sl['player_order']);
                                   $p_names = array_map('getPlayerName', $p_ids);
-                                  echo implode(', ', $p_names);
+                                  echo htmlspecialchars(implode(', ', $p_names));
                               ?>
                           </td>
                           <td class="text-end align-middle">
                               <a href="<?= build_url($base_url, ['wedstrijd' => $gameId, 'preview' => $sl['id']]) ?>" class="btn btn-sm btn-info text-white">
                                   <i class="fa-solid fa-eye"></i> Bekijk
                               </a>
-                              <button class="btn btn-sm btn-success" onclick="setFinalLineup(<?= $gameId ?>, <?= $sl['id'] ?>)">
+                              <button class="btn btn-sm btn-success ms-1" onclick="setFinalLineup(<?= $gameId ?>, <?= $sl['id'] ?>)">
                                   <i class="fa-solid fa-check"></i> Maak Definitief
                               </button>
                               <button class="btn btn-sm btn-outline-danger ms-1" onclick="deleteLineup(<?= $gameId ?>, <?= $sl['id'] ?>)">
@@ -96,6 +108,7 @@
                           </td>
                       </tr>
                   <?php endforeach; ?>
+                  <?php endif; ?>
                   </tbody>
               </table>
           </div>
@@ -103,7 +116,6 @@
       
       <?php if (!empty($top_selected_options)): ?>
           <h4 class="text-center d-print-none mt-5 mb-2"><i class="fa-solid fa-wand-magic-sparkles"></i> Actuele Gegenereerde Opties</h4>
-      <?php endif; ?>
       <?php endif; ?>
 
       <?php if (!empty($top_selected_options)): ?> 
@@ -123,9 +135,11 @@
           <?php if ($shuffle_type === 'coach'): ?>
               <?php if (isset($preview_lineup) && $preview_lineup): ?>
                   <li class="nav-item d-print-none" role="presentation">
+                      <?php if (isset($_GET['preview'])): ?>
                       <a href="<?= build_url($base_url, ['wedstrijd' => $gameId]) ?>" class="btn btn-secondary ms-3 btn-sm mt-1">
                           <i class="fa-solid fa-xmark"></i> Sluit Preview
                       </a>
+                      <?php endif; ?>
                       <button class="btn btn-success ms-2 btn-sm mt-1" onclick="setFinalLineup(<?= $gameId ?>, <?= $preview_lineup['id'] ?>)">
                           <i class="fa-solid fa-check"></i> Maak Definitief
                       </button>
@@ -135,17 +149,43 @@
                       <button class="btn btn-warning ms-3 btn-sm mt-1" onclick="unlockLineups(<?= $gameId ?>)">
                           <i class="fa-solid fa-lock-open"></i> Ontgrendel Wedstrijd (Genereer Opnieuw)
                       </button>
+                      <button onclick="window.print()" class="btn btn-outline-danger btn-sm ms-2 mt-1">
+                          <i class="fa-solid fa-file-pdf me-1"></i> Opslaan als PDF
+                      </button>
+                      
+                      <div class="btn-group ms-2 mt-1">
+                          <button type="button" class="btn btn-primary btn-sm" id="btnShareLink" onclick="generateShareLink(<?= $gameId ?>, 24)">
+                              <i class="fa-solid fa-share-nodes me-1"></i> Deel met Ouders (24u)
+                          </button>
+                          <button type="button" class="btn btn-primary btn-sm dropdown-toggle dropdown-toggle-split" data-bs-toggle="dropdown" aria-expanded="false">
+                            <span class="visually-hidden">Kies tijdslimiet</span>
+                          </button>
+                          <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                            <li><h6 class="dropdown-header">Kopieer Magic Link</h6></li>
+                            <li><a class="dropdown-item" href="#" onclick="generateShareLink(<?= $gameId ?>, 24, this); return false;">Geldig voor 24 uur</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="generateShareLink(<?= $gameId ?>, 72, this); return false;">Geldig voor 3 dagen</a></li>
+                            <li><a class="dropdown-item" href="#" onclick="generateShareLink(<?= $gameId ?>, 168, this); return false;">Geldig voor 1 week</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item text-danger" href="#" onclick="generateShareLink(<?= $gameId ?>, 0, this); return false;">Altijd geldig</a></li>
+                          </ul>
+                      </div>
                   </li>
               <?php endif; ?>
           <?php endif; ?>
       </ul>
+      <?php endif; // End !empty($top_selected_options) ?>
+      <?php endif; // End PUBLIC_SHARE_MODE ?>
       
-      <?php if (isset($preview_lineup) && $preview_lineup): ?>
+      <?php if (isset($preview_lineup) && $preview_lineup && !defined('PUBLIC_SHARE_MODE')): ?>
           <div class="alert alert-info text-center d-print-none">
               <i class="fa-solid fa-eye"></i> Je bekijkt momenteel een opgeslagen voorselectie in preview modus. Klik op 'Maak Definitief' hierboven om deze op te slaan als finale selectie.
+              <?php if (!isset($_GET['preview'])): ?>
+                  <br><small>(Automatisch ingeladen om wachttijden te vermijden. Klik <a href="<?= build_url($base_url, ['wedstrijd' => $gameId, 'generate' => 1]) ?>" class="fw-bold">hier</a> om toch compleet nieuwe opties te genereren.)</small>
+              <?php endif; ?>
           </div>
       <?php endif; ?>
       
+      <?php if (!empty($top_selected_options)): ?>
       <div class="tab-content" id="lineupTabsContent">
       <?php foreach ($top_selected_options as $tab_idx => $t_opt): 
           $lineup = $t_opt['team'];
@@ -153,22 +193,30 @@
       ?>
       <div class="tab-pane fade <?= $tab_idx == 0 ? 'show active d-print-block' : 'd-print-none' ?>" id="tab-pane-<?= $tab_idx ?>" role="tabpanel" tabindex="0">
       
+      <?php if (!defined('PUBLIC_SHARE_MODE')): ?>
       <?php if ($shuffle_type !== 'coach'): ?>
+          <?php if (!$locked_lineup): 
+              $namen_tonen_str = implode(", ", array_map('getPlayerName', array_keys($lineup->playerindex)));
+          ?>
           <div class="d-print-none text-center mb-4 mt-2">
-              <button class="btn btn-sm btn-outline-success" onclick='savePreselection(this, <?= json_encode((int)$gameId) ?>, <?= json_encode($selected['ws_id'] ?? 0) ?>, <?= json_encode(implode(',', array_keys($lineup->playerindex))) ?>, <?= json_encode((float)($t_opt['rating'] ?? 0)) ?>)'>
+              <button class="btn btn-sm btn-outline-success" onclick='savePreselection(this, <?= json_encode((int)$gameId) ?>, <?= json_encode($selected['ws_id'] ?? 0) ?>, <?= json_encode(implode(',', array_keys($lineup->playerindex))) ?>, <?= json_encode((float)($t_opt['rating'] ?? 0)) ?>, <?= json_encode($namen_tonen_str) ?>)'>
                   <i class="fa-solid fa-floppy-disk"></i> Bewaar #<?= $tab_idx + 1 ?> in Voorselecties
               </button>
               <a href="/schema_editor?game_id=<?= $gameId ?>&schema_id=<?= $selected['ws_id'] ?>&volgorde=<?= urlencode(implode(',', array_keys($lineup->playerindex))) ?>" class="btn btn-sm btn-outline-warning ms-2">
                   <i class="fa-solid fa-pen-ruler"></i> Bewerk dit Schema
               </a>
           </div>
+          <?php endif; ?>
       <?php else: ?>
+          <?php if (!$locked_lineup): ?>
           <div class="d-print-none text-center mb-4 mt-2">
               <a href="/schema_editor?game_id=<?= $gameId ?>&schema_id=<?= $selected['ws_id'] ?>&volgorde=<?= urlencode(implode(',', array_keys($lineup->playerindex))) ?>" class="btn btn-sm btn-outline-warning">
                   <i class="fa-solid fa-pen-ruler"></i> Bewerk Huidig Schema
               </a>
           </div>
+          <?php endif; ?>
       <?php endif; ?>
+      <?php endif; // End PUBLIC_SHARE_MODE ?>
       
       <?php
     
@@ -183,9 +231,11 @@
             <p class="mb-2">
               <?php 
                 $namen_tonen = array_map('getPlayerName', array_keys($lineup->playerindex));
-                echo "$total_players spelers aanwezig: " . implode(", ", $namen_tonen); //. implode(", ",$selected["teams"][0]->playernames) ;
-                echo "<small> // Schema " . htmlspecialchars($selected["ws_id"]) . " &middot; " . $lineup->rating . "%</small>"; 
-                if (isset($selected["run"]) && $selected["run"] > 0) {
+                echo "$total_players spelers aanwezig: " . implode(", ", $namen_tonen);
+                if (!defined('PUBLIC_SHARE_MODE')) {
+                    echo "<small class='d-print-none'> // Schema " . htmlspecialchars($selected["ws_id"]) . " &middot; " . $lineup->rating . "%</small>"; 
+                }
+                if (isset($selected["run"]) && $selected["run"] > 0 && !defined('PUBLIC_SHARE_MODE')) {
                   echo "<br><small class='text-muted d-print-none'><i class='fa-solid fa-code-branch'></i> Berekende geldige combinaties: " . number_format($selected["run"], 0, ',', '.') . "</small>"; 
                 }
               ?>
@@ -563,7 +613,16 @@
           //DEBUG array
           $playertime_to_print = array();
 
-          foreach($lineup->time_in_position as $player=>$playtime) { 
+          $sorted_time_in_position = $lineup->time_in_position;
+          uasort($sorted_time_in_position, function($a, $b) {
+              $count_a = 0;
+              foreach($a as $k => $v) { if ($v > 0 && $k !== 'total') $count_a++; }
+              $count_b = 0;
+              foreach($b as $k => $v) { if ($v > 0 && $k !== 'total') $count_b++; }
+              return $count_b <=> $count_a; // Aflopend sorteren
+          });
+
+          foreach($sorted_time_in_position as $player=>$playtime) { 
           
             $score_for_player = 0;
             $playertime_to_print[] = "\"" . $player ."\" => " . $lineup->total_playtime[$player];
@@ -716,7 +775,7 @@
         </div>
       </div>
     
-    <?php } ?>    
+    <?php } ?>
      
      
 
@@ -731,7 +790,7 @@
     </div> <!-- End container -->
 
     <script>
-    function savePreselection(btnElem, gameId, schemaId, playerOrder, score) {
+    function savePreselection(btnElem, gameId, schemaId, playerOrder, score, playerNamesStr) {
         var defaultHtml = btnElem.innerHTML;
         btnElem.innerHTML = '<i class="feather-check"></i> Aan het opslaan...';
         btnElem.disabled = true;
@@ -750,7 +809,37 @@
                 btnElem.innerHTML = '<i class="feather-check"></i> Opgeslagen (Voorselectie)';
                 btnElem.classList.remove('btn-outline-success');
                 btnElem.classList.add('btn-success');
-                // Optioneel na paar seconden herstellen, of zo laten
+                
+                // Voeg dynamisch toe aan de tabel
+                var tbody = document.getElementById('saved-lineups-tbody');
+                var container = document.getElementById('saved-lineups-container');
+                if (tbody && container) {
+                    var newRow = document.createElement('tr');
+                    newRow.id = 'sl-row-' + data.lineup_id;
+                    
+                    var scoreFormatted = parseFloat(score).toFixed(2);
+                    
+                    newRow.innerHTML = `
+                        <td class="align-middle"><strong>#${schemaId}</strong></td>
+                        <td class="align-middle">${scoreFormatted}%</td>
+                        <td class="align-middle text-muted small">${playerNamesStr}</td>
+                        <td class="text-end align-middle">
+                            <a href="/games/${gameId}/lineup?preview=${data.lineup_id}" class="btn btn-sm btn-info text-white">
+                                <i class="fa-solid fa-eye"></i> Bekijk
+                            </a>
+                            <button class="btn btn-sm btn-success ms-1" onclick="setFinalLineup(${gameId}, ${data.lineup_id})">
+                                <i class="fa-solid fa-check"></i> Maak Definitief
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger ms-1" onclick="deleteLineup(${gameId}, ${data.lineup_id})">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </td>
+                    `;
+                    
+                    tbody.appendChild(newRow);
+                    container.style.display = ''; // Maak container zichtbaar indien verborgen
+                }
+                
             } else {
                 alert("Fout: " + data.message);
                 btnElem.innerHTML = defaultHtml;
@@ -772,6 +861,57 @@
         .then(r => r.json())
         .then(data => {
             window.location.reload();
+        });
+    }
+
+    function generateShareLink(gameId, hours, btnElem = null) {
+        var originalText = '';
+        if (btnElem) {
+            originalText = btnElem.innerHTML;
+            btnElem.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Bezig...';
+        } else {
+            var mainBtn = document.getElementById('btnShareLink');
+            if (mainBtn) {
+                originalText = mainBtn.innerHTML;
+                mainBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Bezig...';
+            }
+        }
+        
+        var fd = new FormData();
+        fd.append('game_id', gameId);
+        fd.append('expires_in', hours);
+        
+        fetch('/ajax/generate_share_link.php', { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(data => {
+            if (btnElem) btnElem.innerHTML = originalText;
+            var mainBtn = document.getElementById('btnShareLink');
+            
+            if (data.success) {
+                navigator.clipboard.writeText(data.link).then(() => {
+                    if (mainBtn) {
+                        mainBtn.innerHTML = '<i class="fa-solid fa-check me-1"></i> Link Gekopieerd!';
+                        mainBtn.classList.remove('btn-primary');
+                        mainBtn.classList.add('btn-success');
+                        setTimeout(() => {
+                            mainBtn.innerHTML = '<i class="fa-solid fa-share-nodes me-1"></i> Deel met Ouders';
+                            mainBtn.classList.remove('btn-success');
+                            mainBtn.classList.add('btn-primary');
+                        }, 3000);
+                    }
+                }).catch(err => {
+                    alert("Kopiëren mislukt. Hier is de link: " + data.link);
+                    if (mainBtn) mainBtn.innerHTML = originalText;
+                });
+            } else {
+                alert("Fout: " + data.error);
+                if (mainBtn) mainBtn.innerHTML = originalText;
+            }
+        }).catch(e => {
+            alert("Er is een fout opgetreden.");
+            if (btnElem) btnElem.innerHTML = originalText;
+            var mainBtn = document.getElementById('btnShareLink');
+            if (mainBtn) mainBtn.innerHTML = originalText;
         });
     }
 

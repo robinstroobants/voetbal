@@ -30,7 +30,9 @@ header("Expires: 0"); // Proxies blockeren
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-datepicker@1.10.0/dist/css/bootstrap-datepicker.min.css" rel="stylesheet">
     
     <!-- Custom Core Styles -->
-    <link href="css/styles.css" rel="stylesheet">
+    <link href="/css/styles.css" rel="stylesheet">
+    <!-- Print Styles -->
+    <link href="/css/print.css" rel="stylesheet" media="print">
 </head>
 <body class="bg-light pb-5">
     <?php if (isset($_SESSION['original_user_id'])): ?>
@@ -39,6 +41,7 @@ header("Expires: 0"); // Proxies blockeren
         <a href="/admin/impersonate?action=stop" class="btn btn-danger btn-sm ms-3 fw-bold rounded-pill shadow-sm"><i class="fa-solid fa-right-from-bracket me-1"></i> Terug naar Beheerders-weergave</a>
     </div>
     <?php endif; ?>
+    <?php if (!defined('PUBLIC_SHARE_MODE')): ?>
     <nav class="navbar navbar-expand-lg bg-dark mb-4 w-100 d-print-none" data-bs-theme="dark">
         <div class="container">
             <?php $wsCount = count($_SESSION['available_teams'] ?? []); ?>
@@ -132,6 +135,7 @@ header("Expires: 0"); // Proxies blockeren
             </div>
         </div>
     </nav>
+    <?php endif; // End PUBLIC_SHARE_MODE check ?>
     
     <?php if (isset($_SESSION['is_read_only']) && $_SESSION['is_read_only'] === true): ?>
     <div class="alert alert-danger mx-3 text-center fw-bold shadow-sm" role="alert" style="border: 2px solid #dc3545;">

@@ -13,7 +13,7 @@ class MatchManager {
      */
     public function getSelection(int $gameId): array {
         // 1. Haal basis match informatie op
-        if (isset($_SESSION['role']) && $_SESSION['role'] === 'superadmin') {
+        if ((isset($_SESSION['role']) && $_SESSION['role'] === 'superadmin') || (defined('PUBLIC_SHARE_MODE') && PUBLIC_SHARE_MODE)) {
             $stmtGame = $this->pdo->prepare("SELECT opponent, game_date, format, min_pos FROM games WHERE id = :id");
             $stmtGame->execute(['id' => $gameId]);
         } else {

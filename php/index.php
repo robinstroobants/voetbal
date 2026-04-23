@@ -425,7 +425,7 @@ require_once __DIR__ . '/header.php';
                                     </div>
                                 </a>
 
-                                <a href="/games/<?= $next_game['id'] ?>/lineup" class="btn <?= $next_game['selection_count'] > 0 ? 'btn-warning text-dark' : 'btn-outline-light disabled' ?> fw-bold rounded px-3 py-2 shadow-sm d-inline-flex align-items-center transition-transform" style="transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+                                <a href="/games/<?= $next_game['id'] ?>/schema" class="btn <?= $next_game['selection_count'] > 0 ? 'btn-warning text-dark' : 'btn-outline-light disabled' ?> fw-bold rounded px-3 py-2 shadow-sm d-inline-flex align-items-center transition-transform" style="transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
                                     <i class="fa-solid fa-wand-magic-sparkles me-2 fs-5"></i>
                                     <div class="text-start">
                                         <div class="small text-dark text-opacity-75" style="line-height: 1;">Schema</div>
@@ -598,7 +598,7 @@ require_once __DIR__ . '/header.php';
                                             <a href="/games/<?= $game['id'] ?>/duplicate" class="btn btn-sm btn-light text-warning fw-bold rounded-pill shadow-sm me-1" title="Dupliceer Wedstrijd">
                                                 <i class="fa-solid fa-copy me-1 mt-1 mb-1"></i> Dupliceer
                                             </a>
-                                            <a href="/games/<?= $game['id'] ?>/lineup" class="btn btn-sm btn-light text-primary fw-bold rounded-pill shadow-sm" title="Bekijk Opstelling">
+                                            <a href="/games/<?= $game['id'] ?>/schema" class="btn btn-sm btn-light text-primary fw-bold rounded-pill shadow-sm" title="Bekijk Opstelling">
                                                 <i class="fa-solid fa-eye me-1 mt-1 mb-1"></i> Detail
                                             </a>
                                         </td>

@@ -452,6 +452,9 @@ function initBuilder() {
             pool.addEventListener('drop', e => handleDropToPool(e, pool));
         }
     }
+    
+    // Zorg ervoor dat statistieken zichtbaar zijn bij laden pagina
+    calculateStats();
 }
 
 let draggedEl = null;
@@ -839,8 +842,8 @@ function calculateStats() {
         let hist = seasonStatsMap[st.sidx];
         if(!hist) hist = { histPlayed: 0, histAvailable: 0 };
         
-        let totalSeasonPlayedSec = hist.histPlayed + (st.fieldMin * 60);
-        let totalSeasonAvailableSec = hist.histAvailable + (matchAvailable * 60);
+        let totalSeasonPlayedSec = parseInt(hist.histPlayed) + (st.fieldMin * 60);
+        let totalSeasonAvailableSec = parseInt(hist.histAvailable) + (st.matchAvailable * 60);
         
         let seasonPercText = "0%";
         let seasonColor = "text-muted";
@@ -857,7 +860,7 @@ function calculateStats() {
         statsHtml += `
             <tr>
                 <td class="align-middle">${st.name}</td>
-                <td class="text-center align-middle ${matchColor}">${matchPercText} <br><small class="text-muted fw-normal">${st.fieldMin}/${matchAvailable}m</small></td>
+                <td class="text-center align-middle ${matchColor}">${matchPercText} <br><small class="text-muted fw-normal">${st.fieldMin}/${st.matchAvailable}m</small></td>
                 <td class="text-center align-middle ${seasonColor}">${seasonPercText}</td>
             </tr>
         `;

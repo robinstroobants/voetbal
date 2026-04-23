@@ -114,11 +114,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error) {
                     
                     $subject = "Activeer je Lineup account";
                     $message = "Beste $first_name,\n\nWelkom bij Lineup!\nKlik op de onderstaande link om je account te activeren:\n$verify_link\n\nMet vriendelijke groeten,\nHet Lineup Team";
-                    $headers = "From: noreply@$host\r\n";
-                    $headers .= "Reply-To: noreply@$host\r\n";
-                    $headers .= "X-Mailer: PHP/" . phpversion();
-
-                    @mail($email, $subject, $message, $headers);
+                    
+                    require_once __DIR__ . '/Mailer.php';
+                    Mailer::send($email, $subject, $message);
 
                     // Redirect naar login pagina met melding in plaats van direct in te loggen
                     header("Location: login.php?msg=registered");

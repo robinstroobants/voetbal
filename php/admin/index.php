@@ -168,8 +168,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         
                         $subject = "SaaS Uitnodiging om coach te worden van " . $teamName;
                         $message = "Hallo,\n\nJe bent via the administrator uitgenodigd om co-coach te worden van het team: $teamName.\n\nKlik op de onderstaande link om gratis je account te activeren:\n$invite_link\n\nDeze link is 7 dagen geldig.";
-                        $headers = "From: noreply@$host\r\n";
-                        @mail($invite_email, $subject, $message, $headers);
+                        
+                        require_once __DIR__ . '/../Mailer.php';
+                        Mailer::send($invite_email, $subject, $message);
 
                         $success = "✅ Uitnodigingslink succesvol verstuurd naar $invite_email!";
                     }

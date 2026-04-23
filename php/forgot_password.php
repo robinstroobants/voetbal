@@ -27,13 +27,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
                 $subject = "Wachtwoord herstellen - Lineup";
                 $message = "Beste " . $user['first_name'] . ",\n\nEr is een verzoek ingediend om je wachtwoord te herstellen op Lineup.\nKlik op de onderstaande link om een nieuw wachtwoord in te stellen. Deze link is 1 uur geldig:\n$reset_link\n\nAls jij dit niet hebt aangevraagd, hoef je niets te doen en je account blijft veilig.\n\nMet vriendelijke groeten,\nHet Lineup Team";
-                $headers = "From: noreply@$host\r\n";
-                $headers .= "Reply-To: noreply@$host\r\n";
-                $headers .= "X-Mailer: PHP/" . phpversion();
-
-                $mail_success = mail($email, $subject, $message, $headers);
+                
+                require_once __DIR__ . '/Mailer.php';
+                $mail_success = Mailer::send($email, $subject, $message);
                 if (!$mail_success) {
-                    error_log("Mail failed to send to $email. Error: " . error_get_last()['message']);
+                    error_log("Mail failed to send to $email.");
                 }
             } else {
                 error_log("Update query failed for user ID: " . $user['id']);

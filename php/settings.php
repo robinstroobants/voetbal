@@ -56,8 +56,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $teamName = $_SESSION['team_name'];
                         $subject = "Je bent toegevoegd aan team " . $teamName;
                         $message = "Beste " . ($existing_user['first_name'] ?: 'Coach') . ",\n\nJe bent zojuist toegevoegd als co-coach voor het team: $teamName.\n\nLog in op Lineup om je nieuwe Workspace te bekijken.\n\nMet vriendelijke groeten,\nHet Lineup Team";
-                        $headers = "From: noreply@squadly.local\r\n";
-                        @mail($invite_email, $subject, $message, $headers);
+                        
+                        require_once __DIR__ . '/Mailer.php';
+                        Mailer::send($invite_email, $subject, $message);
                         
                         $success = "Gebruiker succesvol gekoppeld! Er is een notificatie gemaild.";
                     }
@@ -79,8 +80,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         
                         $subject = "Uitnodiging om coach te worden van " . $teamName;
                         $message = "Hallo,\n\nJe bent uitgenodigd om co-coach te worden van het team: $teamName.\n\nKlik op de onderstaande link om gratis een account aan te maken en direct aan de slag te gaan:\n$invite_link\n\nDeze link is 7 dagen geldig.\n\nMet vriendelijke groeten,\nHet Lineup Team";
-                        $headers = "From: noreply@$host\r\n";
-                        @mail($invite_email, $subject, $message, $headers);
+                        
+                        require_once __DIR__ . '/Mailer.php';
+                        Mailer::send($invite_email, $subject, $message);
 
                         $success = "Uitnodiging succesvol verstuurd naar $invite_email!";
                     }

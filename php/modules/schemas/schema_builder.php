@@ -469,19 +469,18 @@ function bindDragEvents(el) {
 
 function handleDropToPool(e, pool) {
     e.preventDefault();
-    if(!draggedEl) return;
-    
-    let pw = draggedEl.closest('.pos-wrapper');
-    if(!pw) return;
-    
-    let shiftIdx = parseInt(pw.getAttribute('data-shift'));
-    let block = document.getElementById('shift-' + shiftIdx);
-    if(block.classList.contains('locked')) return;
-    
-    if(shiftIdx !== 0) return;
-    
-    pool.appendChild(draggedEl);
-    updateShiftData(shiftIdx);
+    if(draggedEl && !draggedEl.classList.contains('locked')) {
+        let parent = draggedEl.closest('.pos-wrapper');
+        if(parent) {
+            let shiftIdx = parseInt(parent.getAttribute('data-shift'));
+            let block = document.getElementById('shift-' + shiftIdx);
+            if(!block.classList.contains('locked')) {
+                pool.appendChild(draggedEl);
+                updateShiftData(shiftIdx);
+                calculateStats();
+            }
+        }
+    }
 }
 
 function handleDrop(e, dropZone) {
@@ -613,7 +612,7 @@ function lockBlock(shiftIdx) {
             if (shouldCopy) {
                 fillNextBlockPos(nextShiftIdx, pos, currentSData.lineup[pos], 0);
             } else {
-                fillNextBlockPos(nextShiftIdx, 'bench', currentSData.lineup[pos], nextBenchCount++);
+                fillNextBlockPool(currentSData.lineup[pos]);
             }
         });
         
@@ -657,10 +656,18 @@ function unlockBlock(shiftIdx) {
 function fillNextBlockPos(targetShiftIdx, pos, sidx, benchIdx) {
     let container;
     if(pos === 'bench') {
-        container = document.querySelectorAll(`#shift-${targetShiftIdx} .pos-wrapper[data-pos="bench"]`)[benchIdx];
+        let benches = document.querySelectorAll(`#shift-${targetShiftIdx} .pos-wrapper[data-pos="bench"]`);
+        if(benchIdx < benches.length) {
+            container = benches[benchIdx];
+        } else {
+            // Te weinig bank slots! Stuur naar pool als fallback
+            fillNextBlockPool(sidx);
+            return;
+        }
     } else {
         container = document.querySelector(`#shift-${targetShiftIdx} .pos-wrapper[data-pos="${pos}"]`);
     }
+    
     if(container) {
         let pName = "";
         let isGk = false;
@@ -684,6 +691,31 @@ function fillNextBlockPos(targetShiftIdx, pos, sidx, benchIdx) {
         bindDragEvents(el);
         container.appendChild(el);
     }
+}
+
+function fillNextBlockPool(sidx) {
+    let pool = document.getElementById('player-pool');
+    let pName = "";
+    let isGk = false;
+    for(let pid in playersMap) {
+        if(playersMap[pid].sidx == sidx) { pName = playersMap[pid].name; isGk = playersMap[pid].is_gk; }
+    }
+    
+    let el = document.createElement('div');
+    el.className = 'pool-player shadow-sm' + (isGk ? ' is-gk' : '');
+    el.setAttribute('draggable', 'true');
+    el.setAttribute('data-sidx', sidx);
+    
+    let pStats = globalPlayerStats[sidx];
+    if (pStats && pStats.benchMin > 0) {
+        el.classList.add('on-bench-priority');
+        el.innerText = pName + " ⏸ " + pStats.benchMin + "m";
+    } else {
+        el.innerText = pName + (isGk ? " (GK)" : "");
+    }
+    
+    bindDragEvents(el);
+    pool.appendChild(el);
 }
 
 function updateCounter(shiftIdx) {
@@ -723,14 +755,17 @@ function calculateStats() {
     poolItems.sort((a, b) => {
         let sidxA = parseInt(a.getAttribute('data-sidx'));
         let sidxB = parseInt(b.getAttribute('data-sidx'));
-        let pA = globalPlayerStats[sidxA].priority;
-        let pB = globalPlayerStats[sidxB].priority;
+        let pA = (!isNaN(sidxA) && globalPlayerStats[sidxA]) ? globalPlayerStats[sidxA].priority : 0;
+        let pB = (!isNaN(sidxB) && globalPlayerStats[sidxB]) ? globalPlayerStats[sidxB].priority : 0;
         return pB - pA; // Descending
     });
     
     poolItems.forEach(item => {
         let sidx = parseInt(item.getAttribute('data-sidx'));
+        if(isNaN(sidx)) return;
         let pStats = globalPlayerStats[sidx];
+        if(!pStats) return;
+        
         if (pStats.benchMin > 0) {
             item.classList.add('on-bench-priority');
             if(!item.innerText.includes('⏸')) {
@@ -798,6 +833,8 @@ function calculateStats() {
         
         // Calculate Season totals
         let hist = seasonStatsMap[st.sidx];
+        if(!hist) hist = { histPlayed: 0, histAvailable: 0 };
+        
         let totalSeasonPlayedSec = hist.histPlayed + (st.fieldMin * 60);
         let totalSeasonAvailableSec = hist.histAvailable + (matchAvailable * 60);
         

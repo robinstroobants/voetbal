@@ -222,14 +222,9 @@ function initBuilder() {
             </div>
             <div class="card-body bg-light">`;
             
-        if (fixedGkId !== null) {
-            html += `<div class="alert alert-warning py-1 px-2 mb-2 small fw-bold"><i class="fa-solid fa-shield-halved me-1"></i>Vaste Doelman: ${playersMap[fixedGkId].name}</div>`;
-        }
-
         html += `
             <div class="row mx-0 px-2 py-3">
                  <div class="col-md-9 field-area">
-                    <h6 class="text-muted"><i class="fa-solid fa-people-group me-1"></i>Op Het Veld</h6>
                     <div class="row px-2">`;
                     
         // Definieer de visuele rijen per format
@@ -247,9 +242,18 @@ function initBuilder() {
             let rowHtml = `<div class="d-flex justify-content-center w-100 mb-2">`;
             let hasBoxes = false;
             rowPositions.forEach(pos => {
-                if (fixedGkId !== null && pos === 1) return;
                 hasBoxes = true;
-                rowHtml += `<div class="px-1" style="flex: 1; max-width: 30%;"><div class="pos-wrapper shadow-sm" data-pos="${pos}" data-shift="${i}"><span class="pos-badge">Pos ${pos}</span></div></div>`;
+                
+                let innerPlayer = '';
+                let extraStyles = '';
+                if (fixedGkId !== null && pos === 1) {
+                    let sidx = playersMap[fixedGkId].sidx;
+                    let pName = playersMap[fixedGkId].name;
+                    innerPlayer = `<div class="pool-player shadow-sm is-gk locked" draggable="false" data-sidx="${sidx}" data-id="${fixedGkId}" style="pointer-events: none; opacity: 0.9;">${pName}</div>`;
+                    extraStyles = ' border-color: #dc3545; background-color: #f8d7da;';
+                }
+                
+                rowHtml += `<div class="px-1" style="flex: 1; max-width: 30%;"><div class="pos-wrapper shadow-sm" data-pos="${pos}" data-shift="${i}" style="${extraStyles}"><span class="pos-badge">Pos ${pos}</span>${innerPlayer}</div></div>`;
             });
             rowHtml += `</div>`;
             if (hasBoxes) html += rowHtml;
@@ -258,7 +262,6 @@ function initBuilder() {
         html += `   </div>
                  </div>
                  <div class="col-md-3 bench-area px-1">
-                    <h6 class="text-muted"><i class="fa-solid fa-chair me-1"></i>Bank</h6>
                     <div class="row px-2">`;
         
         for(let b=0; b<maxBench; b++) {
@@ -397,7 +400,7 @@ function lockBlock(shiftIdx) {
         
         currentSData.bench.forEach((s, idx) => fillNextBlockPos(nextShiftIdx, 'bench', s, idx));
         Object.keys(currentSData.lineup).forEach(pos => {
-            if (parseInt(pos) === 1) return;
+            if (fixedGkId !== null && parseInt(pos) === 1) return;
             fillNextBlockPos(nextShiftIdx, pos, currentSData.lineup[pos], 0);
         });
         
@@ -441,8 +444,9 @@ function fillNextBlockPos(targetShiftIdx, pos, sidx, benchIdx) {
     }
     if(container) {
         let pName = "";
+        let isGk = false;
         for(let pid in playersMap) {
-            if(playersMap[pid].sidx == sidx) { pName = playersMap[pid].name; }
+            if(playersMap[pid].sidx == sidx) { pName = playersMap[pid].name; isGk = playersMap[pid].is_gk; }
         }
         
         let el = document.createElement('div');

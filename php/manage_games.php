@@ -82,7 +82,7 @@ $stmt = $pdo->prepare("
     SELECT g.*, CONCAT(c.first_name, ' ', c.last_name) AS coach_name, c.first_name AS coach_first_name,
         (SELECT COUNT(*) FROM game_selections gs WHERE gs.game_id = g.id) as selection_count,
         (SELECT GROUP_CONCAT(gs.player_id) FROM game_selections gs WHERE gs.game_id = g.id) as selected_player_ids,
-        (SELECT score FROM game_lineups gl WHERE gl.game_id = g.id AND gl.is_final = 1 LIMIT 1) as final_score
+        (SELECT id FROM game_lineups gl WHERE gl.game_id = g.id AND gl.is_final = 1 LIMIT 1) as final_lineup_id
     FROM games g 
     LEFT JOIN users c ON g.coach_id = c.id
     WHERE g.team_id = ?
@@ -352,9 +352,9 @@ require_once 'header.php';
                                         <?php endif; ?>
                                         <a href="#" onclick="openGameModal(<?= htmlspecialchars(json_encode($game), ENT_QUOTES, 'UTF-8') ?>); return false;" class="text-decoration-none text-dark hover-primary" title="Bewerk Wedstrijd">
                                             <?php if(isset($game['is_home']) && $game['is_home'] == 0): ?>
-                                                <span class="badge bg-secondary text-white rounded-pill me-1" style="font-size: 0.7em;">UIT</span>
+                                                <i class="fa-solid fa-plane text-secondary me-1" title="Uit"></i>
                                             <?php else: ?>
-                                                <span class="badge bg-primary text-white rounded-pill me-1" style="font-size: 0.7em;">THUIS</span>
+                                                <i class="fa-solid fa-house text-primary me-1" title="Thuis"></i>
                                             <?php endif; ?>
                                             <?= htmlspecialchars($game['opponent']) ?>
                                         </a>
@@ -372,13 +372,13 @@ require_once 'header.php';
                                         ?>
                                             <div class="d-flex align-items-center">
                                                 <a href="/games/<?= $game['id'] ?>/selection" class="btn btn-sm btn-outline-success rounded-pill px-3 py-1 shadow-sm me-2 text-decoration-none" title="Beheer Selectie">
-                                                    <i class="fa-solid fa-users me-1"></i> <?= $game['selection_count'] ?>
+                                                    <i class="fa-solid fa-users me-1"></i>&nbsp;<?= $game['selection_count'] ?>
                                                 </a>
                                                 <span class="small text-muted" style="line-height:1.2; display:inline-block; max-width:250px; white-space:normal;"><?= htmlspecialchars($names_str) ?></span>
                                             </div>
                                         <?php else: ?>
                                             <a href="/games/<?= $game['id'] ?>/selection" class="btn btn-sm btn-outline-warning text-dark rounded-pill px-3 py-1 shadow-sm text-decoration-none" title="Maak Selectie">
-                                                <i class="fa-solid fa-users me-1"></i> 0
+                                                <i class="fa-solid fa-users me-1"></i>&nbsp;0
                                             </a>
                                         <?php endif; ?>
                                     </td>
@@ -386,8 +386,12 @@ require_once 'header.php';
                                         <a href="/games/<?= $game['id'] ?>/duplicate" class="btn btn-sm btn-outline-warning me-1" title="Dupliceer met Selectie">
                                             <i class="fa-solid fa-copy"></i>
                                         </a>
-                                        <a href="/games/<?= $game['id'] ?>/lineup" class="btn btn-sm btn-outline-primary me-1 <?= $game['selection_count'] == 0 ? 'disabled' : '' ?>" title="Bereken Opstelling">
-                                            <i class="fa-solid fa-wand-magic-sparkles"></i> Opstelling
+                                        <a href="/games/<?= $game['id'] ?>/lineup" class="btn btn-sm btn-outline-primary me-1 <?= $game['selection_count'] == 0 ? 'disabled' : '' ?>" title="<?= !empty($game['final_lineup_id']) ? 'Bekijk Opstelling' : 'Bereken Opstelling' ?>">
+                                            <?php if(!empty($game['final_lineup_id'])): ?>
+                                                <i class="fa-solid fa-eye"></i> Opstelling
+                                            <?php else: ?>
+                                                <i class="fa-solid fa-wand-magic-sparkles"></i> Opstelling
+                                            <?php endif; ?>
                                         </a>
                                         <form method="post" class="d-inline" onsubmit="return confirm('Wedstrijd verwijderen? Dit wist ook alle direct gekoppelde selecties.');">
                                             <input type="hidden" name="action" value="delete">
@@ -453,9 +457,9 @@ require_once 'header.php';
                                         <?php endif; ?>
                                         <a href="#" onclick="openGameModal(<?= htmlspecialchars(json_encode($game), ENT_QUOTES, 'UTF-8') ?>); return false;" class="text-decoration-none text-dark hover-primary" title="Bewerk Wedstrijd">
                                             <?php if(isset($game['is_home']) && $game['is_home'] == 0): ?>
-                                                <span class="badge bg-secondary text-white rounded-pill me-1" style="font-size: 0.7em;">UIT</span>
+                                                <i class="fa-solid fa-plane text-secondary me-1" title="Uit"></i>
                                             <?php else: ?>
-                                                <span class="badge bg-primary text-white rounded-pill me-1" style="font-size: 0.7em;">THUIS</span>
+                                                <i class="fa-solid fa-house text-primary me-1" title="Thuis"></i>
                                             <?php endif; ?>
                                             <?= htmlspecialchars($game['opponent']) ?>
                                         </a>
@@ -487,8 +491,12 @@ require_once 'header.php';
                                         <a href="/games/<?= $game['id'] ?>/duplicate" class="btn btn-sm btn-outline-warning me-1" title="Dupliceer met Selectie">
                                             <i class="fa-solid fa-copy"></i>
                                         </a>
-                                        <a href="/games/<?= $game['id'] ?>/lineup" class="btn btn-sm btn-outline-primary me-1 <?= $game['selection_count'] == 0 ? 'disabled' : '' ?>" title="Bereken Opstelling">
-                                            <i class="fa-solid fa-wand-magic-sparkles"></i> Opstelling
+                                        <a href="/games/<?= $game['id'] ?>/lineup" class="btn btn-sm btn-outline-primary me-1 <?= $game['selection_count'] == 0 ? 'disabled' : '' ?>" title="<?= !empty($game['final_lineup_id']) ? 'Bekijk Opstelling' : 'Bereken Opstelling' ?>">
+                                            <?php if(!empty($game['final_lineup_id'])): ?>
+                                                <i class="fa-solid fa-eye"></i> Opstelling
+                                            <?php else: ?>
+                                                <i class="fa-solid fa-wand-magic-sparkles"></i> Opstelling
+                                            <?php endif; ?>
                                         </a>
                                         <form method="post" class="d-inline" onsubmit="return confirm('Wedstrijd verwijderen? Dit wist ook alle direct gekoppelde selecties.');">
                                             <input type="hidden" name="action" value="delete">

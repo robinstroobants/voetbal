@@ -37,10 +37,10 @@ $nr_of_games = 4;
 $game_duration_min = 15;
 $sub_duration_min = 15;
 
-if (preg_match('/_(\d+)x(\d+)(?:_(\d+)min)?$/', $search_format, $m)) {
+if (preg_match('/_(\d+)x(\d+)(?:_([0-9.]+)min)?$/', $search_format, $m)) {
     $nr_of_games = (int)$m[1];
     $game_duration_min = (int)$m[2];
-    $sub_duration_min = isset($m[3]) ? (int)$m[3] : $game_duration_min;
+    $sub_duration_min = isset($m[3]) ? (float)$m[3] : $game_duration_min;
 }
 $total_minutes = $nr_of_games * $game_duration_min;
 $number_of_shifts = ceil($total_minutes / $sub_duration_min);
@@ -87,10 +87,10 @@ require_once dirname(__DIR__, 2) . '/header.php';
 .pool-player { background: #0d6efd; color: white; padding: 10px; margin-bottom: 8px; border-radius: 6px; cursor: grab; text-align: center; font-weight: bold; border: 2px solid transparent; transition: all 0.2s;}
 .pool-player.is-gk { background: #dc3545; opacity: 0.8;}
 .pool-player.on-bench-priority { background: #ffc107 !important; color: #000; border-color: #d39e00; }
-.pos-wrapper { background: #fff; border: 2px dashed #ccc; border-radius: 6px; min-height: 50px; display: flex; align-items: center; justify-content: center; position: relative; margin-bottom: 10px;}
+.pos-wrapper { background: #fff; border: 2px dashed #ccc; border-radius: 6px; min-height: 40px; display: flex; align-items: center; justify-content: center; position: relative; margin-bottom: 10px;}
 .pos-wrapper[data-pos="bench"] { border-color: #ffc107; background: #fff8e1; }
-.pos-badge { position: absolute; top: -10px; left: 10px; background: #6c757d; color: white; font-size: 0.7rem; padding: 2px 6px; border-radius: 10px; z-index: 2;}
-.pos-wrapper .pool-player { margin-bottom: 0; width: 100%; border-radius: 4px; padding: 5px; z-index: 1;}
+.pos-badge { position: absolute; top: -10px; left: 5px; background: #6c757d; color: white; font-size: 0.6rem; padding: 2px 5px; border-radius: 8px; z-index: 2;}
+.pos-wrapper .pool-player { margin-bottom: 0; width: 100%; border-radius: 4px; padding: 3px; font-size: 0.85rem; z-index: 1;}
 
 /* The block accordeon headers */
 .shift-block.locked { opacity: 0.6; pointer-events: none; filter: grayscale(50%); }
@@ -142,8 +142,10 @@ require_once dirname(__DIR__, 2) . '/header.php';
         </div>
 
         <!-- The Canvas -->
-        <div class="col-md-9" id="shifts-canvas">
-            <!-- JS generates shifts here -->
+        <div class="col-md-9">
+            <div class="row" id="shifts-canvas">
+                <!-- JS generates shifts here -->
+            </div>
         </div>
     </div>
 </div>
@@ -152,19 +154,22 @@ require_once dirname(__DIR__, 2) . '/header.php';
 // Data
 const numShifts = <?= $number_of_shifts ?>;
 const subDurationMin = <?= $sub_duration_min ?>;
+const totalMinutes = <?= $total_minutes ?>;
 const playerCount = <?= $aantal ?>;
 const formatStr = "<?= $search_format ?>";
 const playersMap = <?= json_encode($players_json) ?>;
 const seasonStatsMap = <?= json_encode($seasonStatsJson) ?>;
 const gameId = <?= $gameId ?>;
 const volgordeStr = "<?= $volgorde ?>";
+const gkCount = <?= $gk_count ?>;
+const fixedGkId = (gkCount === 1) ? <?= reset($gk_arr) ?> : null;
 
 let playPositions = [1, 2, 4, 5, 7, 9, 10, 11];
 if (formatStr.includes('5v5')) {
     playPositions = [1, 2, 4, 5, 9];
 }
-let numField = playPositions.length - 1; // subtract gk
-let maxBench = playerCount - (numField + 1); // e.g. 10 - 8 = 2
+let numField = playPositions.length; 
+let maxBench = playerCount - (numField); 
 
 let shiftData = []; 
 let globalPlayerStats = {}; 
@@ -179,12 +184,13 @@ function initBuilder() {
     
     // Fill initial pool
     for(let pid in playersMap) {
+        if (fixedGkId !== null && parseInt(pid) === fixedGkId) continue;
         let p = playersMap[pid];
         let el = document.createElement('div');
         el.className = 'pool-player' + (p.is_gk ? ' is-gk' : '');
         el.setAttribute('draggable', 'true');
         el.setAttribute('data-sidx', p.sidx);
-        el.innerHTML = p.name + (p.is_gk ? ' (GK)' : '');
+        el.innerHTML = p.name;
         
         bindDragEvents(el);
         pool.appendChild(el);
@@ -193,13 +199,20 @@ function initBuilder() {
     // Form shifts logic
     for(let i=0; i<numShifts; i++) {
         let shiftIdx = i;
-        // Game counter: if 4x15, nr_of_games = 4, blocks = 4. 1x60 -> blocks = 4, game_counter = 1
-        // Usually, format matches $nr_of_games. For 2x30_15min, counter should increment every 30 mins
         let gCounter = Math.floor((i * subDurationMin) / (<?= $game_duration_min ?>)) + 1;
-        shiftData.push({ shift: shiftIdx, duration: subDurationMin*60, game_counter: gCounter, start: (i*subDurationMin) + ":00", lineup: {}, bench: [] });
         
+        let initialLineup = {};
+        if (fixedGkId !== null) {
+            initialLineup[1] = playersMap[fixedGkId].sidx;
+        }
+
+        shiftData.push({ shift: shiftIdx, duration: subDurationMin*60, game_counter: gCounter, start: (i*subDurationMin) + ":00", lineup: initialLineup, bench: [] });
+        
+        let col = document.createElement('div');
+        col.className = 'col-12 col-xxl-6 mb-4';
+
         let block = document.createElement('div');
-        block.className = 'card mb-4 shift-block ' + (i > 0 ? 'locked border-secondary' : 'border-primary');
+        block.className = 'card h-100 shift-block ' + (i > 0 ? 'locked border-secondary' : 'border-primary');
         block.id = 'shift-' + i;
         
         let html = `
@@ -207,14 +220,40 @@ function initBuilder() {
                 <h5 class="mb-0 text-dark">Speelblok ${i+1} <small class="text-muted fw-normal">(${subDurationMin} min)</small></h5>
                 <span class="badge bg-secondary" id="counter-${i}">0 / ${playerCount}</span>
             </div>
-            <div class="card-body row mx-0 px-2 py-3 bg-light">
+            <div class="card-body bg-light">`;
+            
+        if (fixedGkId !== null) {
+            html += `<div class="alert alert-warning py-1 px-2 mb-2 small fw-bold"><i class="fa-solid fa-shield-halved me-1"></i>Vaste Doelman: ${playersMap[fixedGkId].name}</div>`;
+        }
+
+        html += `
+            <div class="row mx-0 px-2 py-3">
                  <div class="col-md-9 field-area">
                     <h6 class="text-muted"><i class="fa-solid fa-people-group me-1"></i>Op Het Veld</h6>
                     <div class="row px-2">`;
                     
-        playPositions.forEach(pos => {
-            html += `<div class="col-4 col-sm-4 col-md-3 px-1"><div class="pos-wrapper shadow-sm" data-pos="${pos}" data-shift="${i}"><span class="pos-badge">Pos ${pos}</span></div></div>`;
-        });            
+        // Definieer de visuele rijen per format
+        let formationRows = [];
+        if (formatStr.includes('5v5')) {
+            formationRows = [ [9], [11, 7], [4], [1] ];
+        } else if (formatStr.includes('11v11')) {
+            formationRows = [ [11, 9, 7], [8, 10, 6], [5, 4, 3, 2], [1] ];
+        } else {
+            // Default 8v8
+            formationRows = [ [11, 9, 7], [10], [5, 4, 2], [1] ];
+        }
+
+        formationRows.forEach(rowPositions => {
+            let rowHtml = `<div class="d-flex justify-content-center w-100 mb-2">`;
+            let hasBoxes = false;
+            rowPositions.forEach(pos => {
+                if (fixedGkId !== null && pos === 1) return;
+                hasBoxes = true;
+                rowHtml += `<div class="px-1" style="flex: 1; max-width: 30%;"><div class="pos-wrapper shadow-sm" data-pos="${pos}" data-shift="${i}"><span class="pos-badge">Pos ${pos}</span></div></div>`;
+            });
+            rowHtml += `</div>`;
+            if (hasBoxes) html += rowHtml;
+        });
         
         html += `   </div>
                  </div>
@@ -226,12 +265,9 @@ function initBuilder() {
             html += `<div class="col-12 px-1"><div class="pos-wrapper shadow-sm" data-pos="bench" data-shift="${i}"><span class="pos-badge bg-warning text-dark"><i class="fa-solid fa-bed"></i> Bank</span></div></div>`;
         }
         
-        if(maxBench === 0) {
-           html += `<div class="col-12"><small class="text-muted">Geen wissels</small></div>`;
-        }
-        
         html += `   </div>
                  </div>
+            </div>
             </div>
             <div class="card-footer bg-white text-end py-2">
                 <button class="btn btn-sm btn-primary btn-lock d-none" onclick="lockBlock(${i})">Vastzetten & Volgende <i class="fa-solid fa-arrow-right"></i></button>
@@ -240,7 +276,8 @@ function initBuilder() {
             `;
             
         block.innerHTML = html;
-        canvas.appendChild(block);
+        col.appendChild(block);
+        canvas.appendChild(col);
         
         block.querySelectorAll('.pos-wrapper').forEach(pw => {
             pw.addEventListener('dragover', e => { e.preventDefault(); pw.style.borderColor = '#0d6efd'; });
@@ -248,7 +285,6 @@ function initBuilder() {
             pw.addEventListener('drop', e => handleDrop(e, pw));
         });
         
-        // Also allow pool to accept drops back
         if(i === 0) {
             pool.addEventListener('dragover', e => { e.preventDefault(); });
             pool.addEventListener('drop', e => handleDropToPool(e, pool));
@@ -272,15 +308,13 @@ function handleDropToPool(e, pool) {
     e.preventDefault();
     if(!draggedEl) return;
     
-    // Only allow dropping back from the currently active shift (which is usually shift 0)
     let pw = draggedEl.closest('.pos-wrapper');
-    if(!pw) return; // already in pool
+    if(!pw) return;
     
     let shiftIdx = parseInt(pw.getAttribute('data-shift'));
     let block = document.getElementById('shift-' + shiftIdx);
     if(block.classList.contains('locked')) return;
     
-    // We only support pool logic fully for shift 0 since shift 1 inherits auto
     if(shiftIdx !== 0) return;
     
     pool.appendChild(draggedEl);
@@ -300,22 +334,8 @@ function handleDrop(e, dropZone) {
     }
     
     let sourceContainer = draggedEl.parentNode;
-    let sidx = draggedEl.getAttribute('data-sidx');
-    let targetPos = dropZone.getAttribute('data-pos');
-    
-    // If dropping a GK
-    if(draggedEl.classList.contains('is-gk')) {
-        if(targetPos !== "1" && targetPos !== "bench") {
-            alert("Een doelman mag enkel op positie 1 of op de bank staan!");
-            return;
-        }
-    }
-    
     let existingPlayer = dropZone.querySelector('.pool-player');
     if (existingPlayer) {
-        if(existingPlayer.classList.contains('is-gk') && sourceContainer.id === 'player-pool') {
-            alert("Je kan dit niet swappen"); return;
-        }
         sourceContainer.appendChild(existingPlayer);
         dropZone.appendChild(draggedEl);
     } else {
@@ -329,6 +349,7 @@ function updateShiftData(shiftIdx) {
     let block = document.getElementById('shift-' + shiftIdx);
     let sData = shiftData[shiftIdx];
     sData.lineup = {};
+    if (fixedGkId !== null) sData.lineup[1] = playersMap[fixedGkId].sidx;
     sData.bench = [];
     
     let playerCountInBlock = 0;
@@ -364,7 +385,6 @@ function lockBlock(shiftIdx) {
     block.querySelector('.btn-lock').classList.add('d-none');
     block.querySelector('.btn-unlock').classList.remove('d-none');
     
-    // Calculate Stats to sort Pool / Color Bench players
     calculateStats();
     
     let nextShiftIdx = shiftIdx + 1;
@@ -373,28 +393,23 @@ function lockBlock(shiftIdx) {
         nextBlock.classList.remove('locked');
         nextBlock.classList.replace('border-secondary', 'border-primary');
         
-        // Auto-fill next block by extracting exact state of current block!
         let currentSData = shiftData[shiftIdx];
         
         currentSData.bench.forEach((s, idx) => fillNextBlockPos(nextShiftIdx, 'bench', s, idx));
         Object.keys(currentSData.lineup).forEach(pos => {
+            if (parseInt(pos) === 1) return;
             fillNextBlockPos(nextShiftIdx, pos, currentSData.lineup[pos], 0);
         });
         
         updateShiftData(nextShiftIdx);
-        
-        // Scroll to next
         nextBlock.scrollIntoView({behavior: "smooth", block: "center"});
     } else {
-        // Validation / Complete Mode
         document.getElementById('btnSave').disabled = false;
         alert("Alle kwartjes zijn ingevuld! Je kan je theorie nu opslaan.");
     }
 }
 
 function unlockBlock(shiftIdx) {
-    // You can only unlock if it's the last unlocked one in the chain,
-    // Or you wipe all later! For simplicity: wiping later.
     if(!confirm("Waarschuwing: Alle blokken na deze blok worden gereset. Ben je zeker?")) return;
     
     let currentBlock = document.getElementById('shift-' + shiftIdx);
@@ -411,7 +426,6 @@ function unlockBlock(shiftIdx) {
         laterBlock.classList.remove('border-primary', 'border-success');
         laterBlock.querySelector('.btn-unlock').classList.add('d-none');
         laterBlock.querySelector('.btn-lock').classList.add('d-none');
-        // Clear them
         laterBlock.querySelectorAll('.pool-player').forEach(el => el.remove());
         updateShiftData(i);
     }
@@ -427,17 +441,15 @@ function fillNextBlockPos(targetShiftIdx, pos, sidx, benchIdx) {
     }
     if(container) {
         let pName = "";
-        let isGk = false;
         for(let pid in playersMap) {
-            if(playersMap[pid].sidx == sidx) { pName = playersMap[pid].name; isGk = playersMap[pid].is_gk; }
+            if(playersMap[pid].sidx == sidx) { pName = playersMap[pid].name; }
         }
         
         let el = document.createElement('div');
-        el.className = 'pool-player shadow-sm' + (isGk ? ' is-gk' : '');
+        el.className = 'pool-player shadow-sm';
         el.setAttribute('draggable', 'true');
         el.setAttribute('data-sidx', sidx);
         
-        // Add visual hint if this player has bench priority!
         let pStats = globalPlayerStats[sidx];
         if (pStats && pStats.benchMin > 0) {
             el.classList.add('on-bench-priority');

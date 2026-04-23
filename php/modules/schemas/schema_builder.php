@@ -92,8 +92,8 @@ require_once dirname(__DIR__, 2) . '/header.php';
 .pos-badge { position: absolute; top: -10px; left: 5px; background: #6c757d; color: white; font-size: 0.6rem; padding: 2px 5px; border-radius: 8px; z-index: 2;}
 .pos-wrapper .pool-player { margin-bottom: 0; width: 100%; border-radius: 4px; padding: 3px; font-size: 0.85rem; z-index: 1;}
 
-/* The block accordeon headers */
-.shift-block.locked { opacity: 0.6; pointer-events: none; filter: grayscale(50%); }
+.shift-block.locked { opacity: 0.6; filter: grayscale(50%); }
+.shift-block.locked .card-body { pointer-events: none; }
 .shift-block.locked .card-header { background: #e9ecef !important; }
 </style>
 

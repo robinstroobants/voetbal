@@ -133,14 +133,13 @@ require_once dirname(__DIR__, 2) . '/header.php';
                             <label class="form-label">Wissel Frequentie (Minuten)</label>
                             <select name="sub_freq" class="form-select" required>
                                 <option value="5">Om de 5 minuten</option>
-                                <option value="7.5">Om de 7.5 minuten (mid-kwartjes)</option>
+                                <option value="7.5" selected>Om de 7.5 minuten (mid-kwartjes)</option>
                                 <option value="10">Om de 10 minuten</option>
                                 <option value="15" >Om de 15 minuten</option>
                                 <option value="20">Om de 20 minuten</option>
                                 <option value="30">Om de 30 minuten</option>
                                 <option value="45">Om de 45 minuten</option>
                             </select>
-                            <div class="form-text">Vaak gelijk aan de duur per blok, tenzij je halverwege ook wisselt.</div>
                         </div>
                     </div>
                     
@@ -182,7 +181,9 @@ require_once dirname(__DIR__, 2) . '/header.php';
                     <input type="hidden" name="step" value="3">
                     <input type="hidden" name="format_string" value="<?= htmlspecialchars($format_string) ?>">
                     <input type="hidden" name="player_count" value="<?= $player_count ?>">
+                    <input type="hidden" name="doelmannen" value="<?= htmlspecialchars($_POST['doelmannen'] ?? 0) ?>">
                     
+                    <?php $doelmannen_count = (int)($_POST['doelmannen'] ?? 0); ?>
                     <div class="row">
                     <?php foreach ($all_players as $p): ?>
                         <div class="col-md-4 mb-3">
@@ -196,12 +197,14 @@ require_once dirname(__DIR__, 2) . '/header.php';
                                             <?= htmlspecialchars($p['first_name'] . ' ' . $p['last_name']) ?>
                                         </label>
                                     </div>
-                                    <div>
+                                    <?php if ($doelmannen_count > 0): ?>
+                                    <div class="gk-wrapper" style="display: <?= (in_array($p['id'], $selected_players ?? [])) ? 'block' : 'none' ?>;" id="gk-wrap-<?= $p['id'] ?>">
                                         <input type="checkbox" name="goalkeepers[]" value="<?= $p['id'] ?>" id="gk-<?= $p['id'] ?>" 
                                             <?= (in_array($p['id'], $selected_gks ?? [])) ? 'checked' : '' ?>
-                                            class="btn-check" autocomplete="off" onclick="event.stopPropagation();">
-                                        <label class="btn btn-sm btn-outline-warning gk-btn" for="gk-<?= $p['id'] ?>" title="Markeer als Doelman" onclick="event.stopPropagation();">GK</label>
+                                            class="btn-check gk-checkbox" autocomplete="off" onclick="event.stopPropagation(); enforceGkLimit(this);">
+                                        <label class="btn btn-sm btn-outline-warning gk-btn" for="gk-<?= $p['id'] ?>" title="Klik om te markeren als Doelman" onclick="event.stopPropagation();">GK</label>
                                     </div>
+                                    <?php endif; ?>
                                 </div>
                             </div>
                         </div>
@@ -244,12 +247,31 @@ require_once dirname(__DIR__, 2) . '/header.php';
                         btn.disabled = true;
                     }
                     
-                    // Style cards
+                    // Style cards and show/hide GK button
                     document.querySelectorAll('.player-checkbox').forEach(chk => {
                         let card = document.getElementById('card-' + chk.value);
-                        if(chk.checked) card.classList.add('border-primary', 'bg-light');
-                        else card.classList.remove('border-primary', 'bg-light');
+                        let gkWrap = document.getElementById('gk-wrap-' + chk.value);
+                        if(chk.checked) {
+                            card.classList.add('border-primary', 'bg-light');
+                            if(gkWrap) gkWrap.style.display = 'block';
+                        } else {
+                            card.classList.remove('border-primary', 'bg-light');
+                            if(gkWrap) gkWrap.style.display = 'none';
+                            // Uncheck GK if player is unselected
+                            let gkChk = document.getElementById('gk-' + chk.value);
+                            if(gkChk) gkChk.checked = false;
+                        }
                     });
+                }
+                
+                function enforceGkLimit(checkbox) {
+                    let targetGk = <?= $doelmannen_count ?? 0 ?>;
+                    if(targetGk === 0) return;
+                    let currentGks = document.querySelectorAll('.gk-checkbox:checked').length;
+                    if(currentGks > targetGk && checkbox.checked) {
+                        alert("Je hebt ingesteld dat je theorie maximaal " + targetGk + " doelman(nen) heeft.");
+                        checkbox.checked = false;
+                    }
                 }
 
                 document.addEventListener('DOMContentLoaded', updateCount);

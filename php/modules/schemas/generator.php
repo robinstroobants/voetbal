@@ -771,101 +771,66 @@
           $fail_stats = $gecombineerde_fail_stats;
       }
       // --- END BACKTRACKING OPTIMIZATION ---
-      $algo_end_time = microtime(true);
-      if (function_exists('logPerformance')) {
-          $exec_time_ms = ($algo_end_time - $algo_start_time) * 1000;
-          $mem_usage_mb = memory_get_peak_usage() / 1024 / 1024;
-          $contextStr = "Format: " . ($format ?? '?') . " (" . count($squad ?? []) . " Spelers)";
-          logPerformance('Generator Recursive DFS', $exec_time_ms, $mem_usage_mb, null, $contextStr);
-      }
-  }
-
-  // Nu de uitgebreide debug output als er niets gevonden is
-  if (is_null($result)) {
-      echo "<div style='font-family: Arial, sans-serif; padding: 20px; border: 2px solid red; background: #fff5f5; margin-bottom: 20px;'>";
-      echo "<h2 style='color: #d9534f;'>❌ Geen geldige opstelling gevonden</h2>";
-      echo "<p><strong>Schema:</strong> <code>DB (Format: $format)</code> | <strong>Pogingen:</strong> $tries</p>";
-
-      echo "<h3>🕵️ Bottleneck Analyse</h3>";
-      echo "<table border='1' cellpadding='8' style='border-collapse: collapse; width: 100%; background: white; text-align: left;'>";
-      echo "<tr style='background: #eee;'><th>Speler</th><th>Verboden Positie</th><th>Te weinig minuten (No-Min)</th><th>Te veel minuten (No-Max)</th><th>Totaal Afgekeurd</th></tr>";
-
-      $all_names = array_unique(array_merge(array_keys($fail_stats['forbidden']), array_keys($fail_stats['no_min']), array_keys($fail_stats['no_max'])));
-    
-      // Sorteren op meeste fouten
-      usort($all_names, function($a, $b) use ($fail_stats) {
-          $totalA = ($fail_stats['forbidden'][$a] ?? 0) + ($fail_stats['no_min'][$a] ?? 0) + ($fail_stats['no_max'][$a] ?? 0);
-          $totalB = ($fail_stats['forbidden'][$b] ?? 0) + ($fail_stats['no_min'][$b] ?? 0) + ($fail_stats['no_max'][$b] ?? 0);
-          return $totalB <=> $totalA;
-      });
-
-      // Zoek rond regel 343 in index.php naar de 'Bottleneck Analyse' tabel
-      foreach ($all_names as $naam) {
-          $f = $fail_stats['forbidden'][$naam] ?? 0;
-          $mi = $fail_stats['no_min'][$naam] ?? 0;
-          $ma = $fail_stats['no_max'][$naam] ?? 0;
-          $total = $f + $mi + $ma;
-
-          // NIEUW: Haal de specifieke posities op die op '0' staan voor deze speler
-          $verbodenLijst = isset($player_no_go[$naam]) ? implode(', ', $player_no_go[$naam]) : '-';
-
-          echo "<tr>";
-          echo "<td><strong>$naam</strong></td>";
-          // We voegen de lijst met nummers toe onder de teller van verboden posities
-          echo "<td>$f <br><small style='color:red;'>Geblokkeerde posities: $verbodenLijst</small></td>";
-          echo "<td>$mi</td>";
-          echo "<td>$ma</td>";
-          echo "<td><strong>$total</strong></td>";
-          echo "</tr>";
-      }
-
-      /*foreach ($all_names as $naam) {
-          $f = $fail_stats['forbidden'][$naam] ?? 0;
-          $mi = $fail_stats['no_min'][$naam] ?? 0;
-          $ma = $fail_stats['no_max'][$naam] ?? 0;
-          $total = $f + $mi + $ma;
-          echo "<tr><td><strong>$naam</strong></td><td>$f</td><td>$mi</td><td>$ma</td><td><strong>$total</strong></td></tr>";
-      }*/
-      echo "</table></div>";
-      die();
-  }
-  
-  
-  if (is_null($result)) {
-        echo "<div style='font-family: sans-serif; padding: 20px; border: 2px solid red; background: #fff5f5;'>";
-        echo "<h2 style='color: #d9534f;'>❌ Geen geldige opstelling gevonden</h2>";
-        echo "<p><strong>Geprobeerd bestand:</strong> <code>" . basename($wissel_file) . "</code></p>";
-        echo "<p><strong>Aantal pogingen:</strong> $max_runs</p>";
-        echo "<hr>";
-    
-        echo "<h3>Mogelijke oorzaken:</h3>";
-        echo "<ul>";
-            // Check 1: Te veel beperkingen op posities
-            echo "<li><strong>Positiebeperkingen:</strong> Controleer of spelers scores van 0 hebben op posities die ze móeten invullen.</li>";
-        
-            // Check 2: No-Min / No-Max conflicten
-            if (!empty($no_min[$wedstrijd]) || !empty($no_max[$wedstrijd])) {
-                echo "<li><strong>Min/Max Conflict:</strong> Spelers die niet de minste minuten mogen maken: <code>" . implode(', ', $no_min[$wedstrijd]) . "</code>. <br>";
-                echo "Spelers die niet de meeste minuten mogen maken: <code>" . implode(', ', $no_max[$wedstrijd]) . "</code>.</li>";
-            }
-        echo "</ul>";
-
-        echo "<h3>Speler Checklist (Verboden posities):</h3>";
-        echo "<table border='1' cellpadding='5' style='border-collapse: collapse;'>";
-        echo "<tr><th>Speler</th><th>Mag NIET op deze posities</th></tr>";
-        foreach ($squad as $speler) {
-            $verboden = $player_no_go[$speler] ?? [];
-            echo "<tr><td>$speler</td><td>" . (empty($verboden) ? "<span style='color:green;'>Geen beperkingen</span>" : "<span style='color:red;'>" . implode(', ', $verboden) . "</span>") . "</td></tr>";
+        // We roepen de historie aan en injecteren de huidige generatie 
+        // erbij in zodat optellingen/percentages on-the-fly zichtbaar zijn.
+        if (!isset($pt_all_games)) {
+            $pt_all_games = [];
         }
-        echo "</table>";
-    
-        echo "</div>";
-        die();
-  } else {
-    // We roepen de historie aan en injecteren de huidige generatie 
-    // erbij in zodat optellingen/percentages on-the-fly zichtbaar zijn.
-    if (!isset($pt_all_games)) {
-        $pt_all_games = [];
+        
+        // Voeg de huidige gegenereerde opstelling toe aan de statistieken 
+        // tenzij die wedstrijd zelf al in de historiek gecapteerd werd.
+        if (!in_array($wedstrijd, array_keys($pt_all_games))){
+          
+          $db_time_played = [];
+          $db_time_in_position = [];
+          foreach ($lineup->time_played as $player_id => $time) {
+              $id = $player_id;
+              $db_time_played[$id] = $time;
+              $db_time_in_position[$id] = $lineup->time_in_position[$player_id] ?? [];
+          }
+            
+          $pt_all_games[$wedstrijd] = array(
+            "duration" => $lineup->total_duration * 60,
+            "players" => $db_time_played,
+            "playtime" => $db_time_in_position
+          );
+        }
+        
+        $huidige_wedstrijd = $pt_all_games[$wedstrijd] ?? null;
+        
+        // $player_scores omzetten naar IDs voor de stats loop
+        $db_player_scores = [];
+        foreach ($player_scores as $player_id => $score) {
+            $id = $player_id;
+            $db_player_scores[$id] = $score;
+        }
+        
+        $pt_stats = build_playtime_stats($pt_all_games, $db_player_scores);
+        
+        // Datumdeel uit key halen
+        list($datum_raw, $wedstrijd_naam) = explode('_', $wedstrijd, 2);
+        // Datumformaten genereren vanuit YYMMDD
+        $jaar = '20' . substr($datum_raw, 0, 2); // '25' → '2025'
+        $maand = substr($datum_raw, 2, 2);       // '09'
+        $dag = substr($datum_raw, 4, 2);         // '27'
+        $datum_full = "$jaar-$maand-$dag";       // '2025-09-27'
+        $datum_short = "$dag/$maand";            // '27/09'
+        // Uitbreiden van array
+        $huidige_wedstrijd['key'] = $wedstrijd;
+        $huidige_wedstrijd['date_short'] = $datum_short;
+        $huidige_wedstrijd['date_full'] = $datum_full;
+        
+        
+        //dpr($result,__LINE__);
+      }
+
+      $page_title = $wedstrijd;
+      //$page_title .=  "_" . $team_key_idx;
+      /*
+      $page_title .=  "-" . count($selected["teams"]) . "ploeg";
+      if (count($selected["teams"])>1){
+        $page_title .= "en";
+      }*/
     }
     
     // Voeg de huidige gegenereerde opstelling toe aan de statistieken 

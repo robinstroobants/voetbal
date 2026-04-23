@@ -64,6 +64,8 @@
       </div>
       <?php endif; ?>
       
+      <?= $generator_error_html ?? '' ?>
+      
       <?php if (!defined('PUBLIC_SHARE_MODE')): ?>
       <div class="card mb-4 border-primary d-print-none shadow-sm" id="saved-lineups-container" style="<?= empty($saved_lineups) || $locked_lineup ? 'display:none;' : '' ?>">
           <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">

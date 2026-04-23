@@ -121,7 +121,7 @@ if (isset($routes[$path])) {
     }
     elseif ($path === '/schemas/wizard') {
         enforce_auth();
-        Permissions::enforce(Permissions::PERM_GENERATE_LINEUPS);
+        Permissions::enforce(Permissions::PERM_USE_THEORY_WIZARD);
         require_once __DIR__ . '/modules/schemas/create_theory.php';
         $route_matched = true;
     }

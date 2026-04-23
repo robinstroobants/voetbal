@@ -14,6 +14,7 @@ class Permissions {
     const PERM_MANAGE_TEAM_SETTINGS = 'manage_team_settings';
     const PERM_VIEW_SYSTEM_LOGS = 'view_system_logs';
     const PERM_MANAGE_TENANTS = 'manage_tenants';
+    const PERM_USE_THEORY_WIZARD = 'use_theory_wizard';
 
     private static $rolePermissions = [
         self::ROLE_SUPERADMIN => [
@@ -24,14 +25,16 @@ class Permissions {
             self::PERM_MANAGE_PLAYERS,
             self::PERM_MANAGE_GAMES,
             self::PERM_EDIT_SCORES,
-            self::PERM_GENERATE_LINEUPS
+            self::PERM_GENERATE_LINEUPS,
+            self::PERM_USE_THEORY_WIZARD
         ],
         self::ROLE_ADMIN => [
             self::PERM_MANAGE_TEAM_SETTINGS,
             self::PERM_MANAGE_PLAYERS,
             self::PERM_MANAGE_GAMES,
             self::PERM_EDIT_SCORES,
-            self::PERM_GENERATE_LINEUPS
+            self::PERM_GENERATE_LINEUPS,
+            self::PERM_USE_THEORY_WIZARD
         ],
         self::ROLE_COACH => [
             self::PERM_MANAGE_TEAM_SETTINGS,

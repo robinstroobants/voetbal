@@ -243,9 +243,11 @@ require_once dirname(__DIR__, 2) . '/header.php';
         <h2>Wedstrijd Beheer</h2>
         <?php if ($onboarding_complete): ?>
             <div>
+                <?php if (Permissions::hasPermission(Permissions::PERM_USE_THEORY_WIZARD)): ?>
                 <a href="/schemas/wizard" class="btn btn-outline-warning shadow-sm me-2 fw-bold text-dark">
                     <i class="fa-solid fa-flask me-2"></i>Theorie Ontwerpen
                 </a>
+                <?php endif; ?>
                 <button class="btn btn-primary shadow-sm" onclick="openGameModal()">
                     <i class="fa-solid fa-plus me-2"></i>Nieuwe Wedstrijd
                 </button>

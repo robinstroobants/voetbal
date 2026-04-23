@@ -69,9 +69,22 @@ try {
             echo "<span style='color: green;'>KLAAR!</span></li>";
             $executedCount++;
         } catch (PDOException $e) {
-            echo "<br><strong style='color: red;'>Fout bij migratie $basename:</strong> " . $e->getMessage() . "</li>";
-            // Stop de reeks indien 1 patch faalt om database verwarring te vermijden
-            die("</ul><div style='padding: 20px; background: #ffebee; border: 1px solid red; color: darkred;'><strong>Gestopt:</strong> Je database schema bevat fouten. Verhelp deze voordat je opnieuw migreert.</div>");
+            $errorCode = $e->errorInfo[1] ?? 0;
+            // 1060: Duplicate column name
+            // 1050: Table already exists
+            // 1061: Duplicate key name
+            if (in_array($errorCode, [1050, 1060, 1061])) {
+                // De migratie was eigenlijk al handmatig toegepast, dus we markeren deze als succesvol voltooid
+                $stmtInsert = $pdo->prepare("INSERT IGNORE INTO system_migrations (migration_name) VALUES (?)");
+                $stmtInsert->execute([$basename]);
+                
+                echo "<span style='color: orange;'>REEDS BESTAAND (overgeslagen).</span></li>";
+                $executedCount++;
+            } else {
+                echo "<br><strong style='color: red;'>Fout bij migratie $basename:</strong> " . $e->getMessage() . "</li>";
+                // Stop de reeks indien 1 patch faalt om database verwarring te vermijden
+                die("</ul><div style='padding: 20px; background: #ffebee; border: 1px solid red; color: darkred;'><strong>Gestopt:</strong> Je database schema bevat fouten. Verhelp deze voordat je opnieuw migreert.</div>");
+            }
         }
     }
     echo "</ul>";

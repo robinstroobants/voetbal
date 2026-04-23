@@ -12,11 +12,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'save_settings') {
         $team_name = trim($_POST['team_name'] ?? '');
         $default_format = trim($_POST['default_format'] ?? '8v8');
+        $default_game_parts = trim($_POST['default_game_parts'] ?? '4x15');
 
         if ($team_name) {
-            $stmt = $pdo->prepare("UPDATE teams SET name = ?, default_format = ? WHERE id = ?");
-            if ($stmt->execute([$team_name, $default_format, $team_id])) {
+            $stmt = $pdo->prepare("UPDATE teams SET name = ?, default_format = ?, default_game_parts = ? WHERE id = ?");
+            if ($stmt->execute([$team_name, $default_format, $default_game_parts, $team_id])) {
                 $_SESSION['team_name'] = $team_name;
+                $_SESSION['default_format'] = $default_format;
+                $_SESSION['default_game_parts'] = $default_game_parts;
                 $success = "De instellingen zijn succesvol opgeslagen.";
             } else {
                 $error = "Er liep iets mis bij het opslaan.";
@@ -100,9 +103,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // Ophalen van bestaande team_data
-$stmt = $pdo->prepare("SELECT name, default_format FROM teams WHERE id = ?");
+$stmt = $pdo->prepare("SELECT name, default_format, default_game_parts FROM teams WHERE id = ?");
 $stmt->execute([$team_id]);
 $team = $stmt->fetch();
+
+// Ophalen van beschikbare formats
+$stmtFormats = $pdo->query("SELECT DISTINCT game_format FROM lineups");
+$available_parts_by_format = [];
+while ($row = $stmtFormats->fetchColumn()) {
+    if (preg_match('/^(\d+v\d+)_(\d+gk_)?(\d+x\d+)$/', $row, $matches)) {
+        $f = $matches[1];
+        $p = $matches[3];
+        if (!isset($available_parts_by_format[$f])) {
+            $available_parts_by_format[$f] = [];
+        }
+        if (!in_array($p, $available_parts_by_format[$f])) {
+            $available_parts_by_format[$f][] = $p;
+        }
+    }
+}
+$json_available_parts = json_encode($available_parts_by_format);
 
 // Ophalen van co-coaches
 $stmtCoaches = $pdo->prepare("SELECT u.id, u.email, u.first_name, u.last_name FROM user_teams ut JOIN users u ON ut.user_id = u.id WHERE ut.team_id = ?");
@@ -142,22 +162,59 @@ require_once 'header.php';
                     <input type="text" name="team_name" class="form-control" value="<?= htmlspecialchars($team['name'] ?? '') ?>" required>
                 </div>
                 
-                <div class="mb-4">
-                    <label class="form-label fw-bold">Standaard Wedstrijd Formaat</label>
-                    <select name="default_format" class="form-select border-secondary">
-                        <option value="11v11" <?= ($team['default_format'] == '11v11') ? 'selected' : '' ?>>11v11</option>
-                        <option value="8v8_4x15" <?= ($team['default_format'] == '8v8_4x15') ? 'selected' : '' ?>>8v8 (4x15)</option>
-                        <option value="8v8_3x20" <?= ($team['default_format'] == '8v8_3x20') ? 'selected' : '' ?>>8v8 (3x20)</option>
-                        <option value="8v8_4x20" <?= ($team['default_format'] == '8v8_4x20') ? 'selected' : '' ?>>8v8 (4x20)</option>
-                        <option value="8v8_5x15" <?= ($team['default_format'] == '8v8_5x15') ? 'selected' : '' ?>>8v8 (5x15)</option>
-                        <option value="8v8_6x15" <?= ($team['default_format'] == '8v8_6x15') ? 'selected' : '' ?>>8v8 (6x15)</option>
-                        <option value="8v8_7x15" <?= ($team['default_format'] == '8v8_7x15') ? 'selected' : '' ?>>8v8 (7x15)</option>
-                        <option value="5v5_4x15" <?= ($team['default_format'] == '5v5_4x15') ? 'selected' : '' ?>>5v5 (4x15)</option>
-                        <option value="3v3_6x10" <?= ($team['default_format'] == '3v3_6x10') ? 'selected' : '' ?>>3v3 (6x10)</option>
-                        <option value="2v2_6x10" <?= ($team['default_format'] == '2v2_6x10') ? 'selected' : '' ?>>2v2 (6x10)</option>
-                    </select>
-                    <div class="form-text">De basis setting voor jouw ploeg. Deze logica kan in de verdere applicatie gebruikt/overschreven worden.</div>
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <label class="form-label fw-bold">Aantal Spelers</label>
+                        <select name="default_format" id="default_format" class="form-select border-secondary">
+                            <option value="11v11" <?= ($team['default_format'] == '11v11') ? 'selected' : '' ?>>11v11</option>
+                            <option value="8v8" <?= ($team['default_format'] == '8v8') ? 'selected' : '' ?>>8v8</option>
+                            <option value="5v5" <?= ($team['default_format'] == '5v5') ? 'selected' : '' ?>>5v5</option>
+                            <option value="3v3" <?= ($team['default_format'] == '3v3') ? 'selected' : '' ?>>3v3</option>
+                            <option value="2v2" <?= ($team['default_format'] == '2v2') ? 'selected' : '' ?>>2v2</option>
+                        </select>
+                        <div class="form-text">De basis grootte van jouw team.</div>
+                    </div>
+                    <div class="col-md-6 mt-3 mt-md-0">
+                        <label class="form-label fw-bold">Wedstrijdindeling</label>
+                        <select name="default_game_parts" id="default_game_parts" class="form-select border-secondary">
+                            <!-- Opties worden ingevuld via JS -->
+                        </select>
+                        <div class="form-text">Beschikbare indelingen gebaseerd op de matrix.</div>
+                    </div>
                 </div>
+
+                <script>
+                document.addEventListener('DOMContentLoaded', function() {
+                    const availableParts = <?= $json_available_parts ?>;
+                    const formatSelect = document.getElementById('default_format');
+                    const partsSelect = document.getElementById('default_game_parts');
+                    const currentParts = '<?= $team['default_game_parts'] ?>';
+
+                    function updateParts() {
+                        const selectedFormat = formatSelect.value;
+                        partsSelect.innerHTML = '';
+                        
+                        let parts = availableParts[selectedFormat] || [];
+                        if (parts.length === 0) {
+                            // Fallbacks if no schema exists yet
+                            parts = ['4x15', '3x20', '2x45'];
+                        }
+
+                        parts.forEach(part => {
+                            const option = document.createElement('option');
+                            option.value = part;
+                            option.textContent = part;
+                            if (part === currentParts) {
+                                option.selected = true;
+                            }
+                            partsSelect.appendChild(option);
+                        });
+                    }
+
+                    formatSelect.addEventListener('change', updateParts);
+                    updateParts(); // Initial call
+                });
+                </script>
 
                 <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk me-2"></i> Wijzigingen Opslaan</button>
             </form>

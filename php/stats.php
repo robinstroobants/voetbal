@@ -43,7 +43,8 @@ $stmtStats = $pdo->prepare("
         COALESCE(SUM(gpl.seconds_played), 0) as total_seconds,
         COALESCE(SUM(gpl.seconds_gk), 0) as gk_seconds,
         COALESCE(SUM(gpl.seconds_bank), 0) as bank_seconds,
-        COUNT(gpl.id) as matches_played
+        COUNT(gpl.id) as matches_played,
+        GROUP_CONCAT(CASE WHEN gpl.id IS NOT NULL THEN g.format ELSE NULL END) as played_formats
     FROM players p
     LEFT JOIN games g ON g.team_id = p.team_id AND g.game_date BETWEEN ? AND ?
     LEFT JOIN game_playtime_logs gpl ON p.id = gpl.player_id AND gpl.game_id = g.id
@@ -53,6 +54,31 @@ $stmtStats = $pdo->prepare("
 ");
 $stmtStats->execute([$filter_start, $filter_end, $team_id]);
 $stats = $stmtStats->fetchAll(PDO::FETCH_ASSOC);
+
+foreach ($stats as &$s) {
+    $max_seconds = 0;
+    if (!empty($s['played_formats'])) {
+        $formats = explode(',', $s['played_formats']);
+        foreach ($formats as $f) {
+            if (preg_match('/_(\d+)x(\d+)/', $f, $m)) {
+                $max_seconds += (int)$m[1] * (int)$m[2] * 60;
+            }
+        }
+    }
+    $s['max_seconds'] = $max_seconds;
+}
+unset($s);
+
+function formatTimeStats($seconds) {
+    $hours = floor($seconds / 3600);
+    $minutes = floor(($seconds % 3600) / 60);
+    $secs = $seconds % 60;
+    $parts = [];
+    if ($hours > 0) $parts[] = $hours . 'u';
+    if ($minutes > 0 || $hours > 0) $parts[] = str_pad($minutes, 2, '0', STR_PAD_LEFT) . 'm';
+    $parts[] = str_pad($secs, 2, '0', STR_PAD_LEFT) . 's';
+    return implode(' ', $parts);
+}
 
 // Controleer of het team meer dan 1 coach heeft
 $stmtNumCoaches = $pdo->prepare("SELECT COUNT(*) FROM user_teams WHERE team_id = ?");
@@ -146,8 +172,6 @@ require_once 'header.php';
                         <th>Speler</th>
                         <th class="text-center" title="Matchen Gespeeld"><i class="fa-solid fa-hashtag text-secondary"></i> Matchen</th>
                         <th class="text-center" title="Totaal Minuten op het Veld of in Doel"><i class="fa-solid fa-stopwatch text-success"></i> Gespeeld</th>
-                        <th class="text-center" title="Waarvan Doelman (Minuten)"><i class="fa-solid fa-hands text-muted"></i> Doelman</th>
-                        <th class="text-center" title="Totaal Minuten op de Bank"><i class="fa-solid fa-chair text-warning"></i> Bank</th>
                         <?php if ($has_multiple_coaches): ?>
                         <th class="text-center" title="Verdeling van speeltijd per coach"><i class="fa-solid fa-chalkboard-user text-info"></i> Coach %</th>
                         <?php endif; ?>
@@ -157,19 +181,59 @@ require_once 'header.php';
                     <?php foreach($stats as $s): ?>
                         <tr>
                             <td class="fw-bold">
-                                <?= htmlspecialchars($s['first_name'] . ' ' . $s['last_name']) ?>
+                                <?= htmlspecialchars(stripslashes($s['first_name'] . ' ' . $s['last_name'])) ?>
                             </td>
                             <td class="text-center fw-semibold">
                                 <?= $s['matches_played'] ?>
                             </td>
                             <td class="text-center fw-bold text-success">
-                                <?= round($s['total_seconds'] / 60, 1) ?> <span class="small fw-normal opacity-75">min</span>
-                            </td>
-                            <td class="text-center text-muted">
-                                <?= round($s['gk_seconds'] / 60, 1) ?> <span class="small fw-normal opacity-75">min</span>
-                            </td>
-                            <td class="text-center text-warning fw-semibold">
-                                <?= round($s['bank_seconds'] / 60, 1) ?> <span class="small fw-normal opacity-75">min</span>
+                                <?php
+                                    $perc = $s['max_seconds'] > 0 ? round(($s['total_seconds'] / $s['max_seconds']) * 100) : 0;
+                                    $total_time = formatTimeStats($s['total_seconds']);
+                                    $max_time = formatTimeStats($s['max_seconds']);
+                                    $bench_time = formatTimeStats($s['bank_seconds']);
+                                    $gk_time = formatTimeStats($s['gk_seconds']);
+                                    $avg_min_match = $s['matches_played'] > 0 ? round(($s['total_seconds'] / 60) / $s['matches_played']) : 0;
+
+                                    $popover_content = "
+                                        <div class='small' style='min-width: 180px;'>
+                                            <div class='d-flex justify-content-between mb-1'>
+                                                <span class='text-muted'>Gespeeld:</span>
+                                                <span class='fw-bold'>$total_time</span>
+                                            </div>
+                                            <div class='d-flex justify-content-between mb-2'>
+                                                <span class='text-muted'>Max. beschikbaar:</span>
+                                                <span class='fw-bold'>$max_time</span>
+                                            </div>
+                                            <hr class='my-2'>
+                                            <div class='d-flex justify-content-between mb-1'>
+                                                <span class='text-muted'>Aantal matchen:</span>
+                                                <span class='fw-bold'>{$s['matches_played']}</span>
+                                            </div>
+                                            <div class='d-flex justify-content-between mb-1'>
+                                                <span class='text-muted'>Als doelman:</span>
+                                                <span class='fw-bold text-info'>$gk_time</span>
+                                            </div>
+                                            <div class='d-flex justify-content-between mb-1'>
+                                                <span class='text-muted'>Bankzitters tijd:</span>
+                                                <span class='fw-bold text-warning'>$bench_time</span>
+                                            </div>
+                                            <div class='d-flex justify-content-between'>
+                                                <span class='text-muted'>Gemiddeld / match:</span>
+                                                <span class='fw-bold'>$avg_min_match min</span>
+                                            </div>
+                                        </div>
+                                    ";
+                                ?>
+                                <span tabindex="0" 
+                                      data-bs-toggle="popover" 
+                                      data-bs-placement="top" 
+                                      data-bs-trigger="hover focus"
+                                      title="<i class='fa-solid fa-circle-info text-primary me-1'></i> Playtime Details" 
+                                      data-bs-content="<?= htmlspecialchars($popover_content, ENT_QUOTES, 'UTF-8') ?>"
+                                      style="cursor: help; border-bottom: 1px dashed #198754; padding-bottom: 2px;">
+                                    <?= $perc ?>%
+                                </span>
                             </td>
                             <?php if ($has_multiple_coaches): ?>
                             <td class="text-center" style="font-size: 0.85rem;">
@@ -196,7 +260,7 @@ require_once 'header.php';
                     <?php endforeach; ?>
                     <?php if(count($stats) === 0): ?>
                         <tr>
-                            <td colspan="<?= $has_multiple_coaches ? 6 : 5 ?>" class="text-center py-4 text-muted">Geen spelers gevonden voor dit team.</td>
+                            <td colspan="<?= $has_multiple_coaches ? 4 : 3 ?>" class="text-center py-4 text-muted">Geen spelers gevonden voor dit team.</td>
                         </tr>
                     <?php endif; ?>
                 </tbody>
@@ -206,3 +270,14 @@ require_once 'header.php';
 </div>
 
 <?php require_once 'footer.php'; ?>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    var popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'))
+    var popoverList = popoverTriggerList.map(function (popoverTriggerEl) {
+        return new bootstrap.Popover(popoverTriggerEl, {
+            html: true
+        })
+    })
+});
+</script>

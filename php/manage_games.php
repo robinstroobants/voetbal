@@ -16,7 +16,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $gameId = !empty($_POST['game_id']) ? (int)$_POST['game_id'] : null;
         $opponent = trim($_POST['opponent']);
         $gameDate = $_POST['game_date'];
-        $format = $_POST['format'];
+        $baseFormat = $_POST['format'];
+        $gameParts = $_POST['game_parts'];
+        $format = $baseFormat . '_' . $gameParts;
+        
         $minPos = isset($_POST['min_pos']) ? (int)$_POST['min_pos'] : 0;
         // team_id = 1 as default for now
         $coachId = !empty($_POST['coach_id']) ? (int)$_POST['coach_id'] : null;
@@ -164,17 +167,25 @@ foreach ($games as $game) {
 // Sorteer de weken van nieuw naar oud
 krsort($groupedByWeek);
 
-$available_formats_all = [
-    '11v11',
-    '8v8_4x15',
-    '8v8_3x20',
-    '8v8_4x20',
-    '8v8_5x15',
-    '8v8_6x15',
-    '8v8_7x15',
-    '5v5_4x15',
-    '3v3_6x10',
-    '2v2_6x10'
+// Ophalen van beschikbare formats uit DB voor JS
+$stmtFormats = $pdo->query("SELECT DISTINCT game_format FROM lineups");
+$available_parts_by_format = [];
+while ($row = $stmtFormats->fetchColumn()) {
+    if (preg_match('/^(\d+v\d+)_(\d+gk_)?(\d+x\d+)$/', $row, $matches)) {
+        $f = $matches[1];
+        $p = $matches[3];
+        if (!isset($available_parts_by_format[$f])) {
+            $available_parts_by_format[$f] = [];
+        }
+        if (!in_array($p, $available_parts_by_format[$f])) {
+            $available_parts_by_format[$f][] = $p;
+        }
+    }
+}
+$json_available_parts = json_encode($available_parts_by_format);
+
+$available_formats = [
+    '11v11', '8v8', '5v5', '3v3', '2v2'
 ];
 
 function getFormatLevel($fmtStr) {
@@ -550,6 +561,34 @@ document.addEventListener("DOMContentLoaded", function() {
         localStorage.setItem('manageGamesGroupByWeek', groupByWeekToggle.checked);
     }
 
+    const availableParts = <?= $json_available_parts ?>;
+    
+    window.updateGameParts = function(preselectPart = null) {
+        const formatSelect = document.getElementById('modal_format');
+        const partsSelect = document.getElementById('modal_game_parts');
+        const selectedFormat = formatSelect.value;
+        partsSelect.innerHTML = '';
+        
+        let parts = availableParts[selectedFormat] || [];
+        if (parts.length === 0) {
+            parts = ['4x15', '3x20', '2x45'];
+        }
+
+        parts.forEach(part => {
+            const option = document.createElement('option');
+            option.value = part;
+            option.textContent = part;
+            if (preselectPart && part === preselectPart) {
+                option.selected = true;
+            }
+            partsSelect.appendChild(option);
+        });
+    };
+
+    document.getElementById('modal_format').addEventListener('change', () => window.updateGameParts(null));
+
+    // Listeners and defaults...
+
     function filterGames() {
         const query = searchInput.value.toLowerCase();
         const coach = coachFilter.value;
@@ -600,23 +639,53 @@ function openGameModal(game = null, isDuplicate = false) {
         document.getElementById('modal_game_id').value = game.id;
         document.getElementById('modal_opponent').value = game.opponent;
         document.getElementById('modal_game_date').value = game.game_date ? game.game_date.split(' ')[0] : '';
-        document.getElementById('modal_format').value = game.format;
         document.getElementById('modal_min_pos').value = game.min_pos || '0';
         document.getElementById('modal_coach_id').value = game.coach_id || '';
+        
+        let formatBase = '8v8';
+        let formatParts = '4x15';
+        if (game.format) {
+            const parts = game.format.split('_');
+            if (parts.length >= 2) {
+                formatBase = parts[0];
+                formatParts = parts[parts.length - 1];
+            } else {
+                formatBase = game.format;
+            }
+        }
+        document.getElementById('modal_format').value = formatBase;
+        updateGameParts(formatParts);
     } else if (game && isDuplicate) {
         document.getElementById('gameModalLabel').innerText = 'Wedstrijd Dupliceren van ' + game.opponent;
         document.getElementById('modal_source_game_id').value = game.id;
         document.getElementById('modal_opponent').value = '';
         document.getElementById('modal_game_date').value = new Date().toISOString().split('T')[0];
-        document.getElementById('modal_format').value = game.format;
         document.getElementById('modal_min_pos').value = game.min_pos || '0';
         document.getElementById('modal_coach_id').value = game.coach_id || '';
+        
+        let formatBase = '8v8';
+        let formatParts = '4x15';
+        if (game.format) {
+            const parts = game.format.split('_');
+            if (parts.length >= 2) {
+                formatBase = parts[0];
+                formatParts = parts[parts.length - 1];
+            } else {
+                formatBase = game.format;
+            }
+        }
+        document.getElementById('modal_format').value = formatBase;
+        updateGameParts(formatParts);
     } else {
         document.getElementById('gameModalLabel').innerText = 'Nieuwe Wedstrijd Plannen';
         document.getElementById('modal_game_date').value = new Date().toISOString().split('T')[0];
-        document.getElementById('modal_format').value = '<?= htmlspecialchars($default_format) ?>';
         document.getElementById('modal_min_pos').value = '0';
         document.getElementById('modal_coach_id').value = '';
+        
+        let defFormat = '<?= $_SESSION['default_format'] ?? '8v8' ?>';
+        let defParts = '<?= $_SESSION['default_game_parts'] ?? '4x15' ?>';
+        document.getElementById('modal_format').value = defFormat;
+        updateGameParts(defParts);
     }
     
     modal.show();

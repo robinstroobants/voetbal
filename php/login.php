@@ -26,7 +26,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $password = $_POST['password'] ?? '';
 
     if ($email && $password) {
-        $stmt = $pdo->prepare("SELECT u.id, u.email, u.password_hash, u.role, u.team_id, u.is_verified, u.is_beta_user, t.name as team_name, t.default_format, t.subscription_valid_until 
+        $stmt = $pdo->prepare("SELECT u.id, u.email, u.password_hash, u.role, u.team_id, u.is_verified, u.is_beta_user, t.name as team_name, t.default_format, t.default_game_parts, t.subscription_valid_until 
                                FROM users u 
                                LEFT JOIN teams t ON u.team_id = t.id 
                                WHERE u.email = ? LIMIT 1");
@@ -42,7 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['is_beta_user'] = $user['is_beta_user'];
             
             // Fetch Workspaces (Multi-Team Support)
-            $stmtWs = $pdo->prepare("SELECT ut.team_id, t.name, t.default_format, t.subscription_valid_until FROM user_teams ut JOIN teams t ON ut.team_id = t.id WHERE ut.user_id = ?");
+            $stmtWs = $pdo->prepare("SELECT ut.team_id, t.name, t.default_format, t.default_game_parts, t.subscription_valid_until FROM user_teams ut JOIN teams t ON ut.team_id = t.id WHERE ut.user_id = ?");
             $stmtWs->execute([$user['id']]);
             $workspaces = $stmtWs->fetchAll(PDO::FETCH_ASSOC);
             $_SESSION['available_teams'] = $workspaces;
@@ -50,12 +50,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['team_id'] = $user['team_id'];
             $_SESSION['team_name'] = $user['team_name'];
             $_SESSION['default_format'] = $user['default_format'] ?: '8v8';
+            $_SESSION['default_game_parts'] = $user['default_game_parts'] ?: '4x15';
             
-            // Fallback to first available team if primary is missing
             if (!$_SESSION['team_id'] && !empty($workspaces)) {
                 $_SESSION['team_id'] = $workspaces[0]['team_id'];
                 $_SESSION['team_name'] = $workspaces[0]['name'];
                 $_SESSION['default_format'] = $workspaces[0]['default_format'] ?: '8v8';
+                $_SESSION['default_game_parts'] = $workspaces[0]['default_game_parts'] ?: '4x15';
                 $user['subscription_valid_until'] = $workspaces[0]['subscription_valid_until'];
             }
             

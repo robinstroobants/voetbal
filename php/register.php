@@ -26,6 +26,23 @@ if ($invite_token) {
     }
 }
 
+// Ophalen van beschikbare formats
+$stmtFormats = $pdo->query("SELECT DISTINCT game_format FROM lineups");
+$available_parts_by_format = [];
+while ($row = $stmtFormats->fetchColumn()) {
+    if (preg_match('/^(\d+v\d+)_(\d+gk_)?(\d+x\d+)$/', $row, $matches)) {
+        $f = $matches[1];
+        $p = $matches[3];
+        if (!isset($available_parts_by_format[$f])) {
+            $available_parts_by_format[$f] = [];
+        }
+        if (!in_array($p, $available_parts_by_format[$f])) {
+            $available_parts_by_format[$f][] = $p;
+        }
+    }
+}
+$json_available_parts = json_encode($available_parts_by_format);
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error) {
     $name = trim($_POST['name'] ?? '');
     $email = filter_var($_POST['email'] ?? '', FILTER_SANITIZE_EMAIL);
@@ -34,13 +51,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error) {
     // Alleen nodig als we geen invite hebben
     $team_name = trim($_POST['team_name'] ?? '');
     $default_format = trim($_POST['default_format'] ?? '8v8');
+    $default_game_parts = trim($_POST['default_game_parts'] ?? '4x15');
     
     $nameParts = explode(' ', $name, 2);
     $first_name = $nameParts[0];
     $last_name = $nameParts[1] ?? '';
 
     // Validatie
-    $has_team_data = $invited_team_id ? true : ($team_name && $default_format);
+    $has_team_data = $invited_team_id ? true : ($team_name && $default_format && $default_game_parts);
 
     if ($name && $email && $password && $has_team_data) {
         if (strlen($password) < 6) {
@@ -78,8 +96,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error) {
                         // 2. Maak het team aan met een 1 maand trial
                         $valid_until = date('Y-m-d H:i:s', strtotime("+1 month"));
                         
-                        $stmtTeam = $pdo->prepare("INSERT INTO teams (user_id, club_id, name, default_format, subscription_plan, subscription_valid_until, is_active) VALUES (?, 1, ?, ?, 'trial', ?, 1)");
-                        $stmtTeam->execute([$user_id, $team_name, $default_format, $valid_until]);
+                        $stmtTeam = $pdo->prepare("INSERT INTO teams (user_id, club_id, name, default_format, default_game_parts, subscription_plan, subscription_valid_until, is_active) VALUES (?, 1, ?, ?, ?, 'trial', ?, 1)");
+                        $stmtTeam->execute([$user_id, $team_name, $default_format, $default_game_parts, $valid_until]);
                         $team_id = $pdo->lastInsertId();
 
                         // 3. Koppel de gebruiker aan het zojuist gemaakte team als primary en in user_teams
@@ -382,21 +400,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error) {
                             <input type="text" name="team_name" placeholder="Naam team (bv. U11 Thes IP)" required>
                         </div>
 
-                        <div class="form-group">
-                            <select name="default_format" class="form-control" style="width: 100%; background: #ffffff; border: 1px solid var(--apple-border); color: var(--apple-text-main); padding: 16px; border-radius: 12px; font-size: 1rem; outline: none; appearance: auto;" required>
-                                <option value="">Kies Wedstrijd Formaat</option>
-                                <option value="11v11">11v11</option>
-                                <option value="8v8_4x15">8v8 (4x15)</option>
-                                <option value="8v8_3x20">8v8 (3x20)</option>
-                                <option value="8v8_4x20">8v8 (4x20)</option>
-                                <option value="8v8_5x15">8v8 (5x15)</option>
-                                <option value="8v8_6x15">8v8 (6x15)</option>
-                                <option value="8v8_7x15">8v8 (7x15)</option>
-                                <option value="5v5_4x15">5v5 (4x15)</option>
-                                <option value="3v3_6x10">3v3 (6x10)</option>
-                                <option value="2v2_6x10">2v2 (6x10)</option>
-                            </select>
+                        <div class="form-group" style="display: flex; gap: 10px;">
+                            <div style="flex: 1;">
+                                <select name="default_format" id="default_format" class="form-control" style="width: 100%; background: #ffffff; border: 1px solid var(--apple-border); color: var(--apple-text-main); padding: 16px; border-radius: 12px; font-size: 1rem; outline: none; appearance: auto;" required>
+                                    <option value="" disabled selected>Formaat</option>
+                                    <option value="11v11">11v11</option>
+                                    <option value="8v8">8v8</option>
+                                    <option value="5v5">5v5</option>
+                                    <option value="3v3">3v3</option>
+                                    <option value="2v2">2v2</option>
+                                </select>
+                            </div>
+                            <div style="flex: 1;">
+                                <select name="default_game_parts" id="default_game_parts" class="form-control" style="width: 100%; background: #ffffff; border: 1px solid var(--apple-border); color: var(--apple-text-main); padding: 16px; border-radius: 12px; font-size: 1rem; outline: none; appearance: auto;" required>
+                                    <option value="" disabled selected>Wedstrijdjes</option>
+                                </select>
+                            </div>
                         </div>
+                        
+                        <script>
+                        document.addEventListener('DOMContentLoaded', function() {
+                            const availableParts = <?= $json_available_parts ?>;
+                            const formatSelect = document.getElementById('default_format');
+                            const partsSelect = document.getElementById('default_game_parts');
+
+                            function updateParts() {
+                                const selectedFormat = formatSelect.value;
+                                partsSelect.innerHTML = '<option value="" disabled selected>Indeling</option>';
+                                
+                                if (!selectedFormat) return;
+                                
+                                let parts = availableParts[selectedFormat] || [];
+                                if (parts.length === 0) {
+                                    parts = ['4x15', '3x20', '2x45'];
+                                }
+
+                                parts.forEach(part => {
+                                    const option = document.createElement('option');
+                                    option.value = part;
+                                    option.textContent = part;
+                                    partsSelect.appendChild(option);
+                                });
+                            }
+
+                            formatSelect.addEventListener('change', updateParts);
+                        });
+                        </script>
                     <?php endif; ?>
                     
                     <div class="form-group">

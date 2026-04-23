@@ -1,6 +1,6 @@
   <?php
     $show_pt_array = 0;
-    $show_position_stats = 1;
+    $show_position_stats = 0;
     $show_part_score = 0;
     $debug=0;
     /**

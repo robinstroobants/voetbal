@@ -27,7 +27,9 @@ function enforce_auth() {
 
 function enforce_role($required_role) {
     if ($required_role === 'superadmin') {
-        if (!isset($_SESSION['role']) || $_SESSION['role'] !== 'superadmin') {
+        $role = $_SESSION['role'] ?? '';
+        $original_role = $_SESSION['original_role'] ?? '';
+        if ($role !== 'superadmin' && $original_role !== 'superadmin') {
             header("Location: /");
             exit;
         }

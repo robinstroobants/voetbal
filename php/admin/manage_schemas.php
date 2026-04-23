@@ -199,7 +199,7 @@ require_once __DIR__ . '/../header.php';
             </select>
             <div class="form-check form-switch ms-2">
                 <input class="form-check-input" type="checkbox" id="filterUsed">
-                <label class="form-check-label small" for="filterUsed">Verberg Ongebruikt (0)</label>
+                <label class="form-check-label small" for="filterUsed">Verberg Ongebruikte</label>
             </div>
             <div class="form-check form-switch ms-2">
                 <input class="form-check-input" type="checkbox" id="filterErrors">

@@ -33,16 +33,10 @@
             
             
             // Als de Generator specifieke back-tracking solver tijden heeft berekend, toon die dan mee:
-            if (isset($exec_time_ms) && isset($mem_usage_mb)) {
-                echo '<div class="mb-1"><i class="fa-solid fa-microchip text-primary me-1"></i> <span class="text-dark">Evaluatie Solver Loop:</span> <strong>' . number_format($exec_time_ms, 2) . ' ms</strong> &bull; <strong>' . number_format($mem_usage_mb, 2) . ' MB</strong></div>';
-            }
+            // Verborgen op aanvraag gebruiker
         ?>
         <div class="text-secondary opacity-75">
             <i class="fa-solid fa-code-branch me-1"></i> <span class="fw-bold" style="letter-spacing: 0.5px;"><?= htmlspecialchars($app_version) ?></span> 
-            <span class="mx-2">&bull;</span>
-            <i class="fa-solid fa-stopwatch text-warning me-1"></i> Geladen: <strong><?= $global_load_ms ?> ms</strong>
-            <span class="mx-2">&bull;</span>
-            <i class="fa-solid fa-memory text-info me-1"></i> Piek: <strong><?= $mem_peak_mb ?> MB</strong>
         </div>
     </footer>
 

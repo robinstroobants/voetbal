@@ -245,7 +245,7 @@ require_once dirname(__DIR__, 2) . '/header.php';
             <div>
                 <?php if (Permissions::hasPermission(Permissions::PERM_USE_THEORY_WIZARD)): ?>
                 <a href="/schemas/wizard" class="btn btn-outline-warning shadow-sm me-2 fw-bold text-dark">
-                    <i class="fa-solid fa-flask me-2"></i>Theorie Ontwerpen
+                    <i class="fa-solid fa-flask me-2"></i>Schema Ontwerpen
                 </a>
                 <?php endif; ?>
                 <button class="btn btn-primary shadow-sm" onclick="openGameModal()">

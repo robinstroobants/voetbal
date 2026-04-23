@@ -59,7 +59,7 @@ class Permissions {
         $original_role = $_SESSION['original_role'] ?? '';
         
         // Superadmin overrules everything
-        if ($role === self::ROLE_SUPERADMIN || $original_role === self::ROLE_SUPERADMIN) {
+        if ($role === self::ROLE_SUPERADMIN) {
             return true;
         }
         

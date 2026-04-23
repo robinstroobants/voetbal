@@ -504,9 +504,9 @@ function saveSchema(forceUpdate = false) {
         
         if (data.success) {
             if (data.is_duplicate) {
-                alert("Dit schema deelt al perfect dezelfde theorie als een bestaand schema (ID: " + data.new_id + "). We hebben een dubbel bespaard en jou hieraan gekoppeld!");
+                alert("Dit schema deelt al perfect hetzelfde schema als een bestaand schema (ID: " + data.new_id + "). We hebben een dubbel bespaard en jou hieraan gekoppeld!");
             } else if (data.is_overwrite) {
-                alert("SUCCES: Theorie-schema " + data.new_id + " is overschreven en gepatched in het .php bestand!");
+                alert("SUCCES: Standalone-schema " + data.new_id + " is overschreven en gepatched in het .php bestand!");
             } else {
                 alert("Schema succesvol opgeslagen! Je wordt doorgestuurd naar de opstelling.");
             }

@@ -82,9 +82,9 @@ header("Expires: 0"); // Proxies blockeren
                     <li class="nav-item"><a class="nav-link" href="/games">
                         <i class="fa-regular fa-calendar-days me-2"></i>Wedstrijden
                     </a></li>
-                    <?php if (Permissions::hasPermission(Permissions::PERM_USE_THEORY_WIZARD) && 1==2): ?>
+                    <?php if (Permissions::hasPermission(Permissions::PERM_USE_THEORY_WIZARD)): ?>
                     <li class="nav-item"><a class="nav-link text-warning fw-semibold" href="/schemas/wizard">
-                        <i class="fa-solid fa-flask me-2"></i>Theorie
+                        <i class="fa-solid fa-flask me-2"></i>Schema Ontwerpen
                     </a></li>
                     <?php endif; ?>
                     <li class="nav-item"><a class="nav-link" href="/stats">

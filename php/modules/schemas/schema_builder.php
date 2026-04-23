@@ -620,7 +620,7 @@ function lockBlock(shiftIdx) {
         nextBlock.scrollIntoView({behavior: "smooth", block: "center"});
     } else {
         document.getElementById('btnSave').disabled = false;
-        alert("Alle kwartjes zijn ingevuld! Je kan je theorie nu opslaan.");
+        alert("Alle kwartjes zijn ingevuld! Je kan je schema nu opslaan.");
     }
 }
 
@@ -899,7 +899,7 @@ function saveNewSchema() {
         } else if(data.success) {
             alert("Nieuw Manueel Schema succesvol opgeslagen! We gaan nu naar de weergave.");
             if(data.is_duplicate) {
-                alert("Tip: Je nieuwe theorie bestond toevallig reeds wiskundig (ID #" + data.new_id + ") en werd in de theorie gekoppeld!");
+                alert("Tip: Je nieuwe schema bestond toevallig reeds wiskundig (ID #" + data.new_id + ") en werd in de theorie gekoppeld!");
             }
             window.location.href = '/games/' + gameId + '/lineup?preview=' + data.lineup_id;
         } else {

@@ -67,14 +67,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$page_title = 'Theorie Wizard';
+$page_title = 'Schema Wizard';
 require_once dirname(__DIR__, 2) . '/header.php';
 ?>
 
 <div class="container mt-4 mb-5 pb-5">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h2><i class="fa-solid fa-flask text-primary me-2"></i>Theorie Wizard</h2>
+            <h2><i class="fa-solid fa-flask text-primary me-2"></i>Schema Wizard</h2>
             <p class="text-muted">Ontwerp een opstelling from scratch zonder wedstrijd.</p>
         </div>
         <div>
@@ -175,7 +175,7 @@ require_once dirname(__DIR__, 2) . '/header.php';
             
             <?php elseif ($step === 2): ?>
                 <h4 class="mb-4">Stap 2: Spelers Selecteren</h4>
-                <p class="text-muted">Kies exact <strong><?= $player_count ?></strong> spelers voor dit theorie template.</p>
+                <p class="text-muted">Kies exact <strong><?= $player_count ?></strong> spelers voor dit schema template.</p>
                 
                 <form method="POST">
                     <input type="hidden" name="step" value="3">
@@ -217,7 +217,7 @@ require_once dirname(__DIR__, 2) . '/header.php';
                         </div>
                         <div>
                             <button type="button" class="btn btn-outline-secondary me-2" onclick="window.history.back()">Terug</button>
-                            <button type="submit" class="btn btn-success fw-bold px-4" id="btn-submit" disabled><i class="fa-solid fa-hammer me-2"></i>Bouw Theorie</button>
+                            <button type="submit" class="btn btn-success fw-bold px-4" id="btn-submit" disabled><i class="fa-solid fa-hammer me-2"></i>Bouw Schema</button>
                         </div>
                     </div>
                 </form>
@@ -269,7 +269,7 @@ require_once dirname(__DIR__, 2) . '/header.php';
                     if(targetGk === 0) return;
                     let currentGks = document.querySelectorAll('.gk-checkbox:checked').length;
                     if(currentGks > targetGk && checkbox.checked) {
-                        alert("Je hebt ingesteld dat je theorie maximaal " + targetGk + " doelman(nen) heeft.");
+                        alert("Je hebt ingesteld dat je schema maximaal " + targetGk + " doelman(nen) heeft.");
                         checkbox.checked = false;
                     }
                 }

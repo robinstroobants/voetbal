@@ -76,7 +76,11 @@ if (isset($routes[$path])) {
     }
     elseif (preg_match('#^/admin/([a-zA-Z0-9_\-]+)$#', $path, $matches)) {
         enforce_auth();
-        Permissions::enforce(Permissions::PERM_MANAGE_TENANTS);
+        if ($matches[1] === 'impersonate' && ($_GET['action'] ?? '') === 'stop' && isset($_SESSION['original_user_id'])) {
+            // Bypass permission check when stopping impersonation
+        } else {
+            Permissions::enforce(Permissions::PERM_MANAGE_TENANTS);
+        }
         $real_file = __DIR__ . '/admin/' . $matches[1] . '.php';
         if (file_exists($real_file)) {
             require_once $real_file;

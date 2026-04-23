@@ -76,6 +76,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
             }
         } else {
+            error_log("Login failed for email: $email. User found: " . ($user ? 'Yes' : 'No') . ". Hash verify: " . ($user ? (password_verify($password, $user['password_hash']) ? 'Yes' : 'No') : 'N/A'));
             $error = "Ongeldig emailadres of wachtwoord.";
         }
     } else {

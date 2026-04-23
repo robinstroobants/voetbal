@@ -275,6 +275,9 @@ require_once dirname(__DIR__, 2) . '/header.php';
                 <div id="player-pool">
                     <!-- JS fills this initially -->
                 </div>
+                <div class="mt-2 mb-3">
+                    <small class="text-muted" style="font-size: 0.75rem;"><i class="fa-solid fa-info-circle text-info"></i> Spelers die recht hebben op speeltijd lichten geel op in de pool en worden on top gesorteerd!</small>
+                </div>
                 <hr>
                 <h5 class="mb-3 text-dark mt-4"><i class="fa-solid fa-chart-line me-2"></i>Live Statistieken</h5>
                 <div class="table-responsive bg-white rounded shadow-sm mb-3">
@@ -290,10 +293,6 @@ require_once dirname(__DIR__, 2) . '/header.php';
                             <!-- JS fills this dynamically -->
                         </tbody>
                     </table>
-                </div>
-                
-                <div class="mt-3">
-                    <small class="text-muted"><i class="fa-solid fa-info-circle"></i> Spelers die recht hebben op speeltijd lichten geel op in de pool en worden on top gesorteerd!</small>
                 </div>
             </div>
         </div>
@@ -505,6 +504,7 @@ function handleDrop(e, dropZone) {
     }
     
     updateShiftData(targetShiftIdx);
+    calculateStats();
 }
 
 function updateShiftData(shiftIdx) {
@@ -740,11 +740,15 @@ function calculateStats() {
         let block = document.getElementById('shift-' + i);
         if(block.classList.contains('locked')) {
             sData.bench.forEach(s => {
-                globalPlayerStats[s].benchMin += (sData.duration / 60);
-                globalPlayerStats[s].priority += 10;
+                if (globalPlayerStats[s]) {
+                    globalPlayerStats[s].benchMin += (sData.duration / 60);
+                    globalPlayerStats[s].priority += 10;
+                }
             });
             Object.values(sData.lineup).forEach(s => {
-                globalPlayerStats[s].fieldMin += (sData.duration / 60);
+                if (globalPlayerStats[s]) {
+                    globalPlayerStats[s].fieldMin += (sData.duration / 60);
+                }
             });
         }
     });

@@ -397,4 +397,53 @@ class MatchManager {
             $stmtTotals->execute([$gameId, $pid, $coach_id, $t['played'], $t['bank'], $t['gk']]);
         }
     }
+
+    /**
+     * Haalt cumulatieve speelminuten op voor een specifieke selectie aan spelers
+     * tot net VÓÓR een bepaalde wedstrijd datum.
+     */
+    public function getSeasonStatsForSelection(int $teamId, string $gameDate, array $playerIds): array {
+        if (empty($playerIds)) return [];
+
+        $placeholders = implode(',', array_fill(0, count($playerIds), '?'));
+        
+        $sql = "
+            SELECT p.player_id, 
+                   SUM(p.seconds_played) as total_played, 
+                   SUM(p.seconds_bank) as total_bank,
+                   SUM(p.seconds_gk) as total_gk
+            FROM game_playtime_logs p
+            JOIN games g ON p.game_id = g.id
+            WHERE g.team_id = ? 
+              AND g.game_date < ?
+              AND p.player_id IN ($placeholders)
+            GROUP BY p.player_id
+        ";
+
+        $params = array_merge([$teamId, $gameDate], $playerIds);
+        
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute($params);
+        
+        $results = [];
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $pid = $row['player_id'];
+            $results[$pid] = [
+                'played' => (int)$row['total_played'],
+                'bank' => (int)$row['total_bank'],
+                'gk' => (int)$row['total_gk']
+            ];
+            // Total available time = the time they were on the match sheet (played + bank)
+            $results[$pid]['available'] = $results[$pid]['played'] + $results[$pid]['bank'];
+        }
+        
+        // Ensure all players have an entry even if no historical data
+        foreach ($playerIds as $pid) {
+            if (!isset($results[$pid])) {
+                $results[$pid] = ['played' => 0, 'bank' => 0, 'gk' => 0, 'available' => 0];
+            }
+        }
+
+        return $results;
+    }
 }

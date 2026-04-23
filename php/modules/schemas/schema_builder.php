@@ -61,6 +61,24 @@ foreach ($squad as $idx => $pid) {
     ];
 }
 
+// Fetch historical season stats for these exact players before this game
+$teamId = $_SESSION['team_id'] ?? 0;
+$gameDate = $matchData['game']['game_date'];
+$seasonStatsData = $matchManager->getSeasonStatsForSelection($teamId, $gameDate, $squad);
+
+// Map the DB PIDs to JS Sidx (array indices)
+$seasonStatsJson = [];
+foreach ($squad as $idx => $pid) {
+    $st = $seasonStatsData[$pid] ?? ['played' => 0, 'bank' => 0, 'gk' => 0, 'available' => 0];
+    // If user confirmed GK counts as played time: we use 'played' + 'gk' for total played.
+    // However, game_playtime_logs `seconds_played` currently ALREADY INCLUDES gk time (as per syncGameLogs logic pos 1 counts as 'played').
+    // So 'played' is the total field time.
+    $seasonStatsJson[$idx] = [
+        'histPlayed' => $st['played'],
+        'histAvailable' => $st['available']
+    ];
+}
+
 $page_title = "Bouw Schema Manueel";
 require_once dirname(__DIR__, 2) . '/header.php';
 ?>
@@ -103,6 +121,23 @@ require_once dirname(__DIR__, 2) . '/header.php';
                 <div class="mt-3">
                     <small class="text-muted"><i class="fa-solid fa-info-circle"></i> Spelers die recht hebben op speeltijd lichten geel op en worden on top gesorteerd!</small>
                 </div>
+                
+                <hr>
+                <h5 class="mb-3 text-dark mt-4"><i class="fa-solid fa-chart-line me-2"></i>Live Statistieken</h5>
+                <div class="table-responsive bg-white rounded shadow-sm">
+                    <table class="table table-sm table-hover mb-0" style="font-size: 0.85rem;">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Speler</th>
+                                <th class="text-center">Match %</th>
+                                <th class="text-center" title="Historiek + deze Match">Seizoen %</th>
+                            </tr>
+                        </thead>
+                        <tbody id="live-stats-tbody">
+                            <!-- JS fills this dynamically -->
+                        </tbody>
+                    </table>
+                </div>
             </div>
         </div>
 
@@ -120,6 +155,7 @@ const subDurationMin = <?= $sub_duration_min ?>;
 const playerCount = <?= $aantal ?>;
 const formatStr = "<?= $search_format ?>";
 const playersMap = <?= json_encode($players_json) ?>;
+const seasonStatsMap = <?= json_encode($seasonStatsJson) ?>;
 const gameId = <?= $gameId ?>;
 const volgordeStr = "<?= $volgorde ?>";
 
@@ -450,15 +486,15 @@ function calculateStats() {
     let pool = document.getElementById('player-pool');
     let poolItems = Array.from(pool.querySelectorAll('.pool-player'));
     poolItems.sort((a, b) => {
-        let sidxA = a.getAttribute('data-sidx');
-        let sidxB = b.getAttribute('data-sidx');
+        let sidxA = parseInt(a.getAttribute('data-sidx'));
+        let sidxB = parseInt(b.getAttribute('data-sidx'));
         let pA = globalPlayerStats[sidxA].priority;
         let pB = globalPlayerStats[sidxB].priority;
-        return pB - pA; // Descending (highest bench gets priority = upper in list)
+        return pB - pA; // Descending
     });
     
     poolItems.forEach(item => {
-        let sidx = item.getAttribute('data-sidx');
+        let sidx = parseInt(item.getAttribute('data-sidx'));
         let pStats = globalPlayerStats[sidx];
         if (pStats.benchMin > 0) {
             item.classList.add('on-bench-priority');
@@ -470,6 +506,75 @@ function calculateStats() {
         }
         pool.appendChild(item);
     });
+
+    // Update Live Statistics Table
+    let tbody = document.getElementById('live-stats-tbody');
+    let statsHtml = '';
+    
+    // Convert globalPlayerStats to array to sort it alphabetically by name
+    let statsArr = [];
+    for(let i in globalPlayerStats) {
+        statsArr.push({
+            sidx: i,
+            name: globalPlayerStats[i].name,
+            fieldMin: globalPlayerStats[i].fieldMin,
+            benchMin: globalPlayerStats[i].benchMin
+        });
+    }
+    statsArr.sort((a, b) => a.name.localeCompare(b.name));
+
+    // For total match time context, find the total duration of locked blocks
+    let totalLockedMin = 0;
+    shiftData.forEach((sData, i) => {
+        if(document.getElementById('shift-' + i).classList.contains('locked')) {
+            totalLockedMin += (sData.duration / 60);
+        }
+    });
+
+    statsArr.forEach(st => {
+        let matchPerc = 0;
+        let matchPercText = "0%";
+        let matchColor = "text-muted";
+        
+        let matchAvailable = st.fieldMin + st.benchMin; // Time they are part of a locked block
+        if(matchAvailable > 0) {
+            matchPerc = (st.fieldMin / matchAvailable) * 100;
+            matchPercText = Math.round(matchPerc) + "%";
+            if (matchPerc < 50) matchColor = "text-danger fw-bold";
+            else if (matchPerc >= 65) matchColor = "text-success fw-bold";
+            else matchColor = "text-warning fw-bold";
+        } else if (totalLockedMin > 0) {
+            // Not in any block?
+            matchPercText = "-";
+        }
+        
+        // Calculate Season totals
+        let hist = seasonStatsMap[st.sidx];
+        let totalSeasonPlayedSec = hist.histPlayed + (st.fieldMin * 60);
+        let totalSeasonAvailableSec = hist.histAvailable + (matchAvailable * 60);
+        
+        let seasonPercText = "0%";
+        let seasonColor = "text-muted";
+        
+        if (totalSeasonAvailableSec > 0) {
+            let seasonPerc = (totalSeasonPlayedSec / totalSeasonAvailableSec) * 100;
+            seasonPercText = Math.round(seasonPerc) + "%";
+            
+            if (seasonPerc < 50) seasonColor = "text-danger fw-bold";
+            else if (seasonPerc >= 65) seasonColor = "text-success fw-bold";
+            else seasonColor = "text-warning fw-bold";
+        }
+        
+        statsHtml += `
+            <tr>
+                <td class="align-middle">${st.name}</td>
+                <td class="text-center align-middle ${matchColor}">${matchPercText} <br><small class="text-muted fw-normal">${st.fieldMin}/${matchAvailable}m</small></td>
+                <td class="text-center align-middle ${seasonColor}">${seasonPercText}</td>
+            </tr>
+        `;
+    });
+    
+    tbody.innerHTML = statsHtml;
 }
 
 function saveNewSchema() {

@@ -607,7 +607,11 @@ function lockBlock(shiftIdx) {
         
         let nextBenchCount = 0;
         currentSData.bench.forEach((s, idx) => {
-            fillNextBlockPos(nextShiftIdx, 'bench', s, nextBenchCount++);
+            if (shouldCopy) {
+                fillNextBlockPos(nextShiftIdx, 'bench', s, nextBenchCount++);
+            } else {
+                fillNextBlockPool(s);
+            }
         });
         
         Object.keys(currentSData.lineup).forEach(pos => {

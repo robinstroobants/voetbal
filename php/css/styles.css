@@ -277,6 +277,21 @@ table.table,
         margin: 2px !important;
     }
 
+    /* Make lineup matches more compact so 4 fit on a page */
+    .col-md-6.p-2, .col-sm-12.p-2 {
+        padding: 2px !important;
+    }
+    .border-secondary.p-2 {
+        padding: 4px !important;
+        margin-bottom: 2px !important;
+    }
+    h5 {
+        margin-bottom: 2px !important;
+    }
+    hr {
+        margin: 10px 0 !important;
+    }
+
     table.table,
     .table th,
     .table td {

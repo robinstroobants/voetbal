@@ -212,7 +212,7 @@
             echo "<div class='col-12'>";
 
             if (array_key_exists($wedstrijd, $game_titles)) {
-              if ($game_counter == 4) {
+              if ($game_counter == 5) {
                ?><hr style="margin-top: 30px" class="new-print-page"><?php
               }
               echo "<h5>Wedstrijd $game_counter &middot; " . $game_titles[$wedstrijd][$game_counter]["title"] . " <small>(" . $game_titles[$wedstrijd][$game_counter]["info"] . ")</small></h5>";  

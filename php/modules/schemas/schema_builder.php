@@ -299,6 +299,11 @@ require_once dirname(__DIR__, 2) . '/header.php';
             <div class="row" id="shifts-canvas">
                 <!-- JS generates shifts here -->
             </div>
+            
+            <h4 class="mt-4 mb-3 text-dark d-none" id="position-stats-title"><i class="fa-solid fa-stopwatch text-primary me-2"></i>Posities per speler</h4>
+            <div class="row" id="position-stats-canvas">
+                <!-- JS generates position stats here -->
+            </div>
         </div>
     </div>
 </div>
@@ -738,6 +743,7 @@ function calculateStats() {
     // Reset priority
     for(let i in globalPlayerStats) {
         globalPlayerStats[i].priority = 0; globalPlayerStats[i].benchMin=0; globalPlayerStats[i].fieldMin=0;
+        globalPlayerStats[i].positions = {};
     }
     // Calculate from locked shifts
     shiftData.forEach((sData, i) => {
@@ -749,9 +755,12 @@ function calculateStats() {
                     globalPlayerStats[s].priority += 10;
                 }
             });
-            Object.values(sData.lineup).forEach(s => {
+            Object.keys(sData.lineup).forEach(pos => {
+                let s = sData.lineup[pos];
                 if (globalPlayerStats[s]) {
                     globalPlayerStats[s].fieldMin += (sData.duration / 60);
+                    if (!globalPlayerStats[s].positions[pos]) globalPlayerStats[s].positions[pos] = 0;
+                    globalPlayerStats[s].positions[pos] += (sData.duration / 60);
                 }
             });
         }
@@ -870,6 +879,73 @@ function calculateStats() {
     });
     
     tbody.innerHTML = statsHtml;
+
+    // Render position stats per player
+    let posCanvas = document.getElementById('position-stats-canvas');
+    let posTitle = document.getElementById('position-stats-title');
+    
+    if (totalLockedMin > 0) {
+        posTitle.classList.remove('d-none');
+        
+        let posHtml = '';
+        
+        // Filter players who have played at least some time
+        let playersWithTime = statsArr.filter(st => st.fieldMin > 0 || st.benchMin > 0);
+        
+        // Sort players by total fieldMin descending
+        playersWithTime.sort((a, b) => b.fieldMin - a.fieldMin);
+        
+        playersWithTime.forEach(st => {
+            let pStats = globalPlayerStats[st.sidx];
+            let listItems = '';
+            
+            // Render positions
+            let positions = pStats.positions || {};
+            let sortedPos = Object.keys(positions).sort((a,b) => positions[b] - positions[a]);
+            
+            sortedPos.forEach(pos => {
+                let min = positions[pos];
+                if (min > 0) {
+                    listItems += `
+                        <li class="list-group-item d-flex justify-content-between align-items-center py-1 px-2 border-0" style="font-size: 0.85rem; border-bottom: 1px solid #f1f3f5!important;">
+                            <span>Pos <span class="badge bg-secondary rounded-pill">${pos}</span></span>
+                            <span>${min}m</span>
+                        </li>
+                    `;
+                }
+            });
+            
+            if (pStats.benchMin > 0) {
+                listItems += `
+                    <li class="list-group-item d-flex justify-content-between align-items-center py-1 px-2 border-0 bg-warning bg-opacity-10" style="font-size: 0.85rem;">
+                        <span class="text-dark"><i class="fa-solid fa-bed me-1"></i> Bank</span>
+                        <span class="fw-bold">${pStats.benchMin}m</span>
+                    </li>
+                `;
+            }
+            
+            posHtml += `
+                <div class="col-6 col-md-4 col-xl-3 mb-3">
+                    <div class="card h-100 shadow-sm border-0">
+                        <div class="card-header bg-white d-flex justify-content-between align-items-center py-2 border-bottom-0">
+                            <span class="fw-bold text-primary text-truncate" style="font-size: 0.9rem;" title="${st.name}">${st.name}</span>
+                            <span class="badge bg-primary rounded-pill">${st.fieldMin}m</span>
+                        </div>
+                        <div class="card-body p-0">
+                            <ul class="list-group list-group-flush mb-0">
+                                ${listItems}
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        posCanvas.innerHTML = posHtml;
+    } else {
+        posTitle.classList.add('d-none');
+        posCanvas.innerHTML = '';
+    }
 }
 
 function saveNewSchema() {

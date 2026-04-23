@@ -275,17 +275,14 @@ require_once dirname(__DIR__, 2) . '/header.php';
                 <div id="player-pool">
                     <!-- JS fills this initially -->
                 </div>
-                <div class="mt-2 mb-3">
-                    <small class="text-muted" style="font-size: 0.75rem;"><i class="fa-solid fa-info-circle text-info"></i> Spelers die recht hebben op speeltijd lichten geel op in de pool en worden on top gesorteerd!</small>
-                </div>
-                <hr>
+               
                 <h5 class="mb-3 text-dark mt-4"><i class="fa-solid fa-chart-line me-2"></i>Live Statistieken</h5>
                 <div class="table-responsive bg-white rounded shadow-sm mb-3">
                     <table class="table table-sm table-hover mb-0" style="font-size: 0.85rem;">
                         <thead class="table-light">
                             <tr>
                                 <th>Speler</th>
-                                <th class="text-center">Match %</th>
+                                <th class="text-center">Minuten</th>
                                 <th class="text-center" title="Historiek + deze Match">Seizoen %</th>
                             </tr>
                         </thead>
@@ -823,23 +820,23 @@ function calculateStats() {
     });
 
     statsArr.sort((a, b) => {
-        // Sort by matchPerc ascending
-        if (a.matchPerc !== b.matchPerc) return a.matchPerc - b.matchPerc;
+        // Sort by fieldMin ascending
+        if (a.fieldMin !== b.fieldMin) return a.fieldMin - b.fieldMin;
         // Then by name
         return a.name.localeCompare(b.name);
     });
 
     statsArr.forEach(st => {
-        let matchPercText = "0%";
+        let matchText = "0m";
         let matchColor = "text-muted";
         
         if(st.matchAvailable > 0) {
-            matchPercText = Math.round(st.matchPerc) + "%";
+            matchText = st.fieldMin + "m";
             if (st.matchPerc < 50) matchColor = "text-danger fw-bold";
             else if (st.matchPerc >= 65) matchColor = "text-success fw-bold";
             else matchColor = "text-warning fw-bold";
         } else if (totalLockedMin > 0) {
-            matchPercText = "-";
+            matchText = "-";
         }
         
         // Calculate Season totals
@@ -861,11 +858,13 @@ function calculateStats() {
             else seasonColor = "text-warning fw-bold";
         }
         
+        let seasonHoverTitle = Math.round(totalSeasonPlayedSec / 60) + "m gespeeld / " + Math.round(totalSeasonAvailableSec / 60) + "m beschikbaar";
+        
         statsHtml += `
             <tr>
                 <td class="align-middle">${st.name}</td>
-                <td class="text-center align-middle ${matchColor}">${matchPercText} <br><small class="text-muted fw-normal">${st.fieldMin}/${st.matchAvailable}m</small></td>
-                <td class="text-center align-middle ${seasonColor}">${seasonPercText}</td>
+                <td class="text-center align-middle ${matchColor}">${matchText} <br><small class="text-muted fw-normal">op ${st.matchAvailable}m</small></td>
+                <td class="text-center align-middle ${seasonColor}" title="${seasonHoverTitle}" style="cursor: help;">${seasonPercText}</td>
             </tr>
         `;
     });

@@ -173,8 +173,11 @@ class MatchManager {
      * Sla een nieuwe selectie op voor een wedstrijd, overschrijft de bestaande.
      */
     public function saveSelection(int $gameId, array $playerIds, int $statusId, array $goalkeeperIds = []): bool {
+        $useTransaction = !$this->pdo->inTransaction();
         try {
-            $this->pdo->beginTransaction();
+            if ($useTransaction) {
+                $this->pdo->beginTransaction();
+            }
 
             // Verwijder oude selectie (volledige wipe and replace voor deze match)
             $stmtClear = $this->pdo->prepare("DELETE FROM game_selections WHERE game_id = ?");
@@ -195,10 +198,14 @@ class MatchManager {
                 $stmtIns->execute([$gameId, $pId, $statusId, $isGk]);
             }
 
-            $this->pdo->commit();
+            if ($useTransaction) {
+                $this->pdo->commit();
+            }
             return true;
         } catch (Exception $e) {
-            $this->pdo->rollBack();
+            if ($useTransaction) {
+                $this->pdo->rollBack();
+            }
             throw $e;
         }
     }

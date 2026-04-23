@@ -155,7 +155,7 @@
       
       <?php if ($shuffle_type !== 'coach'): ?>
           <div class="d-print-none text-center mb-4 mt-2">
-              <button class="btn btn-sm btn-outline-success" onclick="savePreselection(this, <?= $gameId ?>, <?= $selected['ws_id'] ?>, '<?= implode(',', array_keys($lineup->playerindex)) ?>', <?= $t_opt['rating'] ?>)">
+              <button class="btn btn-sm btn-outline-success" onclick='savePreselection(this, <?= json_encode((int)$gameId) ?>, <?= json_encode($selected['ws_id'] ?? 0) ?>, <?= json_encode(implode(',', array_keys($lineup->playerindex))) ?>, <?= json_encode((float)($t_opt['rating'] ?? 0)) ?>)'>
                   <i class="fa-solid fa-floppy-disk"></i> Bewaar #<?= $tab_idx + 1 ?> in Voorselecties
               </button>
               <a href="/schema_editor?game_id=<?= $gameId ?>&schema_id=<?= $selected['ws_id'] ?>&volgorde=<?= urlencode(implode(',', array_keys($lineup->playerindex))) ?>" class="btn btn-sm btn-outline-warning ms-2">
@@ -743,7 +743,7 @@
         fd.append('player_order', playerOrder);
         fd.append('score', score);
         
-        fetch('api_save_lineup.php', { method: 'POST', body: fd })
+        fetch('/api_save_lineup.php', { method: 'POST', body: fd })
         .then(r => r.json())
         .then(data => {
             if(data.status === 'success') {
@@ -756,6 +756,10 @@
                 btnElem.innerHTML = defaultHtml;
                 btnElem.disabled = false;
             }
+        }).catch(e => {
+            alert("Er liep iets mis bij het opslaan: " + e);
+            btnElem.innerHTML = defaultHtml;
+            btnElem.disabled = false;
         });
     }
 
@@ -764,7 +768,7 @@
         var fd = new FormData();
         fd.append('action', 'unlock');
         fd.append('game_id', gameId);
-        fetch('api_save_lineup.php', { method: 'POST', body: fd })
+        fetch('/api_save_lineup.php', { method: 'POST', body: fd })
         .then(r => r.json())
         .then(data => {
             window.location.reload();
@@ -777,7 +781,7 @@
         fd.append('action', 'set_final');
         fd.append('game_id', gameId);
         fd.append('lineup_id', lineupId);
-        fetch('api_save_lineup.php', { method: 'POST', body: fd })
+        fetch('/api_save_lineup.php', { method: 'POST', body: fd })
         .then(r => r.json())
         .then(data => {
             window.location.reload();
@@ -790,7 +794,7 @@
         fd.append('action', 'delete');
         fd.append('game_id', gameId);
         fd.append('lineup_id', lineupId);
-        fetch('api_save_lineup.php', { method: 'POST', body: fd })
+        fetch('/api_save_lineup.php', { method: 'POST', body: fd })
         .then(r => r.json())
         .then(data => {
             window.location.reload();

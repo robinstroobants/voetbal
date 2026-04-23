@@ -434,7 +434,7 @@ require_once 'header.php';
                                 </a>
 
                                 <?php if ($next_game['selection_count'] > 0): ?>
-                                <button type="button" class="btn btn-success fw-bold rounded px-3 py-2 shadow-sm d-inline-flex align-items-center transition-transform" style="transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'" title="Kopieer selectie bericht" onclick="copyToClipboard(this, '<?= htmlspecialchars(json_encode($next_game['whatsapp_msg_raw']), ENT_QUOTES, 'UTF-8') ?>')">
+                                <button type="button" class="btn btn-success fw-bold rounded px-3 py-2 shadow-sm d-inline-flex align-items-center transition-transform" style="transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'" title="Kopieer selectie bericht" data-msg="<?= htmlspecialchars(json_encode($next_game['whatsapp_msg_raw']), ENT_QUOTES, 'UTF-8') ?>" onclick="copyToClipboard(this)">
                                     <i class="fa-brands fa-whatsapp fs-5"></i>
                                 </button>
                                 <?php endif; ?>
@@ -816,9 +816,9 @@ function submitApicall(formId) {
     });
 }
 
-function copyToClipboard(button, jsonMsg) {
+function copyToClipboard(button) {
     try {
-        const msg = JSON.parse(jsonMsg);
+        const msg = JSON.parse(button.getAttribute('data-msg'));
         navigator.clipboard.writeText(msg).then(() => {
             const icon = button.querySelector('i');
             const oldClass = icon.className;

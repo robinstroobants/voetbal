@@ -30,6 +30,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $minPos = isset($_POST['min_pos']) ? (int)$_POST['min_pos'] : 0;
         // team_id = 1 as default for now
         $coachId = !empty($_POST['coach_id']) ? (int)$_POST['coach_id'] : null;
+        $isHome = isset($_POST['is_home']) ? (int)$_POST['is_home'] : 1;
         
         if ($gameId) {
             // Controleer of layout/format of coach veranderd is ten opzichte van current
@@ -44,8 +45,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $pdo->prepare("DELETE FROM game_lineups WHERE game_id = ?")->execute([$gameId]);
             }
 
-            $stmt = $pdo->prepare("UPDATE games SET opponent = :opp, game_date = :gd, format = :fmt, min_pos = :mpos, coach_id = :cid WHERE id = :id");
-            $stmt->execute(['opp' => $opponent, 'gd' => $gameDate, 'fmt' => $format, 'mpos' => $minPos, 'cid' => $coachId, 'id' => $gameId]);
+            $stmt = $pdo->prepare("UPDATE games SET opponent = :opp, is_home = :is_home, game_date = :gd, format = :fmt, min_pos = :mpos, coach_id = :cid WHERE id = :id");
+            $stmt->execute(['opp' => $opponent, 'is_home' => $isHome, 'gd' => $gameDate, 'fmt' => $format, 'mpos' => $minPos, 'cid' => $coachId, 'id' => $gameId]);
             
             // Als de coach gewijzigd is, werk dan ook de logs bij (voor historische correctie)
             if ($oldCoachId != $coachId) {
@@ -53,8 +54,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmtLogs->execute(['cid' => $coachId, 'id' => $gameId]);
             }
         } else {
-            $stmt = $pdo->prepare("INSERT INTO games (team_id, opponent, game_date, format, min_pos, coach_id) VALUES (:team_id, :opp, :gd, :fmt, :mpos, :cid)");
-            $stmt->execute(['team_id' => $_SESSION['team_id'], 'opp' => $opponent, 'gd' => $gameDate, 'fmt' => $format, 'mpos' => $minPos, 'cid' => $coachId]);
+            $stmt = $pdo->prepare("INSERT INTO games (team_id, opponent, is_home, game_date, format, min_pos, coach_id) VALUES (:team_id, :opp, :is_home, :gd, :fmt, :mpos, :cid)");
+            $stmt->execute(['team_id' => $_SESSION['team_id'], 'opp' => $opponent, 'is_home' => $isHome, 'gd' => $gameDate, 'fmt' => $format, 'mpos' => $minPos, 'cid' => $coachId]);
             $newGameId = $pdo->lastInsertId();
 
             // Duplicatie verwerken indien gevraagd
@@ -350,6 +351,11 @@ require_once 'header.php';
                                             <span class="badge <?= $cColor ?> rounded-pill me-1"><?= htmlspecialchars($game['coach_first_name']) ?></span>
                                         <?php endif; ?>
                                         <a href="#" onclick="openGameModal(<?= htmlspecialchars(json_encode($game), ENT_QUOTES, 'UTF-8') ?>); return false;" class="text-decoration-none text-dark hover-primary" title="Bewerk Wedstrijd">
+                                            <?php if(isset($game['is_home']) && $game['is_home'] == 0): ?>
+                                                <span class="badge bg-secondary text-white rounded-pill me-1" style="font-size: 0.7em;">UIT</span>
+                                            <?php else: ?>
+                                                <span class="badge bg-primary text-white rounded-pill me-1" style="font-size: 0.7em;">THUIS</span>
+                                            <?php endif; ?>
                                             <?= htmlspecialchars($game['opponent']) ?>
                                         </a>
                                     </td>
@@ -446,6 +452,11 @@ require_once 'header.php';
                                             <span class="badge <?= $cColor ?> rounded-pill me-1"><?= htmlspecialchars($game['coach_first_name']) ?></span>
                                         <?php endif; ?>
                                         <a href="#" onclick="openGameModal(<?= htmlspecialchars(json_encode($game), ENT_QUOTES, 'UTF-8') ?>); return false;" class="text-decoration-none text-dark hover-primary" title="Bewerk Wedstrijd">
+                                            <?php if(isset($game['is_home']) && $game['is_home'] == 0): ?>
+                                                <span class="badge bg-secondary text-white rounded-pill me-1" style="font-size: 0.7em;">UIT</span>
+                                            <?php else: ?>
+                                                <span class="badge bg-primary text-white rounded-pill me-1" style="font-size: 0.7em;">THUIS</span>
+                                            <?php endif; ?>
                                             <?= htmlspecialchars($game['opponent']) ?>
                                         </a>
                                     </td>
@@ -512,9 +523,18 @@ require_once 'header.php';
           </div>
           
           <div class="modal-body">
-              <div class="mb-3">
-                  <label class="form-label text-muted small fw-bold">TEGENSTANDER</label>
-                  <input type="text" class="form-control" name="opponent" id="modal_opponent" required placeholder="BV. FC Barcelona">
+              <div class="row mb-3">
+                  <div class="col-md-8">
+                      <label class="form-label text-muted small fw-bold">TEGENSTANDER</label>
+                      <input type="text" class="form-control" name="opponent" id="modal_opponent" required placeholder="BV. FC Barcelona">
+                  </div>
+                  <div class="col-md-4">
+                      <label class="form-label text-muted small fw-bold">LOCATIE</label>
+                      <select class="form-select" name="is_home" id="modal_is_home">
+                          <option value="1">Thuis</option>
+                          <option value="0">Uit</option>
+                      </select>
+                  </div>
               </div>
               <div class="row mb-3">
                   <div class="col-md-6">
@@ -687,6 +707,7 @@ function openGameModal(game = null, isDuplicate = false) {
         document.getElementById('modal_game_time').value = (game.game_date && game.game_date.includes(' ') && !game.game_date.includes('00:00:00')) ? game.game_date.split(' ')[1].substring(0, 5) : '';
         document.getElementById('modal_min_pos').value = game.min_pos || '0';
         document.getElementById('modal_coach_id').value = game.coach_id || '';
+        document.getElementById('modal_is_home').value = (game.is_home === undefined || game.is_home == 1) ? '1' : '0';
         
         let formatBase = '8v8';
         let formatParts = '4x15';
@@ -709,6 +730,7 @@ function openGameModal(game = null, isDuplicate = false) {
         document.getElementById('modal_game_time').value = '09:00';
         document.getElementById('modal_min_pos').value = game.min_pos || '0';
         document.getElementById('modal_coach_id').value = game.coach_id || '';
+        document.getElementById('modal_is_home').value = (game.is_home === undefined || game.is_home == 1) ? '1' : '0';
         
         let formatBase = '8v8';
         let formatParts = '4x15';
@@ -729,6 +751,7 @@ function openGameModal(game = null, isDuplicate = false) {
         document.getElementById('modal_game_time').value = '09:00';
         document.getElementById('modal_min_pos').value = '0';
         document.getElementById('modal_coach_id').value = '';
+        document.getElementById('modal_is_home').value = '1';
         
         let defFormat = '<?= $_SESSION['default_format'] ?? '8v8' ?>';
         let defParts = '<?= $_SESSION['default_game_parts'] ?? '4x15' ?>';

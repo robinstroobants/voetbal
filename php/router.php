@@ -98,6 +98,13 @@ if (isset($routes[$path])) {
         require_once __DIR__ . '/modules/schemas/schema_dashboard.php';
         $route_matched = true;
     }
+    elseif (preg_match('#^/games/(\d+)/lineup$#', $path, $matches)) {
+        enforce_auth();
+        Permissions::enforce(Permissions::PERM_GENERATE_LINEUPS);
+        $_GET['game_id'] = $matches[1];
+        require_once __DIR__ . '/modules/schemas/lineup.php';
+        $route_matched = true;
+    }
     elseif (preg_match('#^/games/(\d+)/selection$#', $path, $matches)) {
         enforce_auth();
         Permissions::enforce(Permissions::PERM_MANAGE_GAMES);

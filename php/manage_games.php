@@ -544,13 +544,21 @@ require_once 'header.php';
                       <?php endforeach; ?>
                   </select>
               </div>
-              <div class="mb-3">
-                  <label class="form-label text-muted small fw-bold">AANTAL EN FORMAAT</label>
-                  <select class="form-select" name="format" id="modal_format" required>
-                      <?php foreach ($available_formats as $fmt): ?>
-                          <option value="<?= htmlspecialchars($fmt) ?>"><?= htmlspecialchars($fmt) ?></option>
-                      <?php endforeach; ?>
-                  </select>
+              <div class="row mb-3">
+                  <div class="col-md-6">
+                      <label class="form-label text-muted small fw-bold">FORMAAT</label>
+                      <select class="form-select" name="format" id="modal_format" required>
+                          <?php foreach ($available_formats as $fmt): ?>
+                              <option value="<?= htmlspecialchars($fmt) ?>"><?= htmlspecialchars($fmt) ?></option>
+                          <?php endforeach; ?>
+                      </select>
+                  </div>
+                  <div class="col-md-6">
+                      <label class="form-label text-muted small fw-bold">WEDSTRIJD DUUR</label>
+                      <select class="form-select" name="game_parts" id="modal_game_parts" required>
+                          <!-- Options dynamically loaded by JS -->
+                      </select>
+                  </div>
               </div>
           </div>
           

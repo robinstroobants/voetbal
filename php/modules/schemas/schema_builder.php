@@ -961,7 +961,7 @@ function saveNewSchema() {
         sd.lineup = fixedLineup;
     });
 
-    fetch('api_save_schema.php', {
+    fetch('/modules/schemas/api_save_schema.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1000,7 +1000,7 @@ function saveNewSchema() {
 }
 
 function submitForced() {
-    fetch('api_save_schema.php', {
+    fetch('/modules/schemas/api_save_schema.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -162,7 +162,7 @@ const seasonStatsMap = <?= json_encode($seasonStatsJson) ?>;
 const gameId = <?= $gameId ?>;
 const volgordeStr = "<?= $volgorde ?>";
 const gkCount = <?= $gk_count ?>;
-const fixedGkId = (gkCount === 1) ? <?= reset($gk_arr) ?> : null;
+const fixedGkId = <?= $gk_count === 1 ? json_encode((int)reset($gk_arr)) : 'null' ?>;
 
 let playPositions = [1, 2, 4, 5, 7, 9, 10, 11];
 if (formatStr.includes('5v5')) {

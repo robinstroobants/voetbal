@@ -252,6 +252,14 @@ require_once dirname(__DIR__, 2) . '/header.php';
                     </select>
                 </div>
             </div>
+            <div class="mt-2">
+                <div class="form-check form-switch mb-0">
+                    <input class="form-check-input" type="checkbox" id="copyLineupToggle" checked style="cursor: pointer;">
+                    <label class="form-check-label small text-muted fw-bold" for="copyLineupToggle" style="cursor: pointer; padding-top:2px;">
+                        Opstelling enkel overnemen binnen de helftjes van dezelfde wedstrijd
+                    </label>
+                </div>
+            </div>
         </div>
         <div>
             <a href="/games/<?= $gameId ?>/lineup" class="btn btn-outline-secondary me-2"><i class="fa-solid fa-arrow-left"></i> Terug</a>
@@ -584,10 +592,29 @@ function lockBlock(shiftIdx) {
         
         let currentSData = shiftData[shiftIdx];
         
-        currentSData.bench.forEach((s, idx) => fillNextBlockPos(nextShiftIdx, 'bench', s, idx));
+        // Bepaal of we de veldspelers mogen kopiëren naar het veld, of naar de bank moeten verplaatsen
+        let shouldCopy = true;
+        let copyToggle = document.getElementById('copyLineupToggle');
+        if (copyToggle && copyToggle.checked) {
+            let currDef = shiftDefinitions[shiftIdx];
+            let nextDef = shiftDefinitions[nextShiftIdx];
+            if (currDef.game_counter !== nextDef.game_counter) {
+                shouldCopy = false;
+            }
+        }
+        
+        let nextBenchCount = 0;
+        currentSData.bench.forEach((s, idx) => {
+            fillNextBlockPos(nextShiftIdx, 'bench', s, nextBenchCount++);
+        });
+        
         Object.keys(currentSData.lineup).forEach(pos => {
             if (fixedGkId !== null && parseInt(pos) === 1) return;
-            fillNextBlockPos(nextShiftIdx, pos, currentSData.lineup[pos], 0);
+            if (shouldCopy) {
+                fillNextBlockPos(nextShiftIdx, pos, currentSData.lineup[pos], 0);
+            } else {
+                fillNextBlockPos(nextShiftIdx, 'bench', currentSData.lineup[pos], nextBenchCount++);
+            }
         });
         
         updateShiftData(nextShiftIdx);

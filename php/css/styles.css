@@ -333,10 +333,18 @@ table.table,
     /* Compact lineup */
     .lineup-col {
         line-height: 1.1 !important;
+        font-size: 12px !important;
+    }
+
+    .border-secondary.p-2,
+    .border-secondary.p-2 table td,
+    .border-secondary.p-2 ul,
+    .border-secondary.p-2 li {
+        font-size: 12px !important;
     }
 
     .pos-num {
-        font-size: 7pt !important;
+        font-size: 10px !important;
         font-weight: bold !important;
         color: #555 !important;
     }

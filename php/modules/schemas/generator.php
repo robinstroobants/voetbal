@@ -769,72 +769,35 @@
       } else {
           $result = null; // Forces fail_stats analysis output!
           $fail_stats = $gecombineerde_fail_stats;
+          
+          $errHtml = "<div class='container mt-5'><div class='alert alert-danger shadow-sm border-0'><h4 class='alert-heading'><i class='fa-solid fa-triangle-exclamation'></i> Oeps! Geen opstelling mogelijk</h4>";
+          $errHtml .= "<p>Het algoritme kon <strong>geen enkele</strong> geldige opstelling vinden die voldoet aan alle ingestelde team- en spelersregels.</p><hr>";
+          $errHtml .= "<p class='mb-1'><strong>Oorzaken voor deze " . count($squad) . " spelers:</strong></p><ul class='mb-0'>";
+          foreach($fail_stats['no_max'] as $p => $c) {
+              if($c > 0) $errHtml .= "<li><strong>" . getPlayerName($p) . "</strong> kon niet op een mindere positie geplaatst worden (stond vorige match op de zwaarste positie).</li>";
+          }
+          foreach($fail_stats['no_min'] as $p => $c) {
+              if($c > 0) $errHtml .= "<li><strong>" . getPlayerName($p) . "</strong> kon niet op een zwaardere positie geplaatst worden (stond vorige match op een lichte positie).</li>";
+          }
+          foreach($fail_stats['forbidden'] as $p => $c) {
+              if($c > 0) $errHtml .= "<li><strong>" . getPlayerName($p) . "</strong> moest op een positie staan die verboden is volgens zijn/haar persoonlijke statistieken.</li>";
+          }
+          $errHtml .= "</ul>";
+          $errHtml .= "<p class='mt-3 mb-0'><a href='/games/{$gameId}/edit' class='btn btn-sm btn-outline-danger'><i class='fa-solid fa-gear'></i> Pas wedstrijdregels aan</a> of gebruik de <a href='/games/{$gameId}/builder' class='fw-bold text-danger ms-2'>Zelf Bouwen</a> functie.</p>";
+          $errHtml .= "</div></div>";
+          
+          $generator_error_html = $errHtml;
+          return; // Stop verdere generatie logica zodat lineup.php netjes dit html blok toont
       }
       // --- END BACKTRACKING OPTIMIZATION ---
-        // We roepen de historie aan en injecteren de huidige generatie 
-        // erbij in zodat optellingen/percentages on-the-fly zichtbaar zijn.
-        if (!isset($pt_all_games)) {
-            $pt_all_games = [];
-        }
-        
-        // Voeg de huidige gegenereerde opstelling toe aan de statistieken 
-        // tenzij die wedstrijd zelf al in de historiek gecapteerd werd.
-        if (!in_array($wedstrijd, array_keys($pt_all_games))){
-          
-          $db_time_played = [];
-          $db_time_in_position = [];
-          foreach ($lineup->time_played as $player_id => $time) {
-              $id = $player_id;
-              $db_time_played[$id] = $time;
-              $db_time_in_position[$id] = $lineup->time_in_position[$player_id] ?? [];
-          }
-            
-          $pt_all_games[$wedstrijd] = array(
-            "duration" => $lineup->total_duration * 60,
-            "players" => $db_time_played,
-            "playtime" => $db_time_in_position
-          );
-        }
-        
-        $huidige_wedstrijd = $pt_all_games[$wedstrijd] ?? null;
-        
-        // $player_scores omzetten naar IDs voor de stats loop
-        $db_player_scores = [];
-        foreach ($player_scores as $player_id => $score) {
-            $id = $player_id;
-            $db_player_scores[$id] = $score;
-        }
-        
-        $pt_stats = build_playtime_stats($pt_all_games, $db_player_scores);
-        
-        // Datumdeel uit key halen
-        list($datum_raw, $wedstrijd_naam) = explode('_', $wedstrijd, 2);
-        // Datumformaten genereren vanuit YYMMDD
-        $jaar = '20' . substr($datum_raw, 0, 2); // '25' → '2025'
-        $maand = substr($datum_raw, 2, 2);       // '09'
-        $dag = substr($datum_raw, 4, 2);         // '27'
-        $datum_full = "$jaar-$maand-$dag";       // '2025-09-27'
-        $datum_short = "$dag/$maand";            // '27/09'
-        // Uitbreiden van array
-        $huidige_wedstrijd['key'] = $wedstrijd;
-        $huidige_wedstrijd['date_short'] = $datum_short;
-        $huidige_wedstrijd['date_full'] = $datum_full;
-        
-        
-        //dpr($result,__LINE__);
-      }
-
-      $page_title = $wedstrijd;
-      //$page_title .=  "_" . $team_key_idx;
-      /*
-      $page_title .=  "-" . count($selected["teams"]) . "ploeg";
-      if (count($selected["teams"])>1){
-        $page_title .= "en";
-      }*/
-    }
+    } // Closes: if ($shuffle_type == "coach") else {
     
     // Voeg de huidige gegenereerde opstelling toe aan de statistieken 
     // tenzij die wedstrijd zelf al in de historiek gecapteerd werd.
+    if (!isset($pt_all_games)) {
+        $pt_all_games = [];
+    }
+    
     if (!in_array($wedstrijd, array_keys($pt_all_games))){
       
       $db_time_played = [];
@@ -876,12 +839,7 @@
     $huidige_wedstrijd['date_short'] = $datum_short;
     $huidige_wedstrijd['date_full'] = $datum_full;
     
-    
-    //dpr($result,__LINE__);
-  }
-
   $page_title = $wedstrijd;
-  //$page_title .=  "_" . $team_key_idx;
   /*
   $page_title .=  "-" . count($selected["teams"]) . "ploeg";
   if (count($selected["teams"])>1){

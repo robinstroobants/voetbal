@@ -1,6 +1,6 @@
 <?php
-require_once 'getconn.php';
-require_once 'MatchManager.php';
+require_once dirname(__DIR__, 2) . '/core/getconn.php';
+require_once dirname(__DIR__, 2) . '/models/MatchManager.php';
 $matchManager = new MatchManager($pdo);
 $matchData = $matchManager->getSelection(47);
 

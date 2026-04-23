@@ -1,40 +1,46 @@
 <?php
 session_start();
-require_once 'getconn.php';
+require_once dirname(__DIR__, 2) . '/core/getconn.php';
 
 $error = '';
 $success = '';
 
-$token = $_GET['token'] ?? '';
-$user = null;
-
-if ($token) {
-    // Check if token exists and is not expired
-    $stmt = $pdo->prepare("SELECT id, email FROM users WHERE reset_token = ? AND reset_expires_at > NOW() LIMIT 1");
-    $stmt->execute([$token]);
-    $user = $stmt->fetch();
-}
-
-if (!$user && empty($_POST)) {
-    $error = "Ongeldige of verlopen reset link. Vraag een nieuwe aan via de login pagina.";
-} elseif ($user && $_SERVER['REQUEST_METHOD'] === 'POST') {
-    $password = $_POST['password'] ?? '';
-    $password_confirm = $_POST['password_confirm'] ?? '';
-    
-    if (strlen($password) < 6) {
-        $error = "Je nieuwe wachtwoord moet minimaal 6 tekens lang zijn.";
-    } elseif ($password !== $password_confirm) {
-        $error = "De ingevulde wachtwoorden komen niet overeen.";
-    } else {
-        $hash = password_hash($password, PASSWORD_BCRYPT);
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $email = filter_var($_POST['email'] ?? '', FILTER_SANITIZE_EMAIL);
+    if ($email) {
+        $stmt = $pdo->prepare("SELECT id, first_name FROM users WHERE email = ? LIMIT 1");
+        $stmt->execute([$email]);
+        $user = $stmt->fetch();
         
-        $update = $pdo->prepare("UPDATE users SET password_hash = ?, reset_token = NULL, reset_expires_at = NULL WHERE id = ?");
-        if ($update->execute([$hash, $user['id']])) {
-            header("Location: login.php?msg=password_reset");
-            exit;
+        // Altijd de succesboodschap tonen om e-mail enumeratie te voorkomen
+        $success = "Als dit e-mailadres bij ons geregistreerd staat, ontvang je spoedig verdere instructies in je mailbox.";
+        
+        if ($user) {
+            $token = bin2hex(random_bytes(32));
+            $expires = date('Y-m-d H:i:s', strtotime('+1 hour'));
+            
+            $update = $pdo->prepare("UPDATE users SET reset_token = ?, reset_expires_at = ? WHERE id = ?");
+            if ($update->execute([$token, $expires, $user['id']])) {
+                $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http");
+                $host = $_SERVER['HTTP_HOST'];
+                $reset_link = "$protocol://$host/reset_password.php?token=$token";
+                
+                $subject = "Wachtwoord herstellen - Lineup";
+                $message = "Beste " . $user['first_name'] . ",\n\nEr is een verzoek ingediend om je wachtwoord te herstellen op Lineup.\nKlik op de onderstaande link om een nieuw wachtwoord in te stellen. Deze link is 1 uur geldig:\n$reset_link\n\nAls jij dit niet hebt aangevraagd, hoef je niets te doen en je account blijft veilig.\n\nMet vriendelijke groeten,\nHet Lineup Team";
+                
+                require_once __DIR__ . '/Mailer.php';
+                $mail_success = Mailer::send($email, $subject, $message);
+                if (!$mail_success) {
+                    error_log("Mail failed to send to $email.");
+                }
+            } else {
+                error_log("Update query failed for user ID: " . $user['id']);
+            }
         } else {
-            $error = "Er liep iets mis bij het updaten van de database. Probeer het later opnieuw.";
+            error_log("No user found with email: $email");
         }
+    } else {
+        $error = "Vul een geldig e-mailadres in.";
     }
 }
 ?>
@@ -43,7 +49,7 @@ if (!$user && empty($_POST)) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nieuw Wachtwoord Instellen - Lineup</title>
+    <title>Wachtwoord Vergeten - Lineup</title>
     <!-- Gebruik Inter voor een Apple-achtige of strakke uitstraling -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     <!-- FontAwesome toevoegen -->
@@ -171,6 +177,17 @@ if (!$user && empty($_POST)) {
             margin-bottom: 24px;
             text-align: center;
         }
+        
+        .success {
+            background: #ebf5df;
+            border: 1px solid #d4e8c1;
+            color: #3b7b1e;
+            padding: 12px;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            margin-bottom: 24px;
+            text-align: center;
+        }
 
         .footer-text {
             margin-top: 32px;
@@ -200,32 +217,30 @@ if (!$user && empty($_POST)) {
 
     <div class="login-container">
         <div class="logo-wrap">
-            <i class="fa-solid fa-key main-icon"></i>
-            <h1>Nieuw Wachtwoord</h1>
-            <p>Stel een nieuw, veilig wachtwoord in voor je Lineup account.</p>
+            <i class="fa-solid fa-lock main-icon"></i>
+            <h1>Problemen bij inloggen?</h1>
+            <p>Geen probleem. Vul je e-mailadres in en we sturen je een link om de toegang te herstellen.</p>
         </div>
 
         <?php if ($error): ?>
             <div class="error"><?= htmlspecialchars($error) ?></div>
         <?php endif; ?>
         
-        <?php if (!$user && empty($_POST)): ?>
-            <div class="switch-link mt-4">
-                <a href="/forgot_password"><i class="fa-solid fa-arrow-left me-1"></i> Vraag een nieuwe link aan</a>
-            </div>
+        <?php if ($success): ?>
+            <div class="success"><i class="fa-solid fa-envelope-circle-check me-1"></i> <?= htmlspecialchars($success) ?></div>
         <?php else: ?>
             <form method="POST" action="">
                 <div class="form-group">
-                    <input type="password" name="password" placeholder="Nieuw wachtwoord" required autofocus>
+                    <input type="email" name="email" placeholder="E-mailadres" required autofocus>
                 </div>
                 
-                <div class="form-group">
-                    <input type="password" name="password_confirm" placeholder="Herhaal wachtwoord" required>
-                </div>
-                
-                <button type="submit" class="btn-submit">Wachtwoord opslaan</button>
+                <button type="submit" class="btn-submit">Stuur herstel link</button>
             </form>
         <?php endif; ?>
+
+        <div class="switch-link mt-4">
+            <a href="/login"><i class="fa-solid fa-arrow-left me-1"></i> Terug naar inloggen</a>
+        </div>
         
         <div class="footer-text">
             &copy; <?= date('Y') ?> Lineup. Alle rechten voorbehouden.

@@ -1,5 +1,5 @@
 <?php
-require_once("getconn.php");
+require_once dirname(__DIR__) . '/core/getconn.php';
 
 
 class Game

@@ -1,6 +1,6 @@
 <?php
 // admin/manage_schemas.php
-require_once __DIR__ . '/../getconn.php';
+require_once dirname(__DIR__) . '/core/getconn.php';
 
 // Handle deletion
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'delete') {

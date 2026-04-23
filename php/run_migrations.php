@@ -17,7 +17,7 @@ if (!$is_cli) {
     }
 }
 
-require_once __DIR__ . '/getconn.php';
+require_once __DIR__ . '/core/getconn.php';
 
 echo "<h1>🚀 Database Migration Engine</h1>";
 

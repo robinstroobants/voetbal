@@ -1,6 +1,6 @@
 <?php
 $page_title = 'Team Instellingen';
-require_once 'getconn.php';
+require_once __DIR__ . '/core/getconn.php';
 
 $team_id = (int)$_SESSION['team_id'];
 $success = '';
@@ -149,7 +149,7 @@ $total_slots = 3;
 $used_slots = count($active_coaches) + count($pending_invites);
 $available_slots = max(0, $total_slots - $used_slots);
 
-require_once 'header.php';
+require_once __DIR__ . '/header.php';
 ?>
 
 <div class="container mt-4 mb-5">
@@ -325,4 +325,4 @@ require_once 'header.php';
     </div>
 </div>
 
-<?php require_once 'footer.php'; ?>
+<?php require_once __DIR__ . '/footer.php'; ?>

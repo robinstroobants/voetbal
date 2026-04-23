@@ -1,5 +1,5 @@
 <?php require_once 'generator.php'; ?>
-  <?php require_once 'header.php'; ?>
+  <?php require_once dirname(__DIR__, 2) . '/header.php'; ?>
   <?php 
   // Helper om speler ID naar leesbare naam om te zetten voor weergave
   function getPlayerName($id) {
@@ -981,4 +981,4 @@
 <?php } ?>
 
   
-<?php require_once 'footer.php'; ?>
+<?php require_once dirname(__DIR__, 2) . '/footer.php'; ?>

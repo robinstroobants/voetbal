@@ -6,7 +6,7 @@ $stmtF->execute([$_SESSION['team_id']]);
 $default_format = $stmtF->fetchColumn() ?: '8v8';
 
 if (strpos($default_format, '2v2') === 0 || strpos($default_format, '3v3') === 0) {
-    require_once 'header.php';
+    require_once __DIR__ . '/header.php';
     echo '<div class="container mt-5">';
     echo '<div class="alert alert-info shadow-sm text-center py-5">';
     echo '  <i class="fa-solid fa-face-smile-wink fa-3x text-primary mb-3"></i>';
@@ -15,11 +15,11 @@ if (strpos($default_format, '2v2') === 0 || strpos($default_format, '3v3') === 0
     echo '  <a href="/" class="btn btn-primary mt-4"><i class="fa-solid fa-arrow-left me-2"></i>Terug naar dashboard</a>';
     echo '</div>';
     echo '</div>';
-    require_once 'footer.php';
+    require_once __DIR__ . '/footer.php';
     exit;
 }
 
-require_once 'getconn.php';
+require_once __DIR__ . '/core/getconn.php';
 $page_title = 'Team & Positie Rankings';
 
 // Haal alle spelers op die GEEN vaste doelman zijn, specifiek voor deze ploeg
@@ -95,7 +95,7 @@ while ($g = $stmtGK->fetch(PDO::FETCH_ASSOC)) {
     </style>
 </head>
 <body class="bg-light pb-5">
-    <?php include 'header.php'; ?>
+    <?php include __DIR__ . '/header.php'; ?>
 
     <div class="container mt-4">
         <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
@@ -246,7 +246,7 @@ while ($g = $stmtGK->fetch(PDO::FETCH_ASSOC)) {
         </div>
     </div>
     
-    <?php include 'footer.php'; ?>
+    <?php include __DIR__ . '/footer.php'; ?>
     
     <!-- SortableJS -->
     <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>

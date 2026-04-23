@@ -1,6 +1,6 @@
 <?php
 $page_title = 'Statistieken per Periode';
-require_once 'getconn.php';
+require_once dirname(__DIR__, 2) . '/core/getconn.php';
 
 $team_id = (int)$_SESSION['team_id'];
 
@@ -109,7 +109,7 @@ if ($has_multiple_coaches) {
     }
 }
 
-require_once 'header.php';
+require_once dirname(__DIR__, 2) . '/header.php';
 ?>
 
 <div class="container mt-4 mb-5">
@@ -269,7 +269,7 @@ require_once 'header.php';
     </div>
 </div>
 
-<?php require_once 'footer.php'; ?>
+<?php require_once dirname(__DIR__, 2) . '/footer.php'; ?>
 
 <script>
 document.addEventListener("DOMContentLoaded", function() {

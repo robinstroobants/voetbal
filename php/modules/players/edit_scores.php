@@ -9,7 +9,7 @@ $default_format = $stmtF->fetchColumn() ?: '8v8';
 $visible_positions = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]; // default
 if (strpos($default_format, '2v2') === 0 || strpos($default_format, '3v3') === 0) {
     // 2v2 en 3v3 hebben the matrix helemaal niet nodig!
-    require_once 'header.php';
+    require_once dirname(__DIR__, 2) . '/header.php';
     echo '<div class="container mt-5">';
     echo '<div class="alert alert-info shadow-sm text-center py-5">';
     echo '  <i class="fa-solid fa-face-smile-wink fa-3x text-primary mb-3"></i>';
@@ -18,7 +18,7 @@ if (strpos($default_format, '2v2') === 0 || strpos($default_format, '3v3') === 0
     echo '  <a href="/" class="btn btn-primary mt-4"><i class="fa-solid fa-arrow-left me-2"></i>Terug naar dashboard</a>';
     echo '</div>';
     echo '</div>';
-    require_once 'footer.php';
+    require_once dirname(__DIR__, 2) . '/footer.php';
     exit;
 } elseif (strpos($default_format, '5v5') === 0) {
     $visible_positions = [1, 4, 7, 9, 11];
@@ -138,7 +138,7 @@ if (!empty($player_ids)) {
 
 <?php 
 $page_title = 'Edit Player scores';
-require_once 'header.php';
+require_once dirname(__DIR__, 2) . '/header.php';
 ?>
 <div class="container mt-5">
     <div class="d-flex justify-content-between align-items-center mb-4">
@@ -186,4 +186,4 @@ require_once 'header.php';
     <?php } ?>
 </div>
 
-<?php require_once 'footer.php'; ?>
+<?php require_once dirname(__DIR__, 2) . '/footer.php'; ?>

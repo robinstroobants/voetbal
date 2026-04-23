@@ -1,6 +1,6 @@
 <?php
-require_once __DIR__ . '/../getconn.php';
-require_once __DIR__ . '/../MatchManager.php';
+require_once dirname(__DIR__) . '/core/getconn.php';
+require_once dirname(__DIR__) . '/models/MatchManager.php';
 
 // Enkel superadmin of lokaal via command-line (CLI)
 if (php_sapi_name() !== 'cli') {

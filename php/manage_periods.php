@@ -1,6 +1,6 @@
 <?php
 $page_title = 'Beheer Seizoensperiodes';
-require_once 'getconn.php';
+require_once __DIR__ . '/core/getconn.php';
 
 $team_id = (int)$_SESSION['team_id'];
 $success = '';
@@ -98,7 +98,7 @@ $stmtGet = $pdo->prepare("SELECT * FROM team_periods WHERE team_id = ? AND seaso
 $stmtGet->execute([$team_id, $season_year]);
 $existing_periods = $stmtGet->fetchAll(PDO::FETCH_ASSOC);
 
-require_once 'header.php';
+require_once __DIR__ . '/header.php';
 ?>
 
 <div class="container mt-4 mb-5">
@@ -251,4 +251,4 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
-<?php require_once 'footer.php'; ?>
+<?php require_once __DIR__ . '/footer.php'; ?>

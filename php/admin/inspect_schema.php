@@ -1,6 +1,6 @@
 <?php
 // inspect_schema.php
-require_once __DIR__ . '/../getconn.php';
+require_once dirname(__DIR__) . '/core/getconn.php';
 $page_title = 'Schema Diagnostics';
 require_once __DIR__ . '/../header.php'; // Zorg dat we de admin layout pakken
 

@@ -1,5 +1,5 @@
 <?php
-require_once 'getconn.php';
+require_once dirname(__DIR__, 2) . '/core/getconn.php';
 
 // Verwerk acties: Toevoegen, Bewerken, Verwijderen
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -235,7 +235,7 @@ foreach ($coachesData as $index => $cData) {
 }
 
 $page_title = 'Game Management';
-require_once 'header.php';
+require_once dirname(__DIR__, 2) . '/header.php';
 ?>
 
 <div class="container mt-4">
@@ -386,7 +386,7 @@ require_once 'header.php';
                                         <a href="/games/<?= $game['id'] ?>/duplicate" class="btn btn-sm btn-outline-warning me-1" title="Dupliceer met Selectie">
                                             <i class="fa-solid fa-copy"></i>
                                         </a>
-                                        <a href="/games/<?= $game['id'] ?>/lineup" class="btn btn-sm btn-outline-primary me-1 <?= $game['selection_count'] == 0 ? 'disabled' : '' ?>" title="<?= !empty($game['final_lineup_id']) ? 'Bekijk Opstelling' : 'Bereken Opstelling' ?>">
+                                        <a href="/games/<?= $game["id"] ?>/schema" class="btn btn-sm btn-outline-primary me-1 <?= $game['selection_count'] == 0 ? 'disabled' : '' ?>" title="<?= !empty($game['final_lineup_id']) ? 'Bekijk Opstelling' : 'Bereken Opstelling' ?>">
                                             <?php if(!empty($game['final_lineup_id'])): ?>
                                                 <i class="fa-solid fa-eye"></i> Opstelling
                                             <?php else: ?>
@@ -494,7 +494,7 @@ require_once 'header.php';
                                         <a href="/games/<?= $game['id'] ?>/duplicate" class="btn btn-sm btn-outline-warning me-1" title="Dupliceer met Selectie">
                                             <i class="fa-solid fa-copy"></i>
                                         </a>
-                                        <a href="/games/<?= $game['id'] ?>/lineup" class="btn btn-sm btn-outline-primary me-1 <?= $game['selection_count'] == 0 ? 'disabled' : '' ?>" title="<?= !empty($game['final_lineup_id']) ? 'Bekijk Opstelling' : 'Bereken Opstelling' ?>">
+                                        <a href="/games/<?= $game["id"] ?>/schema" class="btn btn-sm btn-outline-primary me-1 <?= $game['selection_count'] == 0 ? 'disabled' : '' ?>" title="<?= !empty($game['final_lineup_id']) ? 'Bekijk Opstelling' : 'Bereken Opstelling' ?>">
                                             <?php if(!empty($game['final_lineup_id'])): ?>
                                                 <i class="fa-solid fa-eye"></i> Opstelling
                                             <?php else: ?>
@@ -793,4 +793,4 @@ document.addEventListener("DOMContentLoaded", function() {
 <?php endif; endif; ?>
 </script>
 
-<?php require_once 'footer.php'; ?>
+<?php require_once dirname(__DIR__, 2) . '/footer.php'; ?>

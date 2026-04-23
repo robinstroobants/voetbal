@@ -1,6 +1,6 @@
 <?php
 // admin/schema_usage.php
-require_once __DIR__ . '/../getconn.php';
+require_once dirname(__DIR__) . '/core/getconn.php';
 
 $schemaId = isset($_GET['schema']) ? (int)$_GET['schema'] : 0;
 

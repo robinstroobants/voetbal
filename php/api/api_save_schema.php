@@ -1,9 +1,9 @@
 <?php
 ini_set('display_errors', 0);
 header('Content-Type: application/json');
-require_once 'getconn.php';
-require_once 'MatchManager.php';
-require_once 'game.php';
+require_once dirname(__DIR__, 1) . '/core/getconn.php';
+require_once dirname(__DIR__, 1) . '/models/MatchManager.php';
+require_once dirname(__DIR__, 1) . '/models/game.php';
 
 $raw = file_get_contents('php://input');
 $data = json_decode($raw, true);

@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once 'getconn.php';
+require_once __DIR__ . '/core/getconn.php';
 
 if (!isset($_SESSION['user_id'])) {
     header("Location: login.php");

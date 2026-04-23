@@ -1,6 +1,6 @@
 <?php
 session_start();
-require_once 'getconn.php';
+require_once dirname(__DIR__, 2) . '/core/getconn.php';
 
 $error = '';
 $success = '';

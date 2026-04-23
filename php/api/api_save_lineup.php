@@ -1,5 +1,5 @@
 <?php
-require_once 'getconn.php';
+require_once dirname(__DIR__, 1) . '/core/getconn.php';
 header('Content-Type: application/json');
 
 if ($_SERVER["REQUEST_METHOD"] !== "POST") {
@@ -63,7 +63,7 @@ try {
         // Set this one to final
         $pdo->prepare("UPDATE game_lineups SET is_final = 1 WHERE id = ?")->execute([$lineup_id]);
         
-        require_once 'MatchManager.php';
+        require_once dirname(__DIR__, 1) . '/models/MatchManager.php';
         $mm = new MatchManager($pdo);
         $mm->syncGameLogs($game_id);
         
@@ -76,7 +76,7 @@ try {
         // Breek actieve share tokens
         $pdo->prepare("UPDATE games SET share_token = NULL, share_expires_at = NULL WHERE id = ?")->execute([$game_id]);
         
-        require_once 'MatchManager.php';
+        require_once dirname(__DIR__, 1) . '/models/MatchManager.php';
         $mm = new MatchManager($pdo);
         $mm->syncGameLogs($game_id);
         

@@ -1,5 +1,5 @@
 <?php
-require_once 'getconn.php';
+require_once dirname(__DIR__, 2) . '/core/getconn.php';
 
 if (!isset($_GET['id'])) {
     header("Location: edit_players.php");
@@ -142,7 +142,7 @@ if (!empty($player['favorite_positions'])) {
 }
 
 $page_title = 'Spelersdashboard: ' . htmlspecialchars($player['first_name'] . ' ' . $player['last_name']);
-require_once 'header.php';
+require_once dirname(__DIR__, 2) . '/header.php';
 ?>
 
 <style>
@@ -490,4 +490,4 @@ document.addEventListener("DOMContentLoaded", function() {
 });
 </script>
 
-<?php require_once 'footer.php'; ?>
+<?php require_once dirname(__DIR__, 2) . '/footer.php'; ?>

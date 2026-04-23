@@ -6,7 +6,8 @@ if (session_status() === PHP_SESSION_NONE) {
 
 // Security: Check of het IP adres op slot is
 // We laden we de DB connectie als we dit op termijn nodig hebben, maar auth_check is hier voldoende
-// Omdat require_once 'getconn.php' al in de files gebeurt.
+// Omdat require_once __DIR__ . '/core/getconn.php' al in de files gebeurt.
+require_once __DIR__ . '/core/Permissions.php';
 
 function enforce_subscription_write_access() {
     if (isset($_SESSION['is_read_only']) && $_SESSION['is_read_only'] === true) {
@@ -25,16 +26,7 @@ function enforce_auth() {
     enforce_subscription_write_access();
 }
 
-function enforce_role($required_role) {
-    if ($required_role === 'superadmin') {
-        $role = $_SESSION['role'] ?? '';
-        $original_role = $_SESSION['original_role'] ?? '';
-        if ($role !== 'superadmin' && $original_role !== 'superadmin') {
-            header("Location: /");
-            exit;
-        }
-    }
-}
+// enforce_role is nu vervangen door Permissions::enforce()
 
 // 1. Parsing URI
 $uri = $_SERVER['REQUEST_URI'];
@@ -49,20 +41,20 @@ $route_matched = false;
 // 2. Exact Static UI Routes
 $routes = [
     '/' => ['target' => 'index.php', 'auth' => true],
-    '/login' => ['target' => 'login.php', 'auth' => false],
-    '/logout' => ['target' => 'logout.php', 'auth' => false],
-    '/register' => ['target' => 'register.php', 'auth' => false],
-    '/games' => ['target' => 'manage_games.php', 'auth' => true],
-    '/players' => ['target' => 'edit_players.php', 'auth' => true],
-    '/scores' => ['target' => 'edit_scores.php', 'auth' => true],
-    '/stats' => ['target' => 'stats.php', 'auth' => true],
-    '/settings' => ['target' => 'settings.php', 'auth' => true]
+    '/login' => ['target' => 'modules/auth/login.php', 'auth' => false],
+    '/logout' => ['target' => 'modules/auth/logout.php', 'auth' => false],
+    '/register' => ['target' => 'modules/auth/register.php', 'auth' => false],
+    '/games' => ['target' => 'modules/games/manage_games.php', 'auth' => true, 'permission' => Permissions::PERM_MANAGE_GAMES],
+    '/players' => ['target' => 'modules/players/edit_players.php', 'auth' => true, 'permission' => Permissions::PERM_MANAGE_PLAYERS],
+    '/scores' => ['target' => 'modules/players/edit_scores.php', 'auth' => true, 'permission' => Permissions::PERM_EDIT_SCORES],
+    '/stats' => ['target' => 'modules/players/stats.php', 'auth' => true, 'permission' => Permissions::PERM_MANAGE_GAMES],
+    '/settings' => ['target' => 'settings.php', 'auth' => true, 'permission' => Permissions::PERM_MANAGE_TEAM_SETTINGS]
 ];
 
 if (isset($routes[$path])) {
     $r = $routes[$path];
     if ($r['auth']) enforce_auth();
-    if (isset($r['role'])) enforce_role($r['role']);
+    if (isset($r['permission'])) Permissions::enforce($r['permission']);
     
     require_once __DIR__ . '/' . $r['target'];
     $route_matched = true;
@@ -72,19 +64,19 @@ if (isset($routes[$path])) {
     // ADMIN SUB-DIRECTORY ROUTING
     if (preg_match('#^/admin$#', $path)) {
         enforce_auth();
-        enforce_role('superadmin');
+        Permissions::enforce(Permissions::PERM_MANAGE_TENANTS);
         require_once __DIR__ . '/admin/index.php';
         $route_matched = true;
     }
     elseif (preg_match('#^/admin/schemas$#', $path)) {
         enforce_auth();
-        enforce_role('superadmin');
+        Permissions::enforce(Permissions::PERM_MANAGE_TENANTS);
         require_once __DIR__ . '/admin/manage_schemas.php';
         $route_matched = true;
     }
     elseif (preg_match('#^/admin/([a-zA-Z0-9_\-]+)$#', $path, $matches)) {
         enforce_auth();
-        enforce_role('superadmin');
+        Permissions::enforce(Permissions::PERM_MANAGE_TENANTS);
         $real_file = __DIR__ . '/admin/' . $matches[1] . '.php';
         if (file_exists($real_file)) {
             require_once $real_file;
@@ -94,33 +86,37 @@ if (isset($routes[$path])) {
     // OUDE GAME ROUTES
     elseif (preg_match('#^/games/(\d+)/edit$#', $path, $matches)) {
         enforce_auth();
+        Permissions::enforce(Permissions::PERM_MANAGE_GAMES);
         $_GET['edit_game'] = $matches[1];
-        require_once __DIR__ . '/manage_games.php';
+        require_once __DIR__ . '/modules/games/manage_games.php';
         $route_matched = true;
     }
-    elseif (preg_match('#^/games/(\d+)/lineup$#', $path, $matches)) {
+    elseif (preg_match('#^/games/(\d+)/schema$#', $path, $matches)) {
         enforce_auth();
-        // inject parameter for legacy lineup.php
-        $_GET['wedstrijd'] = $matches[1];
-        require_once __DIR__ . '/lineup.php';
+        Permissions::enforce(Permissions::PERM_GENERATE_LINEUPS);
+        $_GET['game_id'] = $matches[1];
+        require_once __DIR__ . '/modules/schemas/schema_dashboard.php';
         $route_matched = true;
     }
     elseif (preg_match('#^/games/(\d+)/selection$#', $path, $matches)) {
         enforce_auth();
+        Permissions::enforce(Permissions::PERM_MANAGE_GAMES);
         $_GET['game_id'] = $matches[1];
-        require_once __DIR__ . '/edit_selection.php';
+        require_once __DIR__ . '/modules/games/edit_selection.php';
         $route_matched = true;
     }
     elseif (preg_match('#^/games/(\d+)/duplicate$#', $path, $matches)) {
         enforce_auth();
+        Permissions::enforce(Permissions::PERM_MANAGE_GAMES);
         $_GET['duplicate_game'] = $matches[1];
-        require_once __DIR__ . '/manage_games.php';
+        require_once __DIR__ . '/modules/games/manage_games.php';
         $route_matched = true;
     }
     elseif (preg_match('#^/games/(\d+)/builder$#', $path, $matches)) {
         enforce_auth();
+        Permissions::enforce(Permissions::PERM_GENERATE_LINEUPS);
         $_GET['game_id'] = $matches[1];
-        require_once __DIR__ . '/schema_builder.php';
+        require_once __DIR__ . '/modules/schemas/schema_builder.php';
         $route_matched = true;
     }
     elseif (preg_match('#^/share/([a-zA-Z0-9]+)$#', $path, $matches)) {

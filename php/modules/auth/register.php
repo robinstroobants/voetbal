@@ -6,7 +6,7 @@ if (isset($_SESSION['user_id'])) {
     exit;
 }
 
-require_once 'getconn.php';
+require_once dirname(__DIR__, 2) . '/core/getconn.php';
 
 $error = '';
 $invite_token = $_GET['invite_token'] ?? $_POST['invite_token'] ?? '';

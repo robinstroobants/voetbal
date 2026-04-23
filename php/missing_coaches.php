@@ -1,6 +1,6 @@
 <?php
 $page_title = 'Ontbrekende Coaches';
-require_once 'getconn.php';
+require_once __DIR__ . '/core/getconn.php';
 
 $team_id = (int)$_SESSION['team_id'];
 
@@ -53,7 +53,7 @@ $stmtGames = $pdo->prepare("
 $stmtGames->execute([$team_id]);
 $missingGames = $stmtGames->fetchAll(PDO::FETCH_ASSOC);
 
-require_once 'header.php';
+require_once __DIR__ . '/header.php';
 ?>
 
 <div class="container mt-4 mb-5">
@@ -132,4 +132,4 @@ require_once 'header.php';
     </div>
 </div>
 
-<?php require_once 'footer.php'; ?>
+<?php require_once __DIR__ . '/footer.php'; ?>

@@ -1,5 +1,5 @@
 <?php
-require_once 'getconn.php';
+require_once __DIR__ . '/core/getconn.php';
 
 $team_id = (int)($_SESSION['team_id'] ?? 0);
 
@@ -262,7 +262,7 @@ if ($onboarding_complete) {
 }
 
 $page_title = 'Overzicht';
-require_once 'header.php';
+require_once __DIR__ . '/header.php';
 ?>
 
 <style>
@@ -839,4 +839,4 @@ function copyToClipboard(button) {
 }
 </script>
 
-<?php require_once 'footer.php'; ?>
+<?php require_once __DIR__ . '/footer.php'; ?>

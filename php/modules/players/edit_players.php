@@ -1,6 +1,6 @@
 <?php
 // Connect to the database
-require_once 'getconn.php';
+require_once dirname(__DIR__, 2) . '/core/getconn.php';
 
 // Ajax Save
 if (isset($_SERVER['CONTENT_TYPE']) && strpos($_SERVER['CONTENT_TYPE'], 'application/json') !== false) {
@@ -67,7 +67,7 @@ $remaining_players = max(0, $max_players - $players_count);
 
 <?php 
 $page_title = 'Edit Players';
-require_once 'header.php';
+require_once dirname(__DIR__, 2) . '/header.php';
 ?>
 
 <!-- DataTables CSS -->
@@ -149,7 +149,7 @@ require_once 'header.php';
     </div>
 </div>
 
-<?php require_once 'footer.php'; ?>
+<?php require_once dirname(__DIR__, 2) . '/footer.php'; ?>
 
 <!-- DataTables JS & jQuery -->
 <script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>

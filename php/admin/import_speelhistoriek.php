@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/../getconn.php';
+require_once dirname(__DIR__) . '/core/getconn.php';
 require_once __DIR__ . '/../speelhistoriek.php';
 
 if (php_sapi_name() !== 'cli') {

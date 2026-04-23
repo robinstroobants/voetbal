@@ -1,6 +1,6 @@
 <?php
-require_once 'getconn.php';
-require_once 'MatchManager.php';
+require_once dirname(__DIR__, 2) . '/core/getconn.php';
+require_once dirname(__DIR__, 2) . '/models/MatchManager.php';
 
 $gameId = $_GET['game_id'] ?? 0;
 $schemaId = $_GET['schema_id'] ?? 0;
@@ -65,7 +65,7 @@ function getPlayerName($pid, $volgorde_arr, $gk_count, $schema_idx) {
 }
 
 $page_title = "Bewerk Wisselschema";
-require_once 'header.php';
+require_once dirname(__DIR__, 2) . '/header.php';
 ?>
 
 <style>
@@ -530,4 +530,4 @@ function saveSchema(forceUpdate = false) {
 }
 </script>
 
-<?php require_once 'footer.php'; ?>
+<?php require_once dirname(__DIR__, 2) . '/footer.php'; ?>

@@ -1,6 +1,6 @@
 <?php
-require_once 'getconn.php';
-require_once 'MatchManager.php';
+require_once dirname(__DIR__, 2) . '/core/getconn.php';
+require_once dirname(__DIR__, 2) . '/models/MatchManager.php';
 
 $gameId = $_GET['game_id'] ?? 0;
 if (!$gameId) die("Game ID ontbreekt");
@@ -62,7 +62,7 @@ foreach ($squad as $idx => $pid) {
 }
 
 $page_title = "Bouw Schema Manueel";
-require_once 'header.php';
+require_once dirname(__DIR__, 2) . '/header.php';
 ?>
 <style>
 .pool-container { background: #f8f9fa; min-height: 400px; padding: 15px; border-radius: 8px; border: 1px solid #dee2e6; }
@@ -542,4 +542,4 @@ function submitForced() {
 document.addEventListener('DOMContentLoaded', initBuilder);
 </script>
 
-<?php require_once 'footer.php'; ?>
+<?php require_once dirname(__DIR__, 2) . '/footer.php'; ?>

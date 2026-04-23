@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/../getconn.php';
+require_once dirname(__DIR__) . '/core/getconn.php';
 
 // Beveiliging loopt nu centraal via router.php
 

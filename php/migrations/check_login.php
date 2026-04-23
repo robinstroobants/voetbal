@@ -1,5 +1,5 @@
 <?php
-require_once '../getconn.php';
+require_once dirname(__DIR__) . '/core/getconn.php';
 $email = $_GET['email'] ?? '';
 if ($email) {
     $stmt = $pdo->prepare("SELECT id, email, is_verified, password_hash FROM users WHERE email = ?");

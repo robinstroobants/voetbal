@@ -1,6 +1,6 @@
 <?php
-require_once 'getconn.php';
-require_once 'MatchManager.php';
+require_once dirname(__DIR__, 2) . '/core/getconn.php';
+require_once dirname(__DIR__, 2) . '/models/MatchManager.php';
 
 $gameId = isset($_GET['game_id']) ? (int)$_GET['game_id'] : 0;
 if (isset($_POST['game_id'])) {
@@ -71,7 +71,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     }
     
     // Redirect direct naar de opstellingengenerator na opslaan
-    header("Location: /games/" . $gameId . "/lineup");
+    header("Location: /games/" . $gameId . "/schema");
     exit;
 }
 
@@ -81,7 +81,7 @@ $stmtPlayers->execute([$_SESSION['team_id']]);
 $allPlayers = $stmtPlayers->fetchAll(PDO::FETCH_ASSOC);
 
 $page_title = 'Selectie Beheren: ' . htmlspecialchars($game['opponent']);
-require_once 'header.php';
+require_once dirname(__DIR__, 2) . '/header.php';
 ?>
 
 <div class="container mt-4">
@@ -186,4 +186,4 @@ document.querySelector('form').addEventListener('submit', function(e) {
 });
 </script>
 
-<?php require_once 'footer.php'; ?>
+<?php require_once dirname(__DIR__, 2) . '/footer.php'; ?>

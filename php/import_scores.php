@@ -1,6 +1,6 @@
 <?php
 require_once("game.php");
-require_once("getconn.php");
+require_once __DIR__ . '/core/getconn.php';
 
 // Datum van invoer (je kunt dit dynamisch maken of per score aanpassen)
 $score_date = date('Y-m-d');

@@ -118,13 +118,8 @@ require_once dirname(__DIR__, 2) . '/header.php';
                     <!-- JS fills this initially -->
                 </div>
                 <hr>
-                <div class="mt-3">
-                    <small class="text-muted"><i class="fa-solid fa-info-circle"></i> Spelers die recht hebben op speeltijd lichten geel op en worden on top gesorteerd!</small>
-                </div>
-                
-                <hr>
                 <h5 class="mb-3 text-dark mt-4"><i class="fa-solid fa-chart-line me-2"></i>Live Statistieken</h5>
-                <div class="table-responsive bg-white rounded shadow-sm">
+                <div class="table-responsive bg-white rounded shadow-sm mb-3">
                     <table class="table table-sm table-hover mb-0" style="font-size: 0.85rem;">
                         <thead class="table-light">
                             <tr>
@@ -137,6 +132,10 @@ require_once dirname(__DIR__, 2) . '/header.php';
                             <!-- JS fills this dynamically -->
                         </tbody>
                     </table>
+                </div>
+                
+                <div class="mt-3">
+                    <small class="text-muted"><i class="fa-solid fa-info-circle"></i> Spelers die recht hebben op speeltijd lichten geel op in de pool en worden on top gesorteerd!</small>
                 </div>
             </div>
         </div>
@@ -273,8 +272,9 @@ function initBuilder() {
             </div>
             </div>
             <div class="card-footer bg-white text-end py-2">
+                ${i > 0 ? `<button class="btn btn-sm btn-outline-danger btn-reset d-none me-2" onclick="resetBlock(${i})"><i class="fa-solid fa-arrow-left"></i> Wis & Naar Vorige</button>` : ''}
                 <button class="btn btn-sm btn-primary btn-lock d-none" onclick="lockBlock(${i})">Vastzetten & Volgende <i class="fa-solid fa-arrow-right"></i></button>
-                <button class="btn btn-sm btn-outline-warning btn-unlock d-none" onclick="unlockBlock(${i})"><i class="fa-solid fa-unlock"></i> Ontgrendel</button>
+                <button class="btn btn-sm btn-outline-warning btn-unlock d-none" onclick="unlockBlock(${i})"><i class="fa-solid fa-unlock"></i> Bewerk Vanaf Hier</button>
             </div>
             `;
             
@@ -381,11 +381,43 @@ function updateShiftData(shiftIdx) {
     }
 }
 
+function resetBlock(shiftIdx) {
+    if(shiftIdx === 0) return;
+    
+    let currentBlock = document.getElementById('shift-' + shiftIdx);
+    
+    // Clear non-fixed players
+    currentBlock.querySelectorAll('.pool-player').forEach(el => {
+        if(!el.classList.contains('locked')) el.remove();
+    });
+    updateShiftData(shiftIdx);
+    
+    // Make current locked again visually (but as future block)
+    currentBlock.classList.add('locked');
+    currentBlock.classList.replace('border-primary', 'border-secondary');
+    currentBlock.querySelector('.btn-lock').classList.add('d-none');
+    if(currentBlock.querySelector('.btn-reset')) currentBlock.querySelector('.btn-reset').classList.add('d-none');
+    
+    // Unlock previous
+    let prevIdx = shiftIdx - 1;
+    let prevBlock = document.getElementById('shift-' + prevIdx);
+    prevBlock.classList.remove('locked');
+    prevBlock.classList.replace('border-success', 'border-primary');
+    prevBlock.classList.replace('border-secondary', 'border-primary');
+    prevBlock.querySelector('.btn-unlock').classList.add('d-none');
+    prevBlock.querySelector('.btn-lock').classList.remove('d-none');
+    if(prevBlock.querySelector('.btn-reset')) prevBlock.querySelector('.btn-reset').classList.remove('d-none');
+    
+    calculateStats();
+    prevBlock.scrollIntoView({behavior: "smooth", block: "center"});
+}
+
 function lockBlock(shiftIdx) {
     let block = document.getElementById('shift-' + shiftIdx);
     block.classList.add('locked');
     block.classList.replace('border-primary', 'border-success');
     block.querySelector('.btn-lock').classList.add('d-none');
+    if(block.querySelector('.btn-reset')) block.querySelector('.btn-reset').classList.add('d-none');
     block.querySelector('.btn-unlock').classList.remove('d-none');
     
     calculateStats();
@@ -395,6 +427,8 @@ function lockBlock(shiftIdx) {
         let nextBlock = document.getElementById('shift-' + nextShiftIdx);
         nextBlock.classList.remove('locked');
         nextBlock.classList.replace('border-secondary', 'border-primary');
+        nextBlock.querySelector('.btn-lock').classList.remove('d-none');
+        if(nextBlock.querySelector('.btn-reset')) nextBlock.querySelector('.btn-reset').classList.remove('d-none');
         
         let currentSData = shiftData[shiftIdx];
         
@@ -416,20 +450,26 @@ function unlockBlock(shiftIdx) {
     if(!confirm("Waarschuwing: Alle blokken na deze blok worden gereset. Ben je zeker?")) return;
     
     let currentBlock = document.getElementById('shift-' + shiftIdx);
-    currentBlock.classList.remove('locked', 'border-success');
-    currentBlock.classList.add('border-primary');
-    currentBlock.querySelector('.btn-lock').classList.remove('d-none');
+    currentBlock.classList.remove('locked');
+    currentBlock.classList.replace('border-success', 'border-primary');
     currentBlock.querySelector('.btn-unlock').classList.add('d-none');
+    currentBlock.querySelector('.btn-lock').classList.remove('d-none');
+    if(currentBlock.querySelector('.btn-reset')) currentBlock.querySelector('.btn-reset').classList.remove('d-none');
     
     document.getElementById('btnSave').disabled = true;
     
     for(let i = shiftIdx + 1; i < numShifts; i++) {
         let laterBlock = document.getElementById('shift-' + i);
-        laterBlock.classList.add('locked', 'border-secondary');
-        laterBlock.classList.remove('border-primary', 'border-success');
+        laterBlock.classList.add('locked');
+        laterBlock.classList.replace('border-primary', 'border-secondary');
+        laterBlock.classList.replace('border-success', 'border-secondary');
         laterBlock.querySelector('.btn-unlock').classList.add('d-none');
         laterBlock.querySelector('.btn-lock').classList.add('d-none');
-        laterBlock.querySelectorAll('.pool-player').forEach(el => el.remove());
+        if(laterBlock.querySelector('.btn-reset')) laterBlock.querySelector('.btn-reset').classList.add('d-none');
+        
+        laterBlock.querySelectorAll('.pool-player').forEach(el => {
+            if(!el.classList.contains('locked')) el.remove();
+        });
         updateShiftData(i);
     }
     calculateStats();
@@ -549,18 +589,31 @@ function calculateStats() {
 
     statsArr.forEach(st => {
         let matchPerc = 0;
-        let matchPercText = "0%";
-        let matchColor = "text-muted";
-        
         let matchAvailable = st.fieldMin + st.benchMin; // Time they are part of a locked block
         if(matchAvailable > 0) {
             matchPerc = (st.fieldMin / matchAvailable) * 100;
-            matchPercText = Math.round(matchPerc) + "%";
-            if (matchPerc < 50) matchColor = "text-danger fw-bold";
-            else if (matchPerc >= 65) matchColor = "text-success fw-bold";
+        }
+        st.matchPerc = matchPerc;
+        st.matchAvailable = matchAvailable;
+    });
+
+    statsArr.sort((a, b) => {
+        // Sort by matchPerc ascending
+        if (a.matchPerc !== b.matchPerc) return a.matchPerc - b.matchPerc;
+        // Then by name
+        return a.name.localeCompare(b.name);
+    });
+
+    statsArr.forEach(st => {
+        let matchPercText = "0%";
+        let matchColor = "text-muted";
+        
+        if(st.matchAvailable > 0) {
+            matchPercText = Math.round(st.matchPerc) + "%";
+            if (st.matchPerc < 50) matchColor = "text-danger fw-bold";
+            else if (st.matchPerc >= 65) matchColor = "text-success fw-bold";
             else matchColor = "text-warning fw-bold";
         } else if (totalLockedMin > 0) {
-            // Not in any block?
             matchPercText = "-";
         }
         

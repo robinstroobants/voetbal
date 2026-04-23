@@ -1,0 +1,1 @@
+ALTER TABLE teams ADD COLUMN default_game_parts VARCHAR(20) NOT NULL DEFAULT '4x15';

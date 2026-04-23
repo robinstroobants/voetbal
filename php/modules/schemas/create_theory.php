@@ -148,6 +148,31 @@ require_once dirname(__DIR__, 2) . '/header.php';
                         <button type="submit" class="btn btn-primary fw-bold px-4">Volgende <i class="fa-solid fa-arrow-right"></i></button>
                     </div>
                 </form>
+                <script>
+                document.addEventListener('DOMContentLoaded', function() {
+                    const blockDurationInput = document.querySelector('input[name="block_duration"]');
+                    const subFreqSelect = document.querySelector('select[name="sub_freq"]');
+                    
+                    if (blockDurationInput && subFreqSelect) {
+                        blockDurationInput.addEventListener('input', function() {
+                            const blockVal = parseFloat(this.value);
+                            if (!isNaN(blockVal)) {
+                                const halfVal = blockVal / 2;
+                                let optionExists = false;
+                                for (let i = 0; i < subFreqSelect.options.length; i++) {
+                                    if (parseFloat(subFreqSelect.options[i].value) === halfVal) {
+                                        optionExists = true;
+                                        break;
+                                    }
+                                }
+                                if (optionExists) {
+                                    subFreqSelect.value = halfVal;
+                                }
+                            }
+                        });
+                    }
+                });
+                </script>
             
             <?php elseif ($step === 2): ?>
                 <h4 class="mb-4">Stap 2: Spelers Selecteren</h4>

@@ -60,6 +60,12 @@ try {
         
         try {
             $sql = file_get_contents($file);
+            
+            // 🛑 SAFETY CHECK: Block any script that contains DROP TABLE to prevent data loss
+            if (stripos($sql, 'DROP TABLE') !== false) {
+                die("</ul><div style='padding: 20px; background: #ffebee; border: 1px solid red; color: darkred;'><strong>FATAL SECURITY ERROR:</strong> Migratiebestand <code>$basename</code> bevat een 'DROP TABLE' instructie. Dit is strikt verboden om database-leegmaak acties te voorkomen. Het migratieproces is stopgezet ter bescherming van je data.</div>");
+            }
+
             $pdo->exec($sql);
             
             // Markeer als succesvol afgerond

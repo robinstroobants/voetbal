@@ -1,1 +1,0 @@
-ALTER TABLE users ADD COLUMN is_beta_user TINYINT(1) DEFAULT 0;

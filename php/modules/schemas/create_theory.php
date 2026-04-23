@@ -135,7 +135,7 @@ require_once dirname(__DIR__, 2) . '/header.php';
                                 <option value="5">Om de 5 minuten</option>
                                 <option value="7.5">Om de 7.5 minuten (mid-kwartjes)</option>
                                 <option value="10">Om de 10 minuten</option>
-                                <option value="15" selected>Om de 15 minuten</option>
+                                <option value="15" >Om de 15 minuten</option>
                                 <option value="20">Om de 20 minuten</option>
                                 <option value="30">Om de 30 minuten</option>
                                 <option value="45">Om de 45 minuten</option>

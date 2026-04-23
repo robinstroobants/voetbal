@@ -62,6 +62,11 @@ class Permissions {
         if ($role === self::ROLE_SUPERADMIN || $original_role === self::ROLE_SUPERADMIN) {
             return true;
         }
+        
+        // Beta users get early access to theory wizard
+        if ($permission === self::PERM_USE_THEORY_WIZARD && isset($_SESSION['is_beta_user']) && $_SESSION['is_beta_user'] == 1) {
+            return true;
+        }
 
         if (isset(self::$rolePermissions[$role])) {
             return in_array($permission, self::$rolePermissions[$role]);

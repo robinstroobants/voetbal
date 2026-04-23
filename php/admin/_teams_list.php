@@ -69,6 +69,7 @@
                             <tr>
                                 <th>Naam</th>
                                 <th>E-mailadres</th>
+                                <th>Laatst Actief</th>
                                 <th>Rechten Rol</th>
                                 <th class="text-center d-none d-md-table-cell">BETA Access</th>
                                 <th class="text-end">Acties</th>
@@ -91,6 +92,13 @@
                                     <?php endif; ?>
                                 </td>
                                 <td><?= htmlspecialchars($user['email']) ?></td>
+                                <td>
+                                    <?php if (!empty($user['last_activity'])): ?>
+                                        <small class="text-muted"><i class="fa-solid fa-clock me-1"></i><?= date('d/m/y H:i', strtotime($user['last_activity'])) ?></small>
+                                    <?php else: ?>
+                                        <small class="text-muted fst-italic">Nooit</small>
+                                    <?php endif; ?>
+                                </td>
                                 <td>
                                     <?php 
                                         $badge = 'bg-secondary';
@@ -149,6 +157,7 @@
                                     </div>
                                 </td>
                                 <td class="text-muted"><?= htmlspecialchars($invite['email']) ?></td>
+                                <td class="text-center">-</td>
                                 <td>
                                     <span class="badge bg-warning text-dark">Invited</span>
                                 </td>

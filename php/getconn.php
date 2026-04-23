@@ -36,3 +36,18 @@ if (!function_exists('logPerformance')) {
         }
     }
 }
+
+// Update last_activity for the logged-in user (throttled to 5 minutes, skipping if impersonating)
+if (!$is_cli && session_status() === PHP_SESSION_ACTIVE && isset($_SESSION['user_id']) && !isset($_SESSION['original_user_id'])) {
+    $now = time();
+    $last_update = $_SESSION['last_activity_update'] ?? 0;
+    if (($now - $last_update) > 300) { // 5 minutes
+        try {
+            $stmtAct = $pdo->prepare("UPDATE users SET last_activity = NOW() WHERE id = ?");
+            $stmtAct->execute([$_SESSION['user_id']]);
+            $_SESSION['last_activity_update'] = $now;
+        } catch (\Throwable $t) {
+            // Ignore DB errors during background activity update
+        }
+    }
+}

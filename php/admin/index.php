@@ -250,7 +250,7 @@ foreach ($utResult as $ut) {
 
 // Haal actieve open invites op
 $invitesByTeam = [];
-$stmtInv = $pdo->query("SELECT id, team_id, email, token, created_at, expires_at FROM team_invitations WHERE expires_at > NOW()");
+$stmtInv = $pdo->query("SELECT id, team_id, email, token, created_at, expires_at FROM team_invitations WHERE expires_at > NOW() AND status = 'pending'");
 foreach($stmtInv as $r) {
     if (!isset($invitesByTeam[$r['team_id']])) {
         $invitesByTeam[$r['team_id']] = [];
@@ -261,6 +261,14 @@ foreach($stmtInv as $r) {
 // Haal dummy metrics op voor dashboard
 $stmtDummyC = $pdo->query("SELECT SUM(CASE WHEN created_at < NOW() - INTERVAL 1 HOUR THEN 1 ELSE 0 END) as expired_count, COUNT(*) as total_count FROM games WHERE opponent LIKE '%DUMMY REVISOR MATCH%'");
 $dummyStats = $stmtDummyC->fetch(PDO::FETCH_ASSOC);
+
+// Haal globale admin stats op
+$admin_stats = $pdo->query("
+    SELECT 
+        (SELECT COUNT(*) FROM users WHERE created_at > DATE_SUB(NOW(), INTERVAL 7 DAY)) as new_users_7d,
+        (SELECT COUNT(*) FROM team_invitations WHERE status = 'pending') as invites_pending,
+        (SELECT COUNT(*) FROM team_invitations WHERE status = 'accepted') as invites_accepted
+")->fetch(PDO::FETCH_ASSOC);
 
 // Als het een Ajax verzoek is, onderbreek the HTML rest render en spuug enkel the partial uit
 if ($isAjax) {
@@ -295,6 +303,42 @@ require_once __DIR__ . '/../header.php';
         </form>
     </div>
     <?php endif; ?>
+
+    <div class="row mb-4">
+        <div class="col-md-4 mb-2">
+            <div class="card shadow-sm border-0 bg-primary text-white h-100">
+                <div class="card-body d-flex align-items-center">
+                    <i class="fa-solid fa-user-plus fa-2x opacity-50 me-3"></i>
+                    <div>
+                        <h6 class="mb-1 opacity-75 fw-normal">Nieuwe Gebruikers (7d)</h6>
+                        <h3 class="mb-0 fw-bold"><?= $admin_stats['new_users_7d'] ?></h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-2">
+            <div class="card shadow-sm border-0 bg-success text-white h-100">
+                <div class="card-body d-flex align-items-center">
+                    <i class="fa-solid fa-envelope-circle-check fa-2x opacity-50 me-3"></i>
+                    <div>
+                        <h6 class="mb-1 opacity-75 fw-normal">Geaccepteerde Invites</h6>
+                        <h3 class="mb-0 fw-bold"><?= $admin_stats['invites_accepted'] ?></h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-2">
+            <div class="card shadow-sm border-0 bg-secondary text-white h-100">
+                <div class="card-body d-flex align-items-center">
+                    <i class="fa-solid fa-envelope-open-text fa-2x opacity-50 me-3"></i>
+                    <div>
+                        <h6 class="mb-1 opacity-75 fw-normal">Openstaande Invites</h6>
+                        <h3 class="mb-0 fw-bold"><?= $admin_stats['invites_pending'] ?></h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <?php if (!empty($success)): ?>
         <div class="alert alert-success fw-bold shadow-sm"><i class="fa-solid fa-check-circle me-2"></i><?= htmlspecialchars($success) ?></div>

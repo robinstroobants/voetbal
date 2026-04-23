@@ -90,8 +90,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error) {
                         // En update users.team_id als anchor
                         $pdo->prepare("UPDATE users SET team_id = ? WHERE id = ?")->execute([$team_id, $user_id]);
 
-                        // 3. Vernietig de invite token
-                        $pdo->prepare("DELETE FROM team_invitations WHERE token = ?")->execute([$invite_token]);
+                        // 3. Update de invite status naar accepted
+                        $pdo->prepare("UPDATE team_invitations SET status = 'accepted', accepted_at = NOW() WHERE token = ?")->execute([$invite_token]);
                     } else {
                         // 2. Maak het team aan met een 1 maand trial
                         $valid_until = date('Y-m-d H:i:s', strtotime("+1 month"));

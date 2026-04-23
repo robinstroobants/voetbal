@@ -85,7 +85,7 @@ $stmt = $pdo->prepare("
         (SELECT id FROM game_lineups gl WHERE gl.game_id = g.id AND gl.is_final = 1 LIMIT 1) as final_lineup_id
     FROM games g 
     LEFT JOIN users c ON g.coach_id = c.id
-    WHERE g.team_id = ?
+    WHERE g.team_id = ? AND g.is_theory = 0
     ORDER BY (g.coach_id IS NULL OR c.first_name IS NULL) DESC, g.game_date DESC
 ");
 $stmt->execute([$_SESSION['team_id']]);
@@ -242,9 +242,14 @@ require_once dirname(__DIR__, 2) . '/header.php';
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2>Wedstrijd Beheer</h2>
         <?php if ($onboarding_complete): ?>
-            <button class="btn btn-primary shadow-sm" onclick="openGameModal()">
-                <i class="fa-solid fa-plus me-2"></i>Nieuwe Wedstrijd
-            </button>
+            <div>
+                <a href="/schemas/wizard" class="btn btn-outline-warning shadow-sm me-2 fw-bold text-dark">
+                    <i class="fa-solid fa-flask me-2"></i>Theorie Ontwerpen
+                </a>
+                <button class="btn btn-primary shadow-sm" onclick="openGameModal()">
+                    <i class="fa-solid fa-plus me-2"></i>Nieuwe Wedstrijd
+                </button>
+            </div>
         <?php else: ?>
             <button class="btn btn-secondary disabled opacity-75" title="Doorloop eerst de onboarding op het dashboard">
                 <i class="fa-solid fa-lock me-2"></i>Team Incompleet

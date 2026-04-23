@@ -119,6 +119,12 @@ if (isset($routes[$path])) {
         require_once __DIR__ . '/modules/schemas/schema_builder.php';
         $route_matched = true;
     }
+    elseif ($path === '/schemas/wizard') {
+        enforce_auth();
+        Permissions::enforce(Permissions::PERM_GENERATE_LINEUPS);
+        require_once __DIR__ . '/modules/schemas/create_theory.php';
+        $route_matched = true;
+    }
     elseif (preg_match('#^/share/([a-zA-Z0-9]+)$#', $path, $matches)) {
         $_GET['token'] = $matches[1];
         require_once __DIR__ . '/public_share.php';

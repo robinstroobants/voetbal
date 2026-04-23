@@ -2,8 +2,8 @@
 
 use PHPUnit\Framework\TestCase;
 
-// Laad de class in (aangezien we waarschijnlijk nog geen formele PSR-4 namespaces hebben op de bestaande files)
-require_once __DIR__ . '/../../game.php';
+// Use the absolute path if possible or adjust to the new /models path
+require_once dirname(__DIR__, 2) . '/models/game.php';
 
 class GameTest extends TestCase
 {

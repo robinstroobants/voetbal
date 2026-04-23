@@ -191,7 +191,7 @@ while ($row = $stmtFormats->fetchColumn()) {
 }
 $json_available_parts = json_encode($available_parts_by_format);
 
-$available_formats = [
+$available_formats_all = [
     '11v11', '8v8', '5v5', '3v3', '2v2'
 ];
 
@@ -523,7 +523,7 @@ require_once 'header.php';
                   </div>
                   <div class="col-md-6">
                       <label class="form-label text-muted small fw-bold">STARTUUR</label>
-                      <input type="time" class="form-control" name="game_time" id="modal_game_time">
+                      <input type="time" class="form-control" name="game_time" id="modal_game_time" step="300" min="08:00" max="22:00">
                   </div>
               </div>
               <div class="mb-3">
@@ -706,7 +706,7 @@ function openGameModal(game = null, isDuplicate = false) {
         document.getElementById('modal_source_game_id').value = game.id;
         document.getElementById('modal_opponent').value = '';
         document.getElementById('modal_game_date').value = new Date().toISOString().split('T')[0];
-        document.getElementById('modal_game_time').value = '';
+        document.getElementById('modal_game_time').value = '09:00';
         document.getElementById('modal_min_pos').value = game.min_pos || '0';
         document.getElementById('modal_coach_id').value = game.coach_id || '';
         
@@ -726,7 +726,7 @@ function openGameModal(game = null, isDuplicate = false) {
     } else {
         document.getElementById('gameModalLabel').innerText = 'Nieuwe Wedstrijd Plannen';
         document.getElementById('modal_game_date').value = new Date().toISOString().split('T')[0];
-        document.getElementById('modal_game_time').value = '';
+        document.getElementById('modal_game_time').value = '09:00';
         document.getElementById('modal_min_pos').value = '0';
         document.getElementById('modal_coach_id').value = '';
         

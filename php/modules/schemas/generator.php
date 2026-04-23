@@ -49,7 +49,7 @@
   // ------------------------------------------------------------
   // [1] Laad hulpscripts en stel globale instellingen in
   // ------------------------------------------------------------
-  require_once __DIR__ . '/game.php';
+  require_once dirname(__DIR__, 2) . '/models/game.php';
 
 
 

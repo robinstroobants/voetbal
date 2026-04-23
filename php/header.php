@@ -82,6 +82,9 @@ header("Expires: 0"); // Proxies blockeren
                     <li class="nav-item"><a class="nav-link" href="/games">
                         <i class="fa-regular fa-calendar-days me-2"></i>Wedstrijden
                     </a></li>
+                    <li class="nav-item"><a class="nav-link text-warning fw-semibold" href="/schemas/wizard">
+                        <i class="fa-solid fa-flask me-2"></i>Theorie
+                    </a></li>
                     <li class="nav-item"><a class="nav-link" href="/stats">
                         <i class="fa-solid fa-chart-line me-2"></i>Statistieken
                     </a></li>

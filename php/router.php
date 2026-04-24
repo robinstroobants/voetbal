@@ -173,7 +173,7 @@ if (!$route_matched) {
     if (preg_match('/^\/([a-zA-Z0-9_\-]+)$/', $path, $m)) {
         $real_file = __DIR__ . '/' . $m[1] . '.php';
         if (file_exists($real_file)) {
-            $public_files = ['login.php', 'register.php', 'logout.php', 'run_migrations.php', 'cron_cleanup.php', 'migrate_waitlist.php'];
+            $public_files = ['login.php', 'register.php', 'logout.php', 'run_migrations.php', 'cron_cleanup.php', 'migrate_waitlist.php', 'migrate_usage.php'];
             if (!in_array(basename($real_file), $public_files)) {
                 enforce_auth();
             }
@@ -187,7 +187,7 @@ if (!$route_matched) {
     if (preg_match('/\.php$/', $path)) {
         $real_file = __DIR__ . '/' . ltrim($path, '/');
         if (file_exists($real_file)) {
-            $public_files = ['login.php', 'register.php', 'logout.php', 'run_migrations.php', 'cron_cleanup.php', 'migrate_waitlist.php'];
+            $public_files = ['login.php', 'register.php', 'logout.php', 'run_migrations.php', 'cron_cleanup.php', 'migrate_waitlist.php', 'migrate_usage.php'];
             if (!in_array(basename($real_file), $public_files)) {
                 enforce_auth();
             }

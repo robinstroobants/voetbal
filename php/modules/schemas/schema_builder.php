@@ -200,7 +200,7 @@ foreach ($squad as $idx => $pid) {
 }
 
 // Fetch historical season stats for these exact players before this game
-$teamId = $matchData['game']['team_id'] ?? 0;
+$teamId = $_SESSION['team_id'] ?? 0;
 $gameDate = $matchData['game']['game_date'];
 $seasonStatsData = $matchManager->getSeasonStatsForSelection($teamId, $gameDate, $squad);
 
@@ -209,9 +209,9 @@ $seasonStatsJson = [];
 
 // Check if team has ANY periods defined to show the toggle
 $hasActivePeriod = false;
-$stmtPeriodsCheck = $pdo->prepare("SELECT 1 FROM team_periods WHERE team_id = ? LIMIT 1");
+$stmtPeriodsCheck = $pdo->prepare("SELECT COUNT(*) FROM team_periods WHERE team_id = ?");
 $stmtPeriodsCheck->execute([$teamId]);
-if ($stmtPeriodsCheck->fetchColumn()) {
+if ($stmtPeriodsCheck->fetchColumn() > 0) {
     $hasActivePeriod = true;
 }
 
@@ -263,13 +263,21 @@ require_once dirname(__DIR__, 2) . '/header.php';
                     </select>
                 </div>
             </div>
-            <div class="mt-2">
+            <div class="mt-2 d-flex align-items-center gap-4">
                 <div class="form-check form-switch mb-0">
                     <input class="form-check-input" type="checkbox" id="copyLineupToggle" checked style="cursor: pointer;">
                     <label class="form-check-label small text-muted fw-bold" for="copyLineupToggle" style="cursor: pointer; padding-top:2px;">
                         Opstelling enkel overnemen binnen de helftjes van dezelfde wedstrijd
                     </label>
                 </div>
+                <?php if($hasActivePeriod): ?>
+                <div class="form-check form-switch mb-0" title="Schakel in om de sortering ook te baseren op de actuele periode">
+                    <input class="form-check-input" type="checkbox" id="togglePeriodStats" checked onchange="calculateStats()" style="cursor: pointer;">
+                    <label class="form-check-label small text-primary fw-bold" for="togglePeriodStats" style="cursor: pointer; padding-top:2px;">
+                        Periode-statistieken gebruiken
+                    </label>
+                </div>
+                <?php endif; ?>
             </div>
         </div>
         <div>
@@ -290,12 +298,6 @@ require_once dirname(__DIR__, 2) . '/header.php';
                
                 <div class="d-flex justify-content-between align-items-center mb-2 mt-4">
                     <h5 class="mb-0 text-dark"><i class="fa-solid fa-chart-line me-2"></i>Live Statistieken</h5>
-                    <?php if($hasActivePeriod): ?>
-                    <div class="form-check form-switch m-0" title="Schakel in om ook rekening te houden met de actieve periode">
-                        <input class="form-check-input" type="checkbox" id="togglePeriodStats" checked onchange="calculateStats()">
-                        <label class="form-check-label small text-muted" for="togglePeriodStats">Periode-stats</label>
-                    </div>
-                    <?php endif; ?>
                 </div>
                 <div class="table-responsive bg-white rounded shadow-sm mb-3">
                     <table class="table table-sm table-hover mb-0" style="font-size: 0.85rem;">
@@ -876,7 +878,16 @@ function calculateStats() {
         let histRatioA = histAvailableA > 0 ? ((parseInt(sA.histPlayed) + (pA.fieldMin * 60)) / histAvailableA) : 0;
         let histRatioB = histAvailableB > 0 ? ((parseInt(sB.histPlayed) + (pB.fieldMin * 60)) / histAvailableB) : 0;
         
-        return histRatioA - histRatioB; // ascending
+        if (Math.abs(histRatioA - histRatioB) > 0.001) {
+            return histRatioA - histRatioB; // ascending
+        }
+        
+        // 4. Alfabetisch op voornaam
+        let nameA = (pA.name || "").toLowerCase();
+        let nameB = (pB.name || "").toLowerCase();
+        if (nameA < nameB) return -1;
+        if (nameA > nameB) return 1;
+        return 0;
     };
 
     poolItems.sort((a, b) => {

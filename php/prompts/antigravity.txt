@@ -1,7 +1,0 @@
-
-- als je een coach hebt uitgenodigd via het admin dashboard staat er wel max bereikt maar in de lijst staat die niet tussen. kan daar niet bij staan dat die invited is en dat die nog niet geregistreerd is?
-- performance dashboard uitbreiden, als er nu een peak komt weten we nog altijd niet waarom
-- ajax search werkt niet, van zodra ik iets in type is alles weg
-
-- download lineup pdfs
-

@@ -17,8 +17,7 @@
       <div class="d-flex justify-content-between align-items-center pt-3 pb-2">
           <div>
               <?php if ($prevGame): ?>
-                  <?php $query_params['wedstrijd'] = $prevGame['id']; ?>
-                  <a href="<?= build_url($base_url, $query_params); ?>" class="btn btn-outline-secondary btn-sm d-print-none" title="Vorige: <?= htmlspecialchars($prevGame['opponent']) ?>">
+                  <a href="/games/<?= $prevGame['id'] ?>/schema" class="btn btn-outline-secondary btn-sm d-print-none" title="Vorige: <?= htmlspecialchars($prevGame['opponent']) ?>">
                       <i class="fa-solid fa-chevron-left"></i>
                   </a>
               <?php else: ?>
@@ -32,8 +31,7 @@
 
           <div>
               <?php if ($nextGame): ?>
-                  <?php $query_params['wedstrijd'] = $nextGame['id']; ?>
-                  <a href="<?= build_url($base_url, $query_params) ?>" class="btn btn-outline-secondary btn-sm d-print-none" title="Volgende: <?= htmlspecialchars($nextGame['opponent']) ?>">
+                  <a href="/games/<?= $nextGame['id'] ?>/schema" class="btn btn-outline-secondary btn-sm d-print-none" title="Volgende: <?= htmlspecialchars($nextGame['opponent']) ?>">
                       <i class="fa-solid fa-chevron-right"></i>
                   </a>
               <?php else: ?>

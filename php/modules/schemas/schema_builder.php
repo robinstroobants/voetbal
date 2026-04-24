@@ -207,13 +207,15 @@ $seasonStatsData = $matchManager->getSeasonStatsForSelection($teamId, $gameDate,
 // Map the DB PIDs to JS Sidx (array indices)
 $seasonStatsJson = [];
 foreach ($squad as $idx => $pid) {
-    $st = $seasonStatsData[$pid] ?? ['played' => 0, 'bank' => 0, 'gk' => 0, 'available' => 0];
+    $st = $seasonStatsData[$pid] ?? ['played' => 0, 'bank' => 0, 'gk' => 0, 'available' => 0, 'period_played' => 0, 'period_available' => 0];
     // If user confirmed GK counts as played time: we use 'played' + 'gk' for total played.
     // However, game_playtime_logs `seconds_played` currently ALREADY INCLUDES gk time (as per syncGameLogs logic pos 1 counts as 'played').
     // So 'played' is the total field time.
     $seasonStatsJson[$idx] = [
         'histPlayed' => $st['played'],
-        'histAvailable' => $st['available']
+        'histAvailable' => $st['available'],
+        'periodPlayed' => $st['period_played'] ?? 0,
+        'periodAvailable' => $st['period_available'] ?? 0
     ];
 }
 
@@ -825,10 +827,23 @@ function calculateStats() {
             return ratioA - ratioB; // ascending
         }
         
-        // 2. Tertiaire sortering: Seizoen percentage (laagste eerst)
-        let sA = seasonStatsMap[sidxA] || { histPlayed: 0, histAvailable: 0 };
-        let sB = seasonStatsMap[sidxB] || { histPlayed: 0, histAvailable: 0 };
+        let sA = seasonStatsMap[sidxA] || { histPlayed: 0, histAvailable: 0, periodPlayed: 0, periodAvailable: 0 };
+        let sB = seasonStatsMap[sidxB] || { histPlayed: 0, histAvailable: 0, periodPlayed: 0, periodAvailable: 0 };
         
+        // 2. Secundaire sortering: Periode percentage (indien beschikbaar en groter dan 0)
+        let periodAvailableA = sA.periodAvailable + totalMinutes;
+        let periodAvailableB = sB.periodAvailable + totalMinutes;
+        
+        if (periodAvailableA > totalMinutes || periodAvailableB > totalMinutes) {
+            let periodRatioA = periodAvailableA > 0 ? ((sA.periodPlayed + pA.fieldMin) / periodAvailableA) : 0;
+            let periodRatioB = periodAvailableB > 0 ? ((sB.periodPlayed + pB.fieldMin) / periodAvailableB) : 0;
+            
+            if (Math.abs(periodRatioA - periodRatioB) > 0.001) {
+                return periodRatioA - periodRatioB; // ascending
+            }
+        }
+        
+        // 3. Tertiaire sortering: Seizoen percentage (laagste eerst)
         let histRatioA = (sA.histAvailable + totalMinutes) > 0 ? ((sA.histPlayed + pA.fieldMin) / (sA.histAvailable + totalMinutes)) : 0;
         let histRatioB = (sB.histAvailable + totalMinutes) > 0 ? ((sB.histPlayed + pB.fieldMin) / (sB.histAvailable + totalMinutes)) : 0;
         

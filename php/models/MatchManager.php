@@ -490,16 +490,20 @@ class MatchManager {
             SELECT p.player_id, 
                    SUM(p.seconds_played) as total_played, 
                    SUM(p.seconds_bank) as total_bank,
-                   SUM(p.seconds_gk) as total_gk
+                   SUM(p.seconds_gk) as total_gk,
+                   SUM(CASE WHEN tp.id IS NOT NULL AND g.game_date BETWEEN tp.start_date AND tp.end_date THEN p.seconds_played ELSE 0 END) as period_played,
+                   SUM(CASE WHEN tp.id IS NOT NULL AND g.game_date BETWEEN tp.start_date AND tp.end_date THEN p.seconds_bank ELSE 0 END) as period_bank
             FROM game_playtime_logs p
             JOIN games g ON p.game_id = g.id
+            LEFT JOIN team_periods tp ON tp.team_id = g.team_id 
+                AND ? BETWEEN tp.start_date AND tp.end_date
             WHERE g.team_id = ? 
               AND g.game_date < ?
               AND p.player_id IN ($placeholders)
             GROUP BY p.player_id
         ";
 
-        $params = array_merge([$teamId, $gameDate], $playerIds);
+        $params = array_merge([$gameDate, $teamId, $gameDate], $playerIds);
         
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute($params);
@@ -510,19 +514,31 @@ class MatchManager {
             $results[$pid] = [
                 'played' => (int)$row['total_played'],
                 'bank' => (int)$row['total_bank'],
-                'gk' => (int)$row['total_gk']
+                'gk' => (int)$row['total_gk'],
+                'period_played' => (int)$row['period_played'],
+                'period_bank' => (int)$row['period_bank']
             ];
             // Total available time = the time they were on the match sheet (played + bank)
             $results[$pid]['available'] = $results[$pid]['played'] + $results[$pid]['bank'];
+            $results[$pid]['period_available'] = $results[$pid]['period_played'] + $results[$pid]['period_bank'];
         }
         
         // Ensure all players have an entry even if no historical data
         foreach ($playerIds as $pid) {
             if (!isset($results[$pid])) {
-                $results[$pid] = ['played' => 0, 'bank' => 0, 'gk' => 0, 'available' => 0];
+                $results[$pid] = [
+                    'played' => 0, 
+                    'bank' => 0, 
+                    'gk' => 0, 
+                    'available' => 0,
+                    'period_played' => 0,
+                    'period_bank' => 0,
+                    'period_available' => 0
+                ];
             }
         }
-
+        
         return $results;
     }
+
 }

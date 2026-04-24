@@ -602,6 +602,20 @@ function resetBlock(shiftIdx) {
 }
 
 function lockBlock(shiftIdx) {
+    if (shiftIdx > 0) {
+        let currentLineupStr = JSON.stringify(shiftData[shiftIdx].lineup);
+        let previousLineupStr = JSON.stringify(shiftData[shiftIdx - 1].lineup);
+        
+        let currDef = shiftDefinitions[shiftIdx];
+        let prevDef = shiftDefinitions[shiftIdx - 1];
+        
+        if (currDef.game_counter === prevDef.game_counter && currentLineupStr === previousLineupStr) {
+            if (!confirm("Let op: Je hebt exact dezelfde opstelling (en bankzitters) als in het vorige blokje. Wil je deze opstelling toch 2x na elkaar spelen binnen deze wedstrijd?")) {
+                return;
+            }
+        }
+    }
+
     let block = document.getElementById('shift-' + shiftIdx);
     block.classList.add('locked');
     block.classList.replace('border-primary', 'border-success');

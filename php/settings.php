@@ -251,7 +251,7 @@ require_once __DIR__ . '/header.php';
                 <strong>Beheer Periodes</strong><br>
                 <small class="text-muted">Stel start- en einddatums in voor periodes binnen het actieve seizoen.</small>
             </div>
-            <a href="/manage_periods.php" class="btn btn-outline-primary"><i class="fa-solid fa-arrow-right me-2"></i> Beheren</a>
+            <a href="/settings/periods" class="btn btn-outline-primary"><i class="fa-solid fa-arrow-right me-2"></i> Beheren</a>
         </div>
     </div>
 

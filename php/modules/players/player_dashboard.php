@@ -224,7 +224,7 @@ require_once dirname(__DIR__, 2) . '/header.php';
 <div class="container mt-4 mb-5">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <a href="/edit_players.php" class="btn btn-outline-secondary btn-sm mb-2"><i class="fa-solid fa-arrow-left me-1"></i> Terug naar Spelers</a>
+            <a href="/players" class="btn btn-outline-secondary btn-sm mb-2"><i class="fa-solid fa-arrow-left me-1"></i> Terug naar Spelers</a>
             <h2 class="mb-0">
                 <i class="fa-solid fa-user-circle me-2 text-primary"></i>
                 <?= htmlspecialchars($player['first_name'] . ' ' . $player['last_name']) ?>

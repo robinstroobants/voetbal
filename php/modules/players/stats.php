@@ -146,12 +146,12 @@ require_once dirname(__DIR__, 2) . '/header.php';
                 </div>
                 <div class="col-md-5 text-end">
                     <?php if(count($periods) === 0): ?>
-                        <a href="/manage_periods.php?season_year=<?= $season_year ?>" class="btn btn-outline-primary btn-sm mt-2">
+                        <a href="/settings/periods?season_year=<?= $season_year ?>" class="btn btn-outline-primary btn-sm mt-2">
                             <i class="fa-solid fa-plus me-1"></i> Periodes Instellen
                         </a>
                         <div class="form-text mt-1 text-muted">Je hebt voor dit seizoen nog geen periodes (zoals Voorbereiding of Najaar) ingesteld.</div>
                     <?php else: ?>
-                        <a href="/manage_periods.php?season_year=<?= $season_year ?>" class="btn btn-outline-secondary btn-sm mt-2">
+                        <a href="/settings/periods?season_year=<?= $season_year ?>" class="btn btn-outline-secondary btn-sm mt-2">
                             <i class="fa-solid fa-pen me-1"></i> Periodes Beheren
                         </a>
                     <?php endif; ?>

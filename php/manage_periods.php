@@ -104,7 +104,7 @@ require_once __DIR__ . '/header.php';
 <div class="container mt-4 mb-5">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h2><i class="fa-solid fa-calendar-week me-2 text-primary"></i> Seizoensperiodes</h2>
-        <a href="/settings.php" class="btn btn-outline-secondary"><i class="fa-solid fa-arrow-left me-1"></i> Terug naar Instellingen</a>
+        <a href="/settings" class="btn btn-outline-secondary"><i class="fa-solid fa-arrow-left me-1"></i> Terug naar Instellingen</a>
     </div>
 
     <div class="alert alert-info border-0 shadow-sm">

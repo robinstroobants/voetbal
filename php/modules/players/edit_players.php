@@ -137,7 +137,7 @@ require_once dirname(__DIR__, 2) . '/header.php';
                     </td>
                     <td class="text-end" style="min-width: 120px; cursor: pointer;">
                         <span class="view-mode">
-                            <a href="/player_dashboard.php?id=<?= $row['id'] ?>" class="btn btn-sm btn-outline-primary py-0 px-2 me-2" title="Profiel & Dashboard"><i class="fa-solid fa-user"></i></a>
+                            <a href="/players/<?= $row['id'] ?>/dashboard" class="btn btn-sm btn-outline-primary py-0 px-2 me-2" title="Profiel & Dashboard"><i class="fa-solid fa-user"></i></a>
                             <span class="text-muted small fst-italic" title="Snel bewerken"><i class="fa-solid fa-pen"></i></span>
                         </span>
                         <button type="button" class="btn btn-primary btn-sm save-btn d-none" data-id="<?= $row['id'] ?>"><i class="fa-solid fa-check"></i></button>

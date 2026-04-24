@@ -272,7 +272,7 @@ require_once dirname(__DIR__, 2) . '/header.php';
         <i class="fa-solid fa-circle-info text-info fs-5 align-middle me-2"></i> 
         Er zijn <strong><?= $missing_coaches_count ?> wedstrijden</strong> (bovenaan gesorteerd) waaraan nog geen coach is toegewezen. 
         Koppel de juiste coach zodat de persoonlijke statistieken correct berekend kunnen worden. 
-        <a href="/missing_coaches.php" class="alert-link ms-2 text-decoration-underline"><i class="fa-solid fa-wrench"></i> Los ze snel hier op</a>
+        <a href="/missing_coaches" class="alert-link ms-2 text-decoration-underline"><i class="fa-solid fa-wrench"></i> Los ze snel hier op</a>
     </div>
     <?php endif; ?>
 

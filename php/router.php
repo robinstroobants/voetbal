@@ -48,7 +48,8 @@ $routes = [
     '/players' => ['target' => 'modules/players/edit_players.php', 'auth' => true, 'permission' => Permissions::PERM_MANAGE_PLAYERS],
     '/scores' => ['target' => 'modules/players/edit_scores.php', 'auth' => true, 'permission' => Permissions::PERM_EDIT_SCORES],
     '/stats' => ['target' => 'modules/players/stats.php', 'auth' => true, 'permission' => Permissions::PERM_MANAGE_GAMES],
-    '/settings' => ['target' => 'settings.php', 'auth' => true, 'permission' => Permissions::PERM_MANAGE_TEAM_SETTINGS]
+    '/settings' => ['target' => 'settings.php', 'auth' => true, 'permission' => Permissions::PERM_MANAGE_TEAM_SETTINGS],
+    '/settings/periods' => ['target' => 'manage_periods.php', 'auth' => true, 'permission' => Permissions::PERM_MANAGE_TEAM_SETTINGS]
 ];
 
 if (isset($routes[$path])) {
@@ -128,6 +129,19 @@ if (isset($routes[$path])) {
         Permissions::enforce(Permissions::PERM_GENERATE_LINEUPS);
         $_GET['game_id'] = $matches[1];
         require_once __DIR__ . '/modules/schemas/schema_builder.php';
+        $route_matched = true;
+    }
+    elseif (preg_match('#^/players/(\d+)/dashboard$#', $path, $matches)) {
+        enforce_auth();
+        Permissions::enforce(Permissions::PERM_MANAGE_PLAYERS);
+        $_GET['id'] = $matches[1];
+        require_once __DIR__ . '/modules/players/player_dashboard.php';
+        $route_matched = true;
+    }
+    elseif ($path === '/missing_coaches') {
+        enforce_auth();
+        Permissions::enforce(Permissions::PERM_MANAGE_GAMES);
+        require_once __DIR__ . '/modules/games/missing_coaches.php';
         $route_matched = true;
     }
     elseif ($path === '/schemas/wizard') {

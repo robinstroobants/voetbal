@@ -327,12 +327,11 @@ if ($numFieldPlayers > 0 && $totalFieldBlocks > 0 && $fixedGkIdPHP !== null) {
                     "<b>Datum:</b> " . $gameInfo['date'] . "<br>" .
                     "<b>Veld:</b> " . $gameInfo['mins'] . "m<br>" .
                     "<b>Doelman:</b> " . $gameInfo['gk'] . "m<br>" .
-                    "<b>Bank:</b> " . $gameInfo['bank'] . "m<br><br>" .
-                    "<div class='text-center mt-2'><a href='/games/" . $gameInfo['game_id'] . "' target='_blank' class='text-dark fw-bold' style='text-decoration: none; border-bottom: 1px solid transparent;' onmouseover='this.style.borderBottom=\"1px solid #000\"' onmouseout='this.style.borderBottom=\"1px solid transparent\"'>Bekijk Match <i class=\"fa-solid fa-arrow-right fs-6 ms-1\"></i></a></div>" .
+                    "<b>Bank:</b> " . $gameInfo['bank'] . "m" .
                     "</div>"
                 );
                 
-                $minutesGroups[(string)$mins][] = "<strong class='text-primary' style='cursor: pointer; text-decoration: underline dotted;' title='" . $titleText . "' data-bs-toggle='popover' data-bs-trigger='focus' tabindex='0' data-bs-html='true' data-bs-title='Match Details' data-bs-content='" . $contentHtml . "'>$pName</strong>";
+                $minutesGroups[(string)$mins][] = "<strong class='text-dark' style='cursor: pointer; text-decoration: none; border-bottom: 1px solid transparent; transition: border-bottom 0.2s;' onmouseover='this.style.borderBottom=\"1px solid #000\"' onmouseout='this.style.borderBottom=\"1px solid transparent\"' title='" . $titleText . "' data-bs-toggle='popover' data-bs-trigger='focus' tabindex='0' data-bs-html='true' data-bs-title='Match Details' data-bs-content='" . $contentHtml . "'>$pName</strong>";
             } else {
                 $minutesGroups[(string)$mins][] = "<strong>$pName</strong>";
             }
@@ -460,8 +459,7 @@ require_once dirname(__DIR__, 2) . '/header.php';
             <?= $pregame_analysis_html ?>
             
             <div class="pool-container sticky-top" style="top: 20px;">
-                <h5 class="mb-3 text-dark"><i class="fa-solid fa-users me-2"></i>Selectie Pool</h5>
-                <p class="small text-muted mb-3 fst-italic">Aanbevolen volgorde op basis van speelminuten</p>
+                <h5 class="mb-3 text-dark"><i class="fa-solid fa-users me-2"></i>Selectie</h5>
                 <div id="player-pool" class="d-flex flex-column gap-2">
                     <!-- JS fills this initially -->
                 </div>

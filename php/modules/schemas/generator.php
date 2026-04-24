@@ -533,7 +533,29 @@
           $stmtSch->execute([$te_gebruiken_schema]);
           $schema_json = $stmtSch->fetchColumn();
           if ($schema_json) {
-              $events[$format][count($list_of_players)] = json_decode($schema_json, true);
+              $schema_parts = json_decode($schema_json, true);
+              
+              if (is_array($schema_parts)) {
+                  // DYNAMISCH OVERSCHRIJVEN VAN DE DUUR
+                  $total_game_minutes = (int)($matchData['game']['total_duration_minutes'] ?? 60);
+                  $num_blocks = 0;
+                  foreach ($schema_parts as $idx => $part) {
+                      if (is_numeric($idx)) $num_blocks++;
+                  }
+                  
+                  if ($num_blocks > 0) {
+                      $seconds_per_block = round(($total_game_minutes * 60) / $num_blocks);
+                      $current_start = 0;
+                      foreach ($schema_parts as $idx => &$part) {
+                          if (is_numeric($idx)) {
+                              $part['duration'] = $seconds_per_block;
+                              $part['start'] = $current_start;
+                              $current_start += ($seconds_per_block / 60);
+                          }
+                      }
+                  }
+              }
+              $events[$format][count($list_of_players)] = $schema_parts;
           }
       }
 

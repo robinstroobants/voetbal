@@ -883,7 +883,7 @@
     }
 
     function unlockLineups(gameId) {
-        if (!confirm("Zeker dat je deze wedstrijd wil ontgrendelen en terug willekeurig wil laten genereren?")) return;
+        if (!confirm("Zeker dat je deze wedstrijd wil ontgrendelen?")) return;
         var fd = new FormData();
         fd.append('action', 'unlock');
         fd.append('game_id', gameId);

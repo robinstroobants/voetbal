@@ -18,6 +18,12 @@ $stmtCheck = $pdo->prepare("SELECT id FROM game_lineups WHERE game_id = ? AND is
 $stmtCheck->execute([$gameId]);
 $has_final = $stmtCheck->fetchColumn();
 
+// Auto-redirect naar de definitieve opstelling om een nutteloze extra klik op het dashboard te vermijden
+if ($has_final && empty($_GET['force_dashboard'])) {
+    header("Location: /games/$gameId/lineup");
+    exit;
+}
+
 // Check if generating is requested immediately via url param
 if (isset($_GET['generate']) && $_GET['generate'] == 1) {
     header("Location: /games/$gameId/lineup?generate=1");

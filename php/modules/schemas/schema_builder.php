@@ -514,6 +514,31 @@ function handleDrop(e, dropZone) {
 
 function updateShiftData(shiftIdx) {
     let block = document.getElementById('shift-' + shiftIdx);
+    
+    // --- AUTO-FILL BENCH FEATURE ---
+    // Controleer of alle veldposities volzet zijn
+    let fieldPositions = Array.from(block.querySelectorAll('.pos-wrapper:not([data-pos="bench"])'));
+    let fieldFilledCount = fieldPositions.filter(pw => pw.querySelector('.pool-player')).length;
+    
+    // Alleen auto-fill uitvoeren als het blok in bewerking is en er nog spelers in de pool zitten
+    let currentPlayerCountInBlock = block.querySelectorAll('.pool-player').length;
+    
+    if (fieldFilledCount === fieldPositions.length && currentPlayerCountInBlock < playerCount) {
+        let poolContainer = document.getElementById('player-pool');
+        let remainingPlayers = Array.from(poolContainer.querySelectorAll('.pool-player'));
+        
+        if (remainingPlayers.length > 0) {
+            let emptyBenchPositions = Array.from(block.querySelectorAll('.pos-wrapper[data-pos="bench"]')).filter(pw => !pw.querySelector('.pool-player'));
+            remainingPlayers.forEach(p => {
+                let targetPw = emptyBenchPositions.shift();
+                if (targetPw) {
+                    targetPw.appendChild(p);
+                }
+            });
+        }
+    }
+    // --- END AUTO-FILL ---
+    
     let sData = shiftData[shiftIdx];
     sData.lineup = {};
     if (fixedGkId !== null) sData.lineup[1] = playersMap[fixedGkId].sidx;

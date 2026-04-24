@@ -792,7 +792,7 @@
           } else {
               $min_req_text = isset($min_pos_requirement) ? $min_pos_requirement : (isset($matchData['game']['min_pos']) ? (int)$matchData['game']['min_pos'] : 0);
               $errHtml .= "<p class='mb-1'><strong>Oorzaak:</strong></p>";
-              $errHtml .= "<p class='mb-2 text-muted'>Er werden geen specifieke spelers geblokkeerd, maar er konden onvoldoende wisselschema's gegenereerd worden. Dit gebeurt vaak wanneer de ingestelde <strong>Minimale Posities per speler</strong> (momenteel vereist: <strong>" . $min_req_text . "</strong>) te streng is voor het algoritme om oplossingen te filteren.</p>";
+              $errHtml .= "<p class='mb-2 text-muted'>Er werden geen specifieke spelers geblokkeerd, maar er konden onvoldoende wisselschema's gegenereerd worden. Dit gebeurt wanneer de ingestelde <strong>Minimale Posities per speler</strong> (momenteel vereist: <strong>" . $min_req_text . "</strong>) niet behaald kan worden door de beschikbare schema's, óf wanneer deze schema's alsnog worden uitgesloten door de achterliggende quota-filtering van het algoritme.</p>";
               
               $errHtml .= "<h6 class='mt-3 mb-1'>Beschikbare schema's in de database voor " . count($squad) . " spelers:</h6><ul class='mb-3 text-muted' style='font-size:0.9em'>";
               if (isset($ws) && is_array($ws) && count($ws) > 0) {

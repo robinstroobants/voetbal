@@ -830,10 +830,11 @@
                       ];
                       
                       if ($cat_limits[$cat_current] == 0) {
-                          $status_icon = "<i class='fa-solid fa-filter-circle-xmark text-warning'></i> (Uitgesloten door strenge quota filtering)";
+                          $min_required_schema_id = ($min_req_text == 2) ? "20000" : "30000";
+                          $status_icon .= "<div class='mt-1 ms-3'><i class='fa-solid fa-filter-circle-xmark text-warning'></i> <span class='text-warning' style='font-size:0.95em'><strong>Uitgesloten door kwaliteitsfilter:</strong> Dit schema haalt wel het vereiste aantal posities, maar heeft een te lage theoretische balanskwaliteit (ID is lager dan {$min_required_schema_id}). Bij een strenge positie-eis forceert het algoritme het gebruik van perfect gebalanceerde schema's (ID &ge; {$min_required_schema_id}). Verlaag je instelling voor 'Minimale posities' naar 0 als je dit schema toch wilt toelaten.</span></div>";
                       }
                       
-                      $errHtml .= "<li>Schema <strong>#{$s_id}</strong> &mdash; Garandeert <strong>{$schema_min_pos}</strong> posities per veldspeler. {$status_icon}</li>";
+                      $errHtml .= "<li class='mb-2'>Schema <strong>#{$s_id}</strong> &mdash; Garandeert <strong>{$schema_min_pos}</strong> posities per veldspeler. {$status_icon}</li>";
                   }
               } else {
                   $errHtml .= "<li><em>Geen enkel schema gevonden voor deze spelvorm en dit aantal spelers.</em></li>";

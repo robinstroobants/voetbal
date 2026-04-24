@@ -75,7 +75,7 @@
 
   $matchManager = new MatchManager($pdo);
   
-  $wedstrijd_input = $_GET['wedstrijd'] ?? '';
+  $wedstrijd_input = $_GET['wedstrijd'] ?? ($_GET['game_id'] ?? '');
   $gameId = (int)$wedstrijd_input;
 
   // ------------------------------------------------------------

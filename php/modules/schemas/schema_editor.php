@@ -824,8 +824,7 @@ function updateShiftData(shiftIdx) {
     updateCounter(shiftIdx);
 }
 
-// lockBlock, resetBlock, unlockBlock, fillNextBlockPos, fillNextBlockPool removedl);
-}
+// lockBlock, resetBlock, unlockBlock, fillNextBlockPos, fillNextBlockPool removed
 
 function updateCounter(shiftIdx) {
     let block = document.getElementById('shift-' + shiftIdx);

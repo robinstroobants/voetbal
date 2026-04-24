@@ -43,6 +43,13 @@ class Permissions {
             self::PERM_EDIT_SCORES,
             self::PERM_GENERATE_LINEUPS
         ],
+        'user' => [
+            self::PERM_MANAGE_TEAM_SETTINGS,
+            self::PERM_MANAGE_PLAYERS,
+            self::PERM_MANAGE_GAMES,
+            self::PERM_EDIT_SCORES,
+            self::PERM_GENERATE_LINEUPS
+        ],
         self::ROLE_MANAGER => [
             self::PERM_MANAGE_PLAYERS, 
             self::PERM_MANAGE_GAMES,
@@ -55,8 +62,8 @@ class Permissions {
     ];
 
     public static function hasPermission($permission) {
-        $role = $_SESSION['role'] ?? '';
-        $original_role = $_SESSION['original_role'] ?? '';
+        $role = strtolower($_SESSION['role'] ?? '');
+        $original_role = strtolower($_SESSION['original_role'] ?? '');
         
         // Superadmin overrules everything
         if ($role === self::ROLE_SUPERADMIN) {

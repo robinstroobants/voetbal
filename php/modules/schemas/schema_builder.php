@@ -828,6 +828,11 @@ function calculateStats() {
         }
     });
 
+    // Compute matchAvailable for each player
+    for(let i in globalPlayerStats) {
+        globalPlayerStats[i].matchAvailable = globalPlayerStats[i].fieldMin + globalPlayerStats[i].benchMin;
+    }
+
     // Update pool visual sorting
     let pool = document.getElementById('player-pool');
     let poolItems = Array.from(pool.querySelectorAll('.pool-player'));
@@ -840,8 +845,8 @@ function calculateStats() {
         let pB = globalPlayerStats[sidxB] || { fieldMin: 0 };
         
         // 1. Primaire sortering: Wedstrijd percentage (laagste eerst)
-        let ratioA = pA.fieldMin / totalMinutes;
-        let ratioB = pB.fieldMin / totalMinutes;
+        let ratioA = pA.matchAvailable > 0 ? (pA.fieldMin / pA.matchAvailable) : 0;
+        let ratioB = pB.matchAvailable > 0 ? (pB.fieldMin / pB.matchAvailable) : 0;
         
         if (Math.abs(ratioA - ratioB) > 0.001) {
             return ratioA - ratioB; // ascending
@@ -854,10 +859,10 @@ function calculateStats() {
         
         // 2. Secundaire sortering: Periode percentage (indien beschikbaar en groter dan 0, en toggle staat aan)
         if (usePeriodStats) {
-            let periodAvailableA = parseInt(sA.periodAvailable) + (totalMinutes * 60);
-            let periodAvailableB = parseInt(sB.periodAvailable) + (totalMinutes * 60);
+            let periodAvailableA = parseInt(sA.periodAvailable) + (pA.matchAvailable * 60);
+            let periodAvailableB = parseInt(sB.periodAvailable) + (pB.matchAvailable * 60);
             
-            if (periodAvailableA > (totalMinutes * 60) || periodAvailableB > (totalMinutes * 60)) {
+            if (periodAvailableA > 0 || periodAvailableB > 0) {
                 let periodRatioA = periodAvailableA > 0 ? ((parseInt(sA.periodPlayed) + (pA.fieldMin * 60)) / periodAvailableA) : 0;
                 let periodRatioB = periodAvailableB > 0 ? ((parseInt(sB.periodPlayed) + (pB.fieldMin * 60)) / periodAvailableB) : 0;
                 
@@ -868,8 +873,8 @@ function calculateStats() {
         }
         
         // 3. Tertiaire sortering: Seizoen percentage (laagste eerst)
-        let histAvailableA = parseInt(sA.histAvailable) + (totalMinutes * 60);
-        let histAvailableB = parseInt(sB.histAvailable) + (totalMinutes * 60);
+        let histAvailableA = parseInt(sA.histAvailable) + (pA.matchAvailable * 60);
+        let histAvailableB = parseInt(sB.histAvailable) + (pB.matchAvailable * 60);
         
         let histRatioA = histAvailableA > 0 ? ((parseInt(sA.histPlayed) + (pA.fieldMin * 60)) / histAvailableA) : 0;
         let histRatioB = histAvailableB > 0 ? ((parseInt(sB.histPlayed) + (pB.fieldMin * 60)) / histAvailableB) : 0;
@@ -887,13 +892,13 @@ function calculateStats() {
         
         let usePeriodStats = document.getElementById('togglePeriodStats') ? document.getElementById('togglePeriodStats').checked : false;
         
-        let histAvailSec = parseInt(sData.histAvailable) + (totalMinutes * 60);
+        let histAvailSec = parseInt(sData.histAvailable) + (pStats.matchAvailable * 60);
         let seasonPct = histAvailSec > 0 ? Math.round(((parseInt(sData.histPlayed) + (pStats.fieldMin * 60)) / histAvailSec) * 100) : 0;
         
         let pctHtml = '';
-        let periodAvailSec = parseInt(sData.periodAvailable) + (totalMinutes * 60);
+        let periodAvailSec = parseInt(sData.periodAvailable) + (pStats.matchAvailable * 60);
         
-        if (usePeriodStats && periodAvailSec > (totalMinutes * 60)) {
+        if (usePeriodStats && periodAvailSec > 0) {
             let periodPct = Math.round(((parseInt(sData.periodPlayed) + (pStats.fieldMin * 60)) / periodAvailSec) * 100);
             pctHtml = `${periodPct}% <span style="font-size:0.6rem;">(P)</span>`;
         } else {

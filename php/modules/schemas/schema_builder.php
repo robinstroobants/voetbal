@@ -957,13 +957,6 @@ function calculateStats() {
         st.matchAvailable = matchAvailable;
     });
 
-    statsArr.sort((a, b) => {
-        // Sort by fieldMin ascending
-        if (a.fieldMin !== b.fieldMin) return a.fieldMin - b.fieldMin;
-        // Then by name
-        return a.name.localeCompare(b.name);
-    });
-
     statsArr.forEach(st => {
         let matchText = "0m";
         let matchColor = "text-muted";

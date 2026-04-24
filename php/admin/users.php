@@ -18,9 +18,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $eml = filter_var($_POST['email'] ?? '', FILTER_SANITIZE_EMAIL);
         $r = $_POST['role'] ?? 'User';
         $is_beta = (int)($_POST['is_beta_user'] ?? 0);
+        $acc_status = $_POST['account_status'] ?? 'active';
         
         if ($uid && $eml) {
-            $pdo->prepare("UPDATE users SET first_name = ?, last_name = ?, email = ?, role = ?, is_beta_user = ? WHERE id = ?")->execute([$fname, $lname, $eml, $r, $is_beta, $uid]);
+            $pdo->prepare("UPDATE users SET first_name = ?, last_name = ?, email = ?, role = ?, is_beta_user = ?, account_status = ? WHERE id = ?")->execute([$fname, $lname, $eml, $r, $is_beta, $acc_status, $uid]);
             $success = "✅ Gebruiker succesvol bijgewerkt!";
         } else {
             $error = "❌ Fout: E-mailadres mag niet leeg zijn.";
@@ -41,7 +42,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Zoeken & Filteren
 $searchTerm = trim($_GET['q'] ?? '');
-$queryStr = "SELECT u.id, u.first_name, u.last_name, u.email, u.role, u.is_beta_user, u.last_activity, u.created_at, 
+$queryStr = "SELECT u.id, u.first_name, u.last_name, u.email, u.role, u.is_beta_user, u.account_status, u.is_verified, u.last_activity, u.created_at, 
              GROUP_CONCAT(t.name SEPARATOR ', ') as team_names 
              FROM users u 
              LEFT JOIN user_teams ut ON u.id = ut.user_id 
@@ -145,6 +146,20 @@ require_once __DIR__ . '/../header.php';
                                     <?php if ($u['is_beta_user']): ?>
                                         <span class="badge bg-warning text-dark rounded-pill ms-1"><i class="fa-solid fa-flask"></i> Beta</span>
                                     <?php endif; ?>
+                                    
+                                    <div class="mt-1">
+                                        <?php if ($u['account_status'] === 'pending'): ?>
+                                            <span class="badge bg-warning text-dark rounded-pill"><i class="fa-solid fa-hourglass-half"></i> Wachtlijst</span>
+                                        <?php elseif ($u['account_status'] === 'suspended'): ?>
+                                            <span class="badge bg-danger rounded-pill"><i class="fa-solid fa-ban"></i> Geschorst</span>
+                                        <?php else: ?>
+                                            <span class="badge bg-success rounded-pill"><i class="fa-solid fa-check"></i> Actief</span>
+                                        <?php endif; ?>
+                                        
+                                        <?php if (!$u['is_verified']): ?>
+                                            <span class="badge bg-light text-muted border rounded-pill ms-1" title="E-mail nog niet geverifieerd"><i class="fa-solid fa-envelope"></i> Onbevestigd</span>
+                                        <?php endif; ?>
+                                    </div>
                                 </td>
                                 <td>
                                     <?php 
@@ -172,7 +187,8 @@ require_once __DIR__ . '/../header.php';
                                                data-lname="<?= htmlspecialchars($u['last_name'] ?? '') ?>"
                                                data-email="<?= htmlspecialchars($u['email']) ?>"
                                                data-role="<?= $u['role'] ?>"
-                                               data-beta="<?= $u['is_beta_user'] ?>">
+                                               data-beta="<?= $u['is_beta_user'] ?>"
+                                               data-status="<?= $u['account_status'] ?>">
                                                <i class="fa-solid fa-pen text-primary me-2"></i> Bewerk Gegevens
                                             </a></li>
                                             <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#resetPasswordModal" 
@@ -250,6 +266,16 @@ require_once __DIR__ . '/../header.php';
                     </select>
                 </div>
             </div>
+            
+            <div class="mb-3">
+                <label class="form-label fw-bold text-muted small">Account Status</label>
+                <select class="form-select border-primary" name="account_status" id="edit_status">
+                    <option value="active">Actief (Toegang verleend)</option>
+                    <option value="pending">Wachtlijst (Pending)</option>
+                    <option value="suspended">Geschorst (Geen toegang)</option>
+                </select>
+                <div class="form-text">Zet op <b>Actief</b> om gebruikers van de wachtlijst toe te laten.</div>
+            </div>
           </div>
           <div class="modal-footer border-top-0 bg-light rounded-bottom-4">
             <button type="button" class="btn btn-secondary rounded-pill px-4 fw-bold" data-bs-dismiss="modal">Annuleren</button>
@@ -305,6 +331,13 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('edit_email').value = button.getAttribute('data-email')
             document.getElementById('edit_role').value = button.getAttribute('data-role')
             document.getElementById('edit_beta').value = button.getAttribute('data-beta')
+            
+            var status = button.getAttribute('data-status');
+            if(status) {
+                document.getElementById('edit_status').value = status;
+            } else {
+                document.getElementById('edit_status').value = 'active';
+            }
         })
     }
     

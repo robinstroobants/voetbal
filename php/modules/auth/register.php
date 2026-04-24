@@ -78,8 +78,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error) {
                     $role = 'Coach'; 
                     $token = bin2hex(random_bytes(32));
                     
-                    $stmtUser = $pdo->prepare("INSERT INTO users (email, first_name, last_name, password_hash, role, is_verified, verification_token) VALUES (?, ?, ?, ?, ?, 0, ?)");
-                    $stmtUser->execute([$email, $first_name, $last_name, $hash, $role, $token]);
+                    $account_status = $invited_team_id ? 'active' : 'pending';
+                    
+                    $stmtUser = $pdo->prepare("INSERT INTO users (email, first_name, last_name, password_hash, role, is_verified, verification_token, account_status) VALUES (?, ?, ?, ?, ?, 0, ?, ?)");
+                    $stmtUser->execute([$email, $first_name, $last_name, $hash, $role, $token, $account_status]);
                     $user_id = $pdo->lastInsertId();
 
                     if ($invited_team_id) {

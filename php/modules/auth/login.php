@@ -26,7 +26,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $password = $_POST['password'] ?? '';
 
     if ($email && $password) {
-        $stmt = $pdo->prepare("SELECT u.id, u.email, u.password_hash, u.role, u.team_id, u.is_verified, u.is_beta_user, t.name as team_name, t.default_format, t.default_game_parts, t.subscription_valid_until 
+        $stmt = $pdo->prepare("SELECT u.id, u.email, u.password_hash, u.role, u.team_id, u.is_verified, u.account_status, u.is_beta_user, t.name as team_name, t.default_format, t.default_game_parts, t.subscription_valid_until 
                                FROM users u 
                                LEFT JOIN teams t ON u.team_id = t.id 
                                WHERE u.email = ? LIMIT 1");
@@ -36,6 +36,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($user && password_verify($password, $user['password_hash'])) {
             if (isset($user['is_verified']) && $user['is_verified'] == 0) {
                 $error = "Je account is nog niet geactiveerd. Controleer je e-mail inbox (of spam) voor de activatielink.";
+            } elseif (isset($user['account_status']) && $user['account_status'] === 'pending') {
+                $error = "Je staat op de wachtlijst! Je e-mailadres is bevestigd, maar een beheerder moet je account nog activeren. We contacteren je zodra je kan inloggen.";
             } else {
             $_SESSION['user_id'] = $user['id'];
             $_SESSION['role'] = $user['role'];

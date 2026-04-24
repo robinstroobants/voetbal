@@ -284,10 +284,19 @@ document.addEventListener('DOMContentLoaded', function() {
             let row = e.target.closest('.period-row');
             let startInput = row.querySelector('.start-date');
             let endInput = row.querySelector('.end-date');
-            if (startInput && startInput.value && endInput) {
-                let weeks = parseInt(e.target.getAttribute('data-weeks'));
+            
+            let weeks = parseInt(e.target.getAttribute('data-weeks'));
+            
+            if (endInput && endInput.value) {
+                // Add weeks to current end_date
+                let d = new Date(endInput.value);
+                d.setDate(d.getDate() + (weeks * 7));
+                endInput.value = d.toISOString().split('T')[0];
+                syncAllDates();
+            } else if (startInput && startInput.value && endInput) {
+                // Fallback: if no end_date, start from start_date
                 let d = new Date(startInput.value);
-                d.setDate(d.getDate() + (weeks * 7) - 1); // Subtract 1 day so it ends EXACTLY on the day before the next period starts
+                d.setDate(d.getDate() + (weeks * 7) - 1);
                 endInput.value = d.toISOString().split('T')[0];
                 syncAllDates();
             }
@@ -297,11 +306,22 @@ document.addEventListener('DOMContentLoaded', function() {
     // Toon de quick-links enkel bij de actieve (gefocuste) rij
     container.addEventListener('focusin', function(e) {
         if (e.target.tagName === 'INPUT') {
+            // Hide all quick links and reset margins
             container.querySelectorAll('.quick-links').forEach(el => el.classList.add('d-none'));
+            container.querySelectorAll('.period-row').forEach(r => {
+                r.classList.remove('mb-5');
+                if (!r.classList.contains('mb-3')) r.classList.add('mb-3');
+            });
+            
+            // Show for active row and increase margin
             let row = e.target.closest('.period-row');
             if(row) {
                 let ql = row.querySelector('.quick-links');
-                if(ql) ql.classList.remove('d-none');
+                if(ql) {
+                    ql.classList.remove('d-none');
+                    row.classList.remove('mb-3');
+                    row.classList.add('mb-5');
+                }
             }
         }
     });

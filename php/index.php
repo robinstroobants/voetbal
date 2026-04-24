@@ -851,10 +851,32 @@ function copyToClipboard(button) {
             icon.className = 'fa-solid fa-check text-success fs-5';
             button.classList.add('bg-light');
             
+            // Toon een duidelijke toast notificatie
+            const toast = document.createElement('div');
+            toast.className = 'position-fixed bottom-0 end-0 p-3';
+            toast.style.zIndex = '1050';
+            toast.innerHTML = `
+                <div class="toast show align-items-center text-bg-success border-0 shadow" role="alert" aria-live="assertive" aria-atomic="true">
+                  <div class="d-flex px-2 py-1">
+                    <div class="toast-body fw-bold" style="font-size: 1rem;">
+                      <i class="fa-solid fa-clipboard-check me-2 fa-lg"></i> Bericht gekopieerd! Je kan dit nu plakken in WhatsApp.
+                    </div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" onclick="this.closest('.position-fixed').remove()"></button>
+                  </div>
+                </div>
+            `;
+            document.body.appendChild(toast);
+            
             setTimeout(() => {
                 icon.className = oldClass;
                 button.classList.remove('bg-light');
             }, 2000);
+            
+            setTimeout(() => {
+                if (toast.parentNode) {
+                    toast.remove();
+                }
+            }, 4000);
         }).catch(err => {
             console.error('Failed to copy text: ', err);
             alert("Kon tekst niet naar klembord kopiëren.");

@@ -62,8 +62,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $user['subscription_valid_until'] = $workspaces[0]['subscription_valid_until'];
             }
             
-            // Check aubscription
-            $validUntil = strtotime($user['subscription_valid_until']);
+            // Check subscription
+            $subValid = $user['subscription_valid_until'] ?? null;
+            $validUntil = $subValid ? strtotime($subValid) : 0;
             if ($user['role'] !== 'superadmin' && $validUntil < time()) {
                 $_SESSION['is_read_only'] = true;
             } else {

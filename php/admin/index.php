@@ -167,9 +167,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $invite_link = "$protocol://$host/register.php?invite_token=$token";
                         
                         $subject = "SaaS Uitnodiging om coach te worden van " . $teamName;
-                        $message = "Hallo,\n\nJe bent via the administrator uitgenodigd om co-coach te worden van het team: $teamName.\n\nKlik op de onderstaande link om gratis je account te activeren:\n$invite_link\n\nDeze link is 7 dagen geldig.";
+                        $message = "Hallo,\n\nJe bent via de administrator uitgenodigd om co-coach te worden van het team: $teamName.\n\nKlik op de onderstaande link om gratis je account te activeren:\n$invite_link\n\nDeze link is 7 dagen geldig.";
                         
-                        require_once __DIR__ . '/../Mailer.php';
+                        require_once dirname(__DIR__) . '/core/Mailer.php';
                         Mailer::send($invite_email, $subject, $message);
 
                         $success = "✅ Uitnodigingslink succesvol verstuurd naar $invite_email!";

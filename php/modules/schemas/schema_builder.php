@@ -272,7 +272,8 @@ require_once dirname(__DIR__, 2) . '/header.php';
         <div class="col-md-3">
             <div class="pool-container sticky-top" style="top: 20px;">
                 <h5 class="mb-3 text-dark"><i class="fa-solid fa-users me-2"></i>Selectie Pool</h5>
-                <div id="player-pool">
+                <p class="small text-muted mb-3 fst-italic">Aanbevolen volgorde op basis van speelminuten</p>
+                <div id="player-pool" class="d-flex flex-column gap-2">
                     <!-- JS fills this initially -->
                 </div>
                
@@ -333,7 +334,7 @@ let shiftData = [];
 let globalPlayerStats = {}; 
 
 for(let pid in playersMap) {
-    globalPlayerStats[playersMap[pid].sidx] = { name: playersMap[pid].name, fieldMin: 0, benchMin: 0, priority: 0 };
+    globalPlayerStats[playersMap[pid].sidx] = { name: playersMap[pid].name, is_gk: playersMap[pid].is_gk, fieldMin: 0, benchMin: 0, priority: 0 };
 }
 
 function initBuilder() {
@@ -808,12 +809,30 @@ function calculateStats() {
     // Update pool visual sorting
     let pool = document.getElementById('player-pool');
     let poolItems = Array.from(pool.querySelectorAll('.pool-player'));
+    
     poolItems.sort((a, b) => {
         let sidxA = parseInt(a.getAttribute('data-sidx'));
         let sidxB = parseInt(b.getAttribute('data-sidx'));
-        let pA = (!isNaN(sidxA) && globalPlayerStats[sidxA]) ? globalPlayerStats[sidxA].priority : 0;
-        let pB = (!isNaN(sidxB) && globalPlayerStats[sidxB]) ? globalPlayerStats[sidxB].priority : 0;
-        return pB - pA; // Descending
+        
+        let pA = globalPlayerStats[sidxA] || { fieldMin: 0 };
+        let pB = globalPlayerStats[sidxB] || { fieldMin: 0 };
+        
+        // 1. Primaire sortering: Wedstrijd percentage (laagste eerst)
+        let ratioA = pA.fieldMin / totalMinutes;
+        let ratioB = pB.fieldMin / totalMinutes;
+        
+        if (Math.abs(ratioA - ratioB) > 0.001) {
+            return ratioA - ratioB; // ascending
+        }
+        
+        // 2. Tertiaire sortering: Seizoen percentage (laagste eerst)
+        let sA = seasonStatsMap[sidxA] || { histPlayed: 0, histAvailable: 0 };
+        let sB = seasonStatsMap[sidxB] || { histPlayed: 0, histAvailable: 0 };
+        
+        let histRatioA = (sA.histAvailable + totalMinutes) > 0 ? ((sA.histPlayed + pA.fieldMin) / (sA.histAvailable + totalMinutes)) : 0;
+        let histRatioB = (sB.histAvailable + totalMinutes) > 0 ? ((sB.histPlayed + pB.fieldMin) / (sB.histAvailable + totalMinutes)) : 0;
+        
+        return histRatioA - histRatioB; // ascending
     });
     
     poolItems.forEach(item => {
@@ -822,13 +841,20 @@ function calculateStats() {
         let pStats = globalPlayerStats[sidx];
         if(!pStats) return;
         
+        let sData = seasonStatsMap[sidx] || { histPlayed: 0, histAvailable: 0 };
+        let seasonPct = (sData.histAvailable + totalMinutes) > 0 ? Math.round(((sData.histPlayed + pStats.fieldMin) / (sData.histAvailable + totalMinutes)) * 100) : 0;
+        
+        let baseText = pStats.name;
+        if (pStats.is_gk) baseText += " (GK)";
+        
+        let infoHtml = `<span>${baseText}</span> <small class="fw-normal opacity-75">(${pStats.fieldMin}/${totalMinutes}m - ${seasonPct}%)</small>`;
+        
         if (pStats.benchMin > 0) {
             item.classList.add('on-bench-priority');
-            if(!item.innerText.includes('⏸')) {
-                item.innerText = item.innerText + " ⏸ " + pStats.benchMin + "m";
-            }
+            item.innerHTML = infoHtml + ` <br><small>⏸ Bank: ${pStats.benchMin}m</small>`;
         } else {
             item.classList.remove('on-bench-priority');
+            item.innerHTML = infoHtml;
         }
         pool.appendChild(item);
     });

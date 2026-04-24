@@ -189,8 +189,32 @@
           $stmtSchemas = $pdo->prepare("SELECT id, schema_data FROM lineups WHERE game_format = ? AND player_count = ? AND (team_id = ? OR team_id IS NULL)");
           $stmtSchemas->execute([$format, $aantal, $_SESSION['team_id']]);
           $ws = [];
+          $total_game_minutes = (int)($matchData['game']['total_duration_minutes'] ?? 60);
+          
           while($s_row = $stmtSchemas->fetch(PDO::FETCH_ASSOC)) {
-              $ws[$s_row['id']] = json_decode($s_row['schema_data'], true);
+              $schema_parts = json_decode($s_row['schema_data'], true);
+              
+              if (is_array($schema_parts)) {
+                  // DYNAMISCH OVERSCHRIJVEN VAN DE DUUR
+                  $num_blocks = 0;
+                  foreach ($schema_parts as $idx => $part) {
+                      if (is_numeric($idx)) $num_blocks++;
+                  }
+                  
+                  if ($num_blocks > 0) {
+                      $seconds_per_block = round(($total_game_minutes * 60) / $num_blocks);
+                      $current_start = 0;
+                      foreach ($schema_parts as $idx => &$part) {
+                          if (is_numeric($idx)) {
+                              $part['duration'] = $seconds_per_block;
+                              $part['start'] = $current_start;
+                              $current_start += ($seconds_per_block / 60);
+                          }
+                      }
+                  }
+              }
+              
+              $ws[$s_row['id']] = $schema_parts;
           }
 
           if (!empty($ws)) {

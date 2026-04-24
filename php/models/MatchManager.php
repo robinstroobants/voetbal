@@ -14,16 +14,21 @@ class MatchManager {
     public function getSelection(int $gameId): array {
         // 1. Haal basis match informatie op
         if ((isset($_SESSION['role']) && $_SESSION['role'] === 'superadmin') || (defined('PUBLIC_SHARE_MODE') && PUBLIC_SHARE_MODE)) {
-            $stmtGame = $this->pdo->prepare("SELECT opponent, game_date, format, min_pos FROM games WHERE id = :id");
+            $stmtGame = $this->pdo->prepare("SELECT opponent, game_date, format, min_pos, total_duration_minutes FROM games WHERE id = :id");
             $stmtGame->execute(['id' => $gameId]);
         } else {
-            $stmtGame = $this->pdo->prepare("SELECT opponent, game_date, format, min_pos FROM games WHERE id = :id AND team_id = :team_id");
+            $stmtGame = $this->pdo->prepare("SELECT opponent, game_date, format, min_pos, total_duration_minutes FROM games WHERE id = :id AND team_id = :team_id");
             $stmtGame->execute(['id' => $gameId, 'team_id' => $_SESSION['team_id']]);
         }
         $game = $stmtGame->fetch(PDO::FETCH_ASSOC);
 
         if (!$game) {
             return []; // Match not found
+        }
+        
+        // AUTO-FIX: Als de totale wedstrijdduur nog leeg is (oude database entries), bereken het eenmalig via de schemas en bewaar.
+        if (!isset($game['total_duration_minutes']) || $game['total_duration_minutes'] === null) {
+            $game['total_duration_minutes'] = $this->fixGameDuration($gameId, $game['format']);
         }
 
         // 2. Query de selectie (status_id = 2 voor finale selectie, of alle)
@@ -170,6 +175,39 @@ class MatchManager {
     }
 
     /**
+     * Helper functie om ontbrekende wedstrijdduur dynamisch op te halen uit bestaande theorie schema's
+     * en deze definitief op te slaan in de games tabel.
+     */
+    private function fixGameDuration(int $gameId, string $format): int {
+        $stmt = $this->pdo->prepare("SELECT schema_data FROM lineups WHERE game_format = ? LIMIT 1");
+        $stmt->execute([$format]);
+        $json = $stmt->fetchColumn();
+        
+        $total_minutes = 60; // Absolute fallback
+        if ($json) {
+            $schema = json_decode($json, true);
+            $seconds = 0;
+            if (is_array($schema)) {
+                foreach ($schema as $idx => $part) {
+                    if (is_numeric($idx)) {
+                        $seconds += (int)($part['duration'] ?? 0);
+                    }
+                }
+            }
+            if ($seconds > 0) {
+                $total_minutes = (int)round($seconds / 60);
+            }
+        }
+        
+        try {
+            $upd = $this->pdo->prepare("UPDATE games SET total_duration_minutes = ? WHERE id = ?");
+            $upd->execute([$total_minutes, $gameId]);
+        } catch (\Throwable $e) {} // ignore if column doesn't exist yet before migrations
+        
+        return $total_minutes;
+    }
+
+    /**
      * Sla een nieuwe selectie op voor een wedstrijd, overschrijft de bestaande.
      */
     public function saveSelection(int $gameId, array $playerIds, int $statusId, array $goalkeeperIds = []): bool {
@@ -220,7 +258,7 @@ class MatchManager {
         }
 
         $query = "
-            SELECT l.game_id, l.schema_id, l.player_order, g.game_date, g.opponent, g.format,
+            SELECT l.game_id, l.schema_id, l.player_order, g.game_date, g.opponent, g.format, g.total_duration_minutes,
                    (SELECT COUNT(*) FROM game_selections gs WHERE gs.game_id = g.id AND gs.is_goalkeeper = 1) as gk_count
             FROM game_lineups l 
             JOIN games g ON l.game_id = g.id 
@@ -263,6 +301,23 @@ class MatchManager {
             }
             
             $schema = json_decode($schema_json, true);
+            
+            // DYNAMISCH OVERSCHRIJVEN VAN DE DUUR
+            $game_total_minutes = $row['total_duration_minutes'];
+            if ($game_total_minutes && is_array($schema)) {
+                $num_blocks = 0;
+                foreach ($schema as $idx => $part) {
+                    if (is_numeric($idx)) $num_blocks++;
+                }
+                if ($num_blocks > 0) {
+                    $seconds_per_block = round(($game_total_minutes * 60) / $num_blocks);
+                    foreach ($schema as $idx => &$part) {
+                        if (is_numeric($idx)) {
+                            $part['duration'] = $seconds_per_block;
+                        }
+                    }
+                }
+            }
 
             $durationTotal = 0;
             $time_played = [];
@@ -333,7 +388,7 @@ class MatchManager {
 
         // 2. Zoek de finale opstelling voor deze game
         $stmtL = $this->pdo->prepare("
-            SELECT gl.schema_id, gl.player_order, g.coach_id, l.schema_data 
+            SELECT gl.schema_id, gl.player_order, g.coach_id, g.total_duration_minutes, l.schema_data 
             FROM game_lineups gl
             JOIN games g ON g.id = gl.game_id
             JOIN lineups l ON l.id = gl.schema_id
@@ -352,6 +407,23 @@ class MatchManager {
 
         if (!is_array($schema_data)) {
             return;
+        }
+        
+        // DYNAMISCH OVERSCHRIJVEN VAN DE DUUR
+        $game_total_minutes = $lData['total_duration_minutes'];
+        if ($game_total_minutes) {
+            $num_blocks = 0;
+            foreach ($schema_data as $idx => $part) {
+                if (is_numeric($idx)) $num_blocks++;
+            }
+            if ($num_blocks > 0) {
+                $seconds_per_block = round(($game_total_minutes * 60) / $num_blocks);
+                foreach ($schema_data as $idx => &$part) {
+                    if (is_numeric($idx)) {
+                        $part['duration'] = $seconds_per_block;
+                    }
+                }
+            }
         }
 
         $totals = [];

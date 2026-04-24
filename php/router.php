@@ -131,6 +131,13 @@ if (isset($routes[$path])) {
         require_once __DIR__ . '/modules/schemas/schema_builder.php';
         $route_matched = true;
     }
+    elseif (preg_match('#^/games/(\d+)/editor$#', $path, $matches)) {
+        enforce_auth();
+        Permissions::enforce(Permissions::PERM_GENERATE_LINEUPS);
+        $_GET['game_id'] = $matches[1];
+        require_once __DIR__ . '/modules/schemas/schema_editor.php';
+        $route_matched = true;
+    }
     elseif (preg_match('#^/players/(\d+)/dashboard$#', $path, $matches)) {
         enforce_auth();
         Permissions::enforce(Permissions::PERM_MANAGE_PLAYERS);

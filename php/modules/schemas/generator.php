@@ -687,32 +687,11 @@
               
               $ws_id_current = $schema_id;
               
-              $cat_current = 30000;
-              if ($ws_id_current < 20000) $cat_current = 10000;
-              elseif ($ws_id_current < 30000) $cat_current = 20000;
-
-              // Bepaal de quota limieten voor de verschillende reeksen
-              $game_min_pos_check = (int)($matchData['game']['min_pos'] ?? 0);
-              $cat_limits = [
-                  10000 => ($game_min_pos_check == 0) ? 2 : 0,
-                  20000 => ($game_min_pos_check == 0) ? 2 : (($game_min_pos_check == 2) ? 3 : 0),
-                  30000 => ($game_min_pos_check == 0) ? 2 : (($game_min_pos_check == 2) ? 3 : 6)
-              ];
+              $ws_id_current = $schema_id;
               
-              if ($cat_limits[$cat_current] == 0) continue; // Onnodig om op te slaan, past niet in de instellingen quota
+              $min_top_score = (count($top_lineups) < 6) ? -1 : min(array_column($top_lineups, 'total_points'));
 
-              // Zoek de momentele minimum score van DEZE reeks 10k/20k/30k
-              $current_cat_scores = [];
-              foreach ($top_lineups as $tl) {
-                  $wz = (int)$tl['ws_id'];
-                  $cz = 30000;
-                  if ($wz < 20000) $cz = 10000;
-                  elseif ($wz < 30000) $cz = 20000;
-                  if ($cz == $cat_current) $current_cat_scores[] = $tl['total_points'];
-              }
-              $min_cat_score = (count($current_cat_scores) < $cat_limits[$cat_current]) ? -1 : min($current_cat_scores);
-
-              if ($total_points > $min_cat_score) {
+              if ($total_points > $min_top_score) {
                   $top_lineups[] = [
                       "run" => $tries, 
                       "ws_id" => $ws_id_current,
@@ -727,25 +706,17 @@
                       return $b['total_points'] <=> $a['total_points'];
                   });
                   
-                  // Stricte Quota Filter & Diversiteitsfilter
+                  // Diversiteitsfilter
                   $filtered_lineups = [];
                   $schema_counts = [];
-                  $cat_counts = [10000 => 0, 20000 => 0, 30000 => 0];
                   
                   foreach ($top_lineups as $item) {
                       $w_id = (int)$item['ws_id'];
-                      $cat = 30000;
-                      if ($w_id < 20000) $cat = 10000;
-                      elseif ($w_id < 30000) $cat = 20000;
                       
                       // Eis: nooit hetzelfde schema dubbel gebruiken!
                       if (isset($schema_counts[$w_id]) && $schema_counts[$w_id] >= 1) continue;
                       
-                      // Eis: quota niet overschrijden
-                      if ($cat_counts[$cat] >= $cat_limits[$cat]) continue;
-                      
                       $schema_counts[$w_id] = 1;
-                      $cat_counts[$cat]++;
                       $filtered_lineups[] = $item;
                       
                       if (count($filtered_lineups) >= 6) break; // Maximum array lengte
@@ -792,10 +763,12 @@
           } else {
               $min_req_text = isset($min_pos_requirement) ? $min_pos_requirement : (isset($matchData['game']['min_pos']) ? (int)$matchData['game']['min_pos'] : 0);
               $errHtml .= "<p class='mb-1'><strong>Oorzaak:</strong></p>";
-              $errHtml .= "<p class='mb-2 text-muted'>Er werden geen specifieke spelers geblokkeerd, maar er konden onvoldoende wisselschema's gegenereerd worden. Dit gebeurt wanneer de ingestelde <strong>Minimale Posities per speler</strong> (momenteel vereist: <strong>" . $min_req_text . "</strong>) niet behaald kan worden door de beschikbare schema's, óf wanneer deze schema's alsnog worden uitgesloten door de achterliggende quota-filtering van het algoritme.</p>";
+              $errHtml .= "<p class='mb-2 text-muted'>Er werden geen specifieke spelers geblokkeerd, maar er konden onvoldoende wisselschema's gegenereerd worden. Alle theoretisch beschikbare schema's faalden, hoogstwaarschijnlijk door onderlinge conflicten tussen de spelersposities en de eisen van de velden.</p>";
               
-              $errHtml .= "<h6 class='mt-3 mb-1'>Beschikbare schema's in de database voor " . count($squad) . " spelers:</h6><ul class='mb-3 text-muted' style='font-size:0.9em'>";
+              $errHtml .= "<h6 class='mt-3 mb-1'>Overzicht gebruikte schema's voor " . count($squad) . " spelers:</h6><ul class='mb-3 text-muted' style='font-size:0.9em'>";
+              
               if (isset($ws) && is_array($ws) && count($ws) > 0) {
+                  $schema_min_pos_counts = [];
                   foreach ($ws as $s_id => $schema) {
                       $playerPosCount = [];
                       foreach ($schema as $idx => $part) {
@@ -817,24 +790,13 @@
                           $schema_min_pos = 0;
                       }
                       if ($schema_min_pos === 999) $schema_min_pos = 0;
-                      
-                      $status_icon = ($schema_min_pos >= $min_req_text) ? "<i class='fa-solid fa-check text-success'></i> (Voldoet)" : "<i class='fa-solid fa-xmark text-danger'></i> (Te laag)";
-                      // The algorithm quotas (cat_limits) might also restrict this based on ID!
-                      $cat_current = 30000;
-                      if ($s_id < 20000) $cat_current = 10000;
-                      elseif ($s_id < 30000) $cat_current = 20000;
-                      $cat_limits = [
-                          10000 => ($min_req_text == 0) ? 2 : 0,
-                          20000 => ($min_req_text == 0) ? 2 : (($min_req_text == 2) ? 3 : 0),
-                          30000 => ($min_req_text == 0) ? 2 : (($min_req_text == 2) ? 3 : 6)
-                      ];
-                      
-                      if ($cat_limits[$cat_current] == 0) {
-                          $min_required_schema_id = ($min_req_text == 2) ? "20000" : "30000";
-                          $status_icon .= "<div class='mt-1 ms-3'><i class='fa-solid fa-filter-circle-xmark text-warning'></i> <span class='text-warning' style='font-size:0.95em'><strong>Uitgesloten door kwaliteitsfilter:</strong> Dit schema haalt wel het vereiste aantal posities, maar heeft een te lage theoretische balanskwaliteit (ID is lager dan {$min_required_schema_id}). Bij een strenge positie-eis forceert het algoritme het gebruik van perfect gebalanceerde schema's (ID &ge; {$min_required_schema_id}). Verlaag je instelling voor 'Minimale posities' naar 0 als je dit schema toch wilt toelaten.</span></div>";
-                      }
-                      
-                      $errHtml .= "<li class='mb-2'>Schema <strong>#{$s_id}</strong> &mdash; Garandeert <strong>{$schema_min_pos}</strong> posities per veldspeler. {$status_icon}</li>";
+                      $schema_min_pos_counts[$schema_min_pos] = ($schema_min_pos_counts[$schema_min_pos] ?? 0) + 1;
+                  }
+                  
+                  ksort($schema_min_pos_counts);
+                  foreach($schema_min_pos_counts as $pos_count => $total_found) {
+                      $status_icon = ($pos_count >= $min_req_text) ? "<span class='text-success fw-bold'>voldoet</span>" : "<span class='text-danger fw-bold'>te laag</span>";
+                      $errHtml .= "<li>Er zijn <strong>{$total_found} schema's</strong> beschikbaar die <strong>{$pos_count} posities</strong> per veldspeler garanderen ({$status_icon} aan je eis van {$min_req_text}).</li>";
                   }
               } else {
                   $errHtml .= "<li><em>Geen enkel schema gevonden voor deze spelvorm en dit aantal spelers.</em></li>";

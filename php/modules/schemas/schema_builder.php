@@ -200,7 +200,7 @@ foreach ($squad as $idx => $pid) {
 }
 
 // Fetch historical season stats for these exact players before this game
-$teamId = $_SESSION['team_id'] ?? 0;
+$teamId = $matchData['game']['team_id'] ?? 0;
 $gameDate = $matchData['game']['game_date'];
 $seasonStatsData = $matchManager->getSeasonStatsForSelection($teamId, $gameDate, $squad);
 

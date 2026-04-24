@@ -676,6 +676,7 @@ function initBuilder() {
 }
 
 function loadPreloadedSchema(data) {
+    window.isPreloading = true;
     for(let i=0; i<numShifts; i++) {
         if (!data[i]) break;
         let sData = data[i];
@@ -684,7 +685,8 @@ function loadPreloadedSchema(data) {
         for(let pos in sData.lineup) {
             if (fixedGkId !== null && parseInt(pos) === 1) continue; // always pre-filled
             let sidx = sData.lineup[pos];
-            let pEl = document.querySelector('#player-pool .pool-player[data-sidx="'+sidx+'"]');
+            // Players might be in the pool (for i=0) or already cloned into this shift by lockBlock(i-1)
+            let pEl = document.querySelector('#shift-'+i+' .pool-player[data-sidx="'+sidx+'"]') || document.querySelector('#player-pool .pool-player[data-sidx="'+sidx+'"]');
             if (pEl) {
                 let wrapper = document.querySelector('#shift-'+i+' .pos-wrapper[data-pos="'+pos+'"]');
                 if (wrapper) wrapper.appendChild(pEl);
@@ -694,7 +696,7 @@ function loadPreloadedSchema(data) {
         // Place bench players
         if (sData.bench && Array.isArray(sData.bench)) {
             sData.bench.forEach(sidx => {
-                let pEl = document.querySelector('#player-pool .pool-player[data-sidx="'+sidx+'"]');
+                let pEl = document.querySelector('#shift-'+i+' .pool-player[data-sidx="'+sidx+'"]') || document.querySelector('#player-pool .pool-player[data-sidx="'+sidx+'"]');
                 if (pEl) {
                     let benchWrappers = document.querySelectorAll('#shift-'+i+' .pos-wrapper[data-pos="bench"]');
                     for(let bw of benchWrappers) {
@@ -708,12 +710,14 @@ function loadPreloadedSchema(data) {
         }
         
         if (i < numShifts - 1) {
+            updateShiftData(i); // Make sure data is synced before locking
             lockBlock(i); // Simulate lock which copies state to next shift
         } else {
             updateShiftData(i);
             calculateStats();
         }
     }
+    window.isPreloading = false;
 }
 
 let draggedEl = null;
@@ -868,7 +872,7 @@ function lockBlock(shiftIdx) {
         let prevDef = shiftDefinitions[shiftIdx - 1];
         
         if (currDef.game_counter === prevDef.game_counter && currentLineupStr === previousLineupStr) {
-            if (!confirm("Let op: Je hebt exact dezelfde opstelling (en bankzitters) als in het vorige blokje. Wil je deze opstelling toch 2x na elkaar spelen binnen deze wedstrijd?")) {
+            if (!window.isPreloading && !confirm("Let op: Je hebt exact dezelfde opstelling (en bankzitters) als in het vorige blokje. Wil je deze opstelling toch 2x na elkaar spelen binnen deze wedstrijd?")) {
                 return;
             }
         }

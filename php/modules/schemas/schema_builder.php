@@ -328,7 +328,7 @@ if ($numFieldPlayers > 0 && $totalFieldBlocks > 0 && $fixedGkIdPHP !== null) {
                     "<b>Veld:</b> " . $gameInfo['mins'] . "m<br>" .
                     "<b>Doelman:</b> " . $gameInfo['gk'] . "m<br>" .
                     "<b>Bank:</b> " . $gameInfo['bank'] . "m<br><br>" .
-                    "<a href='/games/" . $gameInfo['game_id'] . "' target='_blank' class='btn btn-sm btn-outline-primary w-100'>Bekijk Match</a>" .
+                    "<div class='text-center mt-2'><a href='/games/" . $gameInfo['game_id'] . "' target='_blank' class='text-dark fw-bold' style='text-decoration: none; border-bottom: 1px solid transparent;' onmouseover='this.style.borderBottom=\"1px solid #000\"' onmouseout='this.style.borderBottom=\"1px solid transparent\"'>Bekijk Match <i class=\"fa-solid fa-arrow-right fs-6 ms-1\"></i></a></div>" .
                     "</div>"
                 );
                 
@@ -370,23 +370,26 @@ if ($numFieldPlayers > 0 && $totalFieldBlocks > 0 && $fixedGkIdPHP !== null) {
         
         $pregame_analysis_html = '
         <div class="card mb-3 border-info shadow-sm" style="border-width: 2px;">
-            <div class="card-header bg-info text-white fw-bold d-flex align-items-center py-2" style="font-size: 0.9rem;">
+            <div class="card-header bg-info text-white fw-bold d-flex align-items-center py-2" style="font-size: 0.9rem; cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#pregameCollapse" aria-expanded="true">
                 <i class="fa-solid fa-lightbulb text-warning me-2"></i> Pre-Game Analyse
+                <i class="fa-solid fa-chevron-down ms-auto"></i>
             </div>
-            <div class="card-body bg-light text-dark p-3">
-                <p class="mb-2" style="font-size: 0.8rem; line-height: 1.3;">Met ' . $numFieldPlayers . ' veldspelers voor ' . $numFieldPositions . ' posities resulteert dit in:</p>
-                <ul class="mb-3" style="font-size: 0.8rem; line-height: 1.3; padding-left: 20px;">
-                    <li><strong>' . $players_extra . ' spelers</strong> spelen <strong>' . $extra_mins . 'm</strong> (' . ($base_blocks + 1) . ' blokjes)</li>
-                    <li><strong>' . $players_base . ' spelers</strong> spelen <strong>' . $base_mins . 'm</strong> (' . $base_blocks . ' blokjes)</li>
-                </ul>
-                ' . $lastMatchHtml . '
-                <div class="p-2 bg-white rounded border mb-2">
-                    <p class="mb-1 fw-bold text-success" style="font-size: 0.8rem;"><i class="fa-solid fa-arrow-up me-1"></i>Meeste minuten (' . $extra_mins . 'm)</p>
-                    <p class="mb-0 text-muted" style="font-size: 0.75rem;">Aanbevolen: ' . implode(', ', $extraNames) . '</p>
-                </div>
-                <div class="p-2 bg-white rounded border">
-                    <p class="mb-1 fw-bold text-danger" style="font-size: 0.8rem;"><i class="fa-solid fa-arrow-down me-1"></i>Minste minuten (' . $base_mins . 'm)</p>
-                    <p class="mb-0 text-muted" style="font-size: 0.75rem;">Aanbevolen: ' . implode(', ', $baseNames) . '</p>
+            <div class="collapse show" id="pregameCollapse">
+                <div class="card-body bg-light text-dark p-3">
+                    <p class="mb-2" style="font-size: 0.8rem; line-height: 1.3;">Met ' . $numFieldPlayers . ' veldspelers voor ' . $numFieldPositions . ' posities resulteert dit in:</p>
+                    <ul class="mb-3" style="font-size: 0.8rem; line-height: 1.3; padding-left: 20px;">
+                        <li><strong>' . $players_extra . ' spelers</strong> spelen <strong>' . $extra_mins . 'm</strong> (' . ($base_blocks + 1) . ' blokjes)</li>
+                        <li><strong>' . $players_base . ' spelers</strong> spelen <strong>' . $base_mins . 'm</strong> (' . $base_blocks . ' blokjes)</li>
+                    </ul>
+                    ' . $lastMatchHtml . '
+                    <div class="p-2 bg-white rounded border mb-2">
+                        <p class="mb-1 fw-bold text-success" style="font-size: 0.8rem;"><i class="fa-solid fa-arrow-up me-1"></i>Meeste minuten (' . $extra_mins . 'm)</p>
+                        <p class="mb-0 text-muted" style="font-size: 0.75rem;">Aanbevolen: ' . implode(', ', $extraNames) . '</p>
+                    </div>
+                    <div class="p-2 bg-white rounded border">
+                        <p class="mb-1 fw-bold text-danger" style="font-size: 0.8rem;"><i class="fa-solid fa-arrow-down me-1"></i>Minste minuten (' . $base_mins . 'm)</p>
+                        <p class="mb-0 text-muted" style="font-size: 0.75rem;">Aanbevolen: ' . implode(', ', $baseNames) . '</p>
+                    </div>
                 </div>
             </div>
         </div>';

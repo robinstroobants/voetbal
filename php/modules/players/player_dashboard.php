@@ -145,7 +145,7 @@ $page_title = 'Spelersdashboard: ' . htmlspecialchars($player['first_name'] . ' 
 
 // Fetch Played Games
 $played_games_stmt = $pdo->prepare("
-    SELECT g.id, g.game_date, g.opponent, g.location, p.seconds_played, p.seconds_bank, p.seconds_gk 
+    SELECT g.id, g.game_date, g.opponent, g.is_home, p.seconds_played, p.seconds_bank, p.seconds_gk 
     FROM game_playtime_logs p
     JOIN games g ON p.game_id = g.id
     WHERE p.player_id = ?
@@ -452,12 +452,12 @@ require_once dirname(__DIR__, 2) . '/header.php';
                                             </td>
                                             <td><?= htmlspecialchars($game['opponent']) ?></td>
                                             <td>
-                                                <?php if ($game['location'] === 'Thuis'): ?>
+                                                <?php if (isset($game['is_home']) && $game['is_home'] == 1): ?>
                                                     <span class="badge bg-primary">Thuis</span>
-                                                <?php elseif ($game['location'] === 'Uit'): ?>
+                                                <?php elseif (isset($game['is_home']) && $game['is_home'] == 0): ?>
                                                     <span class="badge bg-danger">Uit</span>
                                                 <?php else: ?>
-                                                    <span class="badge bg-secondary"><?= htmlspecialchars($game['location'] ?? 'Onbekend') ?></span>
+                                                    <span class="badge bg-secondary">Onbekend</span>
                                                 <?php endif; ?>
                                             </td>
                                             <td class="text-center fw-bold text-success"><?= round($game['seconds_played'] / 60, 1) ?>m</td>

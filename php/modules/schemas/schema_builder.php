@@ -206,6 +206,15 @@ $seasonStatsData = $matchManager->getSeasonStatsForSelection($teamId, $gameDate,
 
 // Map the DB PIDs to JS Sidx (array indices)
 $seasonStatsJson = [];
+
+// Check if team has ANY periods defined to show the toggle
+$hasActivePeriod = false;
+$stmtPeriodsCheck = $pdo->prepare("SELECT 1 FROM team_periods WHERE team_id = ? LIMIT 1");
+$stmtPeriodsCheck->execute([$teamId]);
+if ($stmtPeriodsCheck->fetchColumn()) {
+    $hasActivePeriod = true;
+}
+
 foreach ($squad as $idx => $pid) {
     $st = $seasonStatsData[$pid] ?? ['played' => 0, 'bank' => 0, 'gk' => 0, 'available' => 0, 'period_played' => 0, 'period_available' => 0];
     // If user confirmed GK counts as played time: we use 'played' + 'gk' for total played.
@@ -279,14 +288,24 @@ require_once dirname(__DIR__, 2) . '/header.php';
                     <!-- JS fills this initially -->
                 </div>
                
-                <h5 class="mb-3 text-dark mt-4"><i class="fa-solid fa-chart-line me-2"></i>Live Statistieken</h5>
+                <div class="d-flex justify-content-between align-items-center mb-2 mt-4">
+                    <h5 class="mb-0 text-dark"><i class="fa-solid fa-chart-line me-2"></i>Live Statistieken</h5>
+                    <?php if($hasActivePeriod): ?>
+                    <div class="form-check form-switch m-0" title="Schakel in om ook rekening te houden met de actieve periode">
+                        <input class="form-check-input" type="checkbox" id="togglePeriodStats" checked onchange="calculateStats()">
+                    </div>
+                    <?php endif; ?>
+                </div>
                 <div class="table-responsive bg-white rounded shadow-sm mb-3">
                     <table class="table table-sm table-hover mb-0" style="font-size: 0.85rem;">
                         <thead class="table-light">
                             <tr>
                                 <th>Speler</th>
                                 <th class="text-center">Minuten</th>
-                                <th class="text-center" title="Historiek + deze Match">Seizoen %</th>
+                                <?php if($hasActivePeriod): ?>
+                                <th class="text-center period-col" title="Periode Historiek + deze Match">Periode %</th>
+                                <?php endif; ?>
+                                <th class="text-center" title="Seizoen Historiek + deze Match">Seizoen %</th>
                             </tr>
                         </thead>
                         <tbody id="live-stats-tbody">
@@ -830,16 +849,20 @@ function calculateStats() {
         let sA = seasonStatsMap[sidxA] || { histPlayed: 0, histAvailable: 0, periodPlayed: 0, periodAvailable: 0 };
         let sB = seasonStatsMap[sidxB] || { histPlayed: 0, histAvailable: 0, periodPlayed: 0, periodAvailable: 0 };
         
-        // 2. Secundaire sortering: Periode percentage (indien beschikbaar en groter dan 0)
-        let periodAvailableA = sA.periodAvailable + totalMinutes;
-        let periodAvailableB = sB.periodAvailable + totalMinutes;
+        let usePeriodStats = document.getElementById('togglePeriodStats') ? document.getElementById('togglePeriodStats').checked : false;
         
-        if (periodAvailableA > totalMinutes || periodAvailableB > totalMinutes) {
-            let periodRatioA = periodAvailableA > 0 ? ((sA.periodPlayed + pA.fieldMin) / periodAvailableA) : 0;
-            let periodRatioB = periodAvailableB > 0 ? ((sB.periodPlayed + pB.fieldMin) / periodAvailableB) : 0;
+        // 2. Secundaire sortering: Periode percentage (indien beschikbaar en groter dan 0, en toggle staat aan)
+        if (usePeriodStats) {
+            let periodAvailableA = sA.periodAvailable + totalMinutes;
+            let periodAvailableB = sB.periodAvailable + totalMinutes;
             
-            if (Math.abs(periodRatioA - periodRatioB) > 0.001) {
-                return periodRatioA - periodRatioB; // ascending
+            if (periodAvailableA > totalMinutes || periodAvailableB > totalMinutes) {
+                let periodRatioA = periodAvailableA > 0 ? ((sA.periodPlayed + pA.fieldMin) / periodAvailableA) : 0;
+                let periodRatioB = periodAvailableB > 0 ? ((sB.periodPlayed + pB.fieldMin) / periodAvailableB) : 0;
+                
+                if (Math.abs(periodRatioA - periodRatioB) > 0.001) {
+                    return periodRatioA - periodRatioB; // ascending
+                }
             }
         }
         
@@ -930,10 +953,13 @@ function calculateStats() {
         
         // Calculate Season totals
         let hist = seasonStatsMap[st.sidx];
-        if(!hist) hist = { histPlayed: 0, histAvailable: 0 };
+        if(!hist) hist = { histPlayed: 0, histAvailable: 0, periodPlayed: 0, periodAvailable: 0 };
         
         let totalSeasonPlayedSec = parseInt(hist.histPlayed) + (st.fieldMin * 60);
         let totalSeasonAvailableSec = parseInt(hist.histAvailable) + (st.matchAvailable * 60);
+        
+        let totalPeriodPlayedSec = parseInt(hist.periodPlayed) + (st.fieldMin * 60);
+        let totalPeriodAvailableSec = parseInt(hist.periodAvailable) + (st.matchAvailable * 60);
         
         let seasonPercText = "0%";
         let seasonColor = "text-muted";
@@ -947,18 +973,42 @@ function calculateStats() {
             else seasonColor = "text-warning fw-bold";
         }
         
+        let periodPercText = "-";
+        let periodColor = "text-muted";
+        
+        let usePeriodStats = document.getElementById('togglePeriodStats') ? document.getElementById('togglePeriodStats').checked : false;
+        
+        if (usePeriodStats && totalPeriodAvailableSec > 0) {
+            let periodPerc = (totalPeriodPlayedSec / totalPeriodAvailableSec) * 100;
+            periodPercText = Math.round(periodPerc) + "%";
+            
+            if (periodPerc < 50) periodColor = "text-danger fw-bold";
+            else if (periodPerc >= 65) periodColor = "text-success fw-bold";
+            else periodColor = "text-warning fw-bold";
+        }
+        
         let seasonHoverTitle = Math.round(totalSeasonPlayedSec / 60) + "m gespeeld / " + Math.round(totalSeasonAvailableSec / 60) + "m beschikbaar";
+        let periodHoverTitle = Math.round(totalPeriodPlayedSec / 60) + "m gespeeld / " + Math.round(totalPeriodAvailableSec / 60) + "m beschikbaar";
         
         statsHtml += `
             <tr>
                 <td class="align-middle">${st.name}</td>
                 <td class="text-center align-middle ${matchColor}">${matchText} <br><small class="text-muted fw-normal">op ${st.matchAvailable}m</small></td>
+                ${ <?= $hasActivePeriod ? 'true' : 'false' ?> ? `<td class="text-center align-middle period-col ${usePeriodStats ? '' : 'd-none'} ${periodColor}" title="${periodHoverTitle}" style="cursor: help;">${periodPercText}</td>` : '' }
                 <td class="text-center align-middle ${seasonColor}" title="${seasonHoverTitle}" style="cursor: help;">${seasonPercText}</td>
             </tr>
         `;
     });
     
     tbody.innerHTML = statsHtml;
+    
+    // Toggle the header visibility for Period column
+    let thPeriod = document.querySelector('th.period-col');
+    if (thPeriod) {
+        let usePeriodStats = document.getElementById('togglePeriodStats') ? document.getElementById('togglePeriodStats').checked : false;
+        if (usePeriodStats) thPeriod.classList.remove('d-none');
+        else thPeriod.classList.add('d-none');
+    }
 
     // Render position stats per player
     let posCanvas = document.getElementById('position-stats-canvas');

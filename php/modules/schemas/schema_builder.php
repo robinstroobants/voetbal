@@ -690,6 +690,7 @@ function lockBlock(shiftIdx) {
         });
         
         updateShiftData(nextShiftIdx);
+        calculateStats(); // Ensure the pool is sorted correctly after elements are added
         nextBlock.scrollIntoView({behavior: "smooth", block: "center"});
     } else {
         document.getElementById('btnSave').disabled = false;
@@ -858,12 +859,12 @@ function calculateStats() {
         
         // 2. Secundaire sortering: Periode percentage (indien beschikbaar en groter dan 0, en toggle staat aan)
         if (usePeriodStats) {
-            let periodAvailableA = parseInt(sA.periodAvailable) + (pA.matchAvailable * 60);
-            let periodAvailableB = parseInt(sB.periodAvailable) + (pB.matchAvailable * 60);
+            let periodAvailableA = parseInt(sA.periodAvailable);
+            let periodAvailableB = parseInt(sB.periodAvailable);
             
             if (periodAvailableA > 0 || periodAvailableB > 0) {
-                let periodRatioA = periodAvailableA > 0 ? ((parseInt(sA.periodPlayed) + (pA.fieldMin * 60)) / periodAvailableA) : 0;
-                let periodRatioB = periodAvailableB > 0 ? ((parseInt(sB.periodPlayed) + (pB.fieldMin * 60)) / periodAvailableB) : 0;
+                let periodRatioA = periodAvailableA > 0 ? (parseInt(sA.periodPlayed) / periodAvailableA) : 0;
+                let periodRatioB = periodAvailableB > 0 ? (parseInt(sB.periodPlayed) / periodAvailableB) : 0;
                 
                 if (Math.abs(periodRatioA - periodRatioB) > 0.001) {
                     return periodRatioA - periodRatioB; // ascending
@@ -872,11 +873,11 @@ function calculateStats() {
         }
         
         // 3. Tertiaire sortering: Seizoen percentage (laagste eerst)
-        let histAvailableA = parseInt(sA.histAvailable) + (pA.matchAvailable * 60);
-        let histAvailableB = parseInt(sB.histAvailable) + (pB.matchAvailable * 60);
+        let histAvailableA = parseInt(sA.histAvailable);
+        let histAvailableB = parseInt(sB.histAvailable);
         
-        let histRatioA = histAvailableA > 0 ? ((parseInt(sA.histPlayed) + (pA.fieldMin * 60)) / histAvailableA) : 0;
-        let histRatioB = histAvailableB > 0 ? ((parseInt(sB.histPlayed) + (pB.fieldMin * 60)) / histAvailableB) : 0;
+        let histRatioA = histAvailableA > 0 ? (parseInt(sA.histPlayed) / histAvailableA) : 0;
+        let histRatioB = histAvailableB > 0 ? (parseInt(sB.histPlayed) / histAvailableB) : 0;
         
         if (Math.abs(histRatioA - histRatioB) > 0.001) {
             return histRatioA - histRatioB; // ascending

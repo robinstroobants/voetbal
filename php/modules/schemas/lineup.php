@@ -166,7 +166,7 @@
                   <li class="nav-item d-print-none" role="presentation">
                       <?php if ($can_unlock): ?>
                       <button class="btn btn-warning ms-3 btn-sm mt-1" onclick="unlockLineups(<?= $gameId ?>)">
-                          <i class="fa-solid fa-lock-open"></i> Ontgrendel Wedstrijd (Genereer Opnieuw)
+                          <i class="fa-solid fa-lock-open"></i> Ontgrendel Wedstrijd
                       </button>
                       <?php else: ?>
                       <span class="d-inline-block ms-3 mt-1" tabindex="0" data-bs-toggle="tooltip" title="Definitief gemaakt door <?= htmlspecialchars($finalizer_name) ?>. Enkel deze coach kan de wedstrijd ontgrendelen.">

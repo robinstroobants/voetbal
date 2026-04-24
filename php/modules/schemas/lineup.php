@@ -204,17 +204,21 @@
               <button class="btn btn-sm btn-outline-success" onclick='savePreselection(this, <?= json_encode((int)$gameId) ?>, <?= json_encode($selected['ws_id'] ?? 0) ?>, <?= json_encode(implode(',', array_keys($lineup->playerindex))) ?>, <?= json_encode((float)($t_opt['rating'] ?? 0)) ?>, <?= json_encode($namen_tonen_str) ?>)'>
                   <i class="fa-solid fa-floppy-disk"></i> Bewaar #<?= $tab_idx + 1 ?> in Voorselecties
               </button>
+              <?php if (Permissions::hasPermission(Permissions::PERM_USE_THEORY_WIZARD)): ?>
               <a href="/schema_editor?game_id=<?= $gameId ?>&schema_id=<?= $selected['ws_id'] ?>&volgorde=<?= urlencode(implode(',', array_keys($lineup->playerindex))) ?>" class="btn btn-sm btn-outline-warning ms-2">
                   <i class="fa-solid fa-pen-ruler"></i> Bewerk dit Schema
               </a>
+              <?php endif; ?>
           </div>
           <?php endif; ?>
       <?php else: ?>
           <?php if (!$locked_lineup): ?>
           <div class="d-print-none text-center mb-4 mt-2">
+              <?php if (Permissions::hasPermission(Permissions::PERM_USE_THEORY_WIZARD)): ?>
               <a href="/schema_editor?game_id=<?= $gameId ?>&schema_id=<?= $selected['ws_id'] ?>&volgorde=<?= urlencode(implode(',', array_keys($lineup->playerindex))) ?>" class="btn btn-sm btn-outline-warning">
                   <i class="fa-solid fa-pen-ruler"></i> Bewerk Huidig Schema
               </a>
+              <?php endif; ?>
           </div>
           <?php endif; ?>
       <?php endif; ?>

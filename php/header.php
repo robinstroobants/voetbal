@@ -33,6 +33,18 @@ header("Expires: 0"); // Proxies blockeren
     <link href="/css/styles.css" rel="stylesheet">
     <!-- Print Styles -->
     <link href="/css/print.css" rel="stylesheet" media="print">
+    
+    <?php if (!$is_localhost): ?>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-25S9DSJM7N"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      gtag('config', 'G-25S9DSJM7N');
+    </script>
+    <?php endif; ?>
 </head>
 <body class="bg-light pb-5">
     <?php if (isset($_SESSION['original_user_id'])): ?>

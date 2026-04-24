@@ -790,8 +790,55 @@
               $errHtml .= $causesHtml;
               $errHtml .= "</ul>";
           } else {
+              $min_req_text = isset($min_pos_requirement) ? $min_pos_requirement : (isset($matchData['game']['min_pos']) ? (int)$matchData['game']['min_pos'] : 0);
               $errHtml .= "<p class='mb-1'><strong>Oorzaak:</strong></p>";
-              $errHtml .= "<p class='mb-0 text-muted'>Er werden geen specifieke spelers geblokkeerd, maar er is geen enkel passend wisselschema in de database dat voldoet aan jouw ingestelde wedstrijdregels (zoals het vereiste aantal minimale posities per speler) voor " . count($squad) . " spelers.</p>";
+              $errHtml .= "<p class='mb-2 text-muted'>Er werden geen specifieke spelers geblokkeerd, maar er konden onvoldoende wisselschema's gegenereerd worden. Dit gebeurt vaak wanneer de ingestelde <strong>Minimale Posities per speler</strong> (momenteel vereist: <strong>" . $min_req_text . "</strong>) te streng is voor het algoritme om oplossingen te filteren.</p>";
+              
+              $errHtml .= "<h6 class='mt-3 mb-1'>Beschikbare schema's in de database voor " . count($squad) . " spelers:</h6><ul class='mb-3 text-muted' style='font-size:0.9em'>";
+              if (isset($ws) && is_array($ws) && count($ws) > 0) {
+                  foreach ($ws as $s_id => $schema) {
+                      $playerPosCount = [];
+                      foreach ($schema as $idx => $part) {
+                          if (!is_numeric($idx) || empty($part['lineup'])) continue;
+                          foreach ($part['lineup'] as $pos => $pid) {
+                              $gk_limit = isset($gk_count) ? $gk_count : 0;
+                              if ($pid >= $gk_limit) {
+                                  $playerPosCount[$pid][$pos] = true;
+                              }
+                          }
+                      }
+                      $schema_min_pos = 999;
+                      if (!empty($playerPosCount)) {
+                          foreach ($playerPosCount as $pid => $arr) {
+                              $c = count($arr);
+                              if ($c < $schema_min_pos) $schema_min_pos = $c;
+                          }
+                      } else {
+                          $schema_min_pos = 0;
+                      }
+                      if ($schema_min_pos === 999) $schema_min_pos = 0;
+                      
+                      $status_icon = ($schema_min_pos >= $min_req_text) ? "<i class='fa-solid fa-check text-success'></i> (Voldoet)" : "<i class='fa-solid fa-xmark text-danger'></i> (Te laag)";
+                      // The algorithm quotas (cat_limits) might also restrict this based on ID!
+                      $cat_current = 30000;
+                      if ($s_id < 20000) $cat_current = 10000;
+                      elseif ($s_id < 30000) $cat_current = 20000;
+                      $cat_limits = [
+                          10000 => ($min_req_text == 0) ? 2 : 0,
+                          20000 => ($min_req_text == 0) ? 2 : (($min_req_text == 2) ? 3 : 0),
+                          30000 => ($min_req_text == 0) ? 2 : (($min_req_text == 2) ? 3 : 6)
+                      ];
+                      
+                      if ($cat_limits[$cat_current] == 0) {
+                          $status_icon = "<i class='fa-solid fa-filter-circle-xmark text-warning'></i> (Uitgesloten door strenge quota filtering)";
+                      }
+                      
+                      $errHtml .= "<li>Schema <strong>#{$s_id}</strong> &mdash; Garandeert <strong>{$schema_min_pos}</strong> posities per veldspeler. {$status_icon}</li>";
+                  }
+              } else {
+                  $errHtml .= "<li><em>Geen enkel schema gevonden voor deze spelvorm en dit aantal spelers.</em></li>";
+              }
+              $errHtml .= "</ul>";
           }
           
           $errHtml .= "<p class='mt-3 mb-0'><a href='/games/{$gameId}/edit' class='btn btn-sm btn-outline-danger'><i class='fa-solid fa-gear'></i> Pas wedstrijdregels aan</a> of gebruik de <a href='/games/{$gameId}/builder' class='fw-bold text-danger ms-2'>Zelf Bouwen</a> functie.</p>";

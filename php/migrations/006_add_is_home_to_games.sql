@@ -1,1 +1,0 @@
-ALTER TABLE `games` ADD COLUMN `is_home` TINYINT(1) NOT NULL DEFAULT 1 AFTER `opponent`;

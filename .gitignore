@@ -10,3 +10,4 @@ db/
 *.sqlite
 *.db
 live_export.sql
+FULL_LIVE_IMPORT_DUMP.sql

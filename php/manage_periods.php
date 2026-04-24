@@ -149,12 +149,11 @@ require_once __DIR__ . '/header.php';
                             <div class="col-md-3 position-relative">
                                 <label class="form-label small text-muted fw-bold">Startdatum</label>
                                 <input type="date" name="start_dates[]" class="form-control start-date" value="<?= $season_year ?>-07-01" required>
-                                <div class="quick-links mt-1 d-none text-center" style="font-size:0.75rem;">
+                                <div class="quick-links d-none text-center position-absolute w-100" style="font-size:0.75rem; top: 100%; left: 0; margin-top: 2px; z-index: 10;">
                                     <span class="text-muted fw-bold duration-label me-1"></span>
                                     <a href="#" class="text-decoration-none me-1 set-duration" data-weeks="1">+1w</a>
                                     <a href="#" class="text-decoration-none me-1 set-duration" data-weeks="2">+2w</a>
-                                    <a href="#" class="text-decoration-none me-1 set-duration" data-weeks="4">+4w</a>
-                                    <a href="#" class="text-decoration-none set-duration" data-weeks="8">+8w</a>
+                                    <a href="#" class="text-decoration-none set-duration" data-weeks="5">+5w</a>
                                 </div>
                             </div>
                             <div class="col-md-3">
@@ -171,12 +170,11 @@ require_once __DIR__ . '/header.php';
                             </div>
                             <div class="col-md-3 position-relative">
                                 <input type="date" name="start_dates[]" class="form-control start-date" value="<?= $season_year ?>-09-01" required>
-                                <div class="quick-links mt-1 d-none text-center" style="font-size:0.75rem;">
+                                <div class="quick-links d-none text-center position-absolute w-100" style="font-size:0.75rem; top: 100%; left: 0; margin-top: 2px; z-index: 10;">
                                     <span class="text-muted fw-bold duration-label me-1"></span>
                                     <a href="#" class="text-decoration-none me-1 set-duration" data-weeks="1">+1w</a>
                                     <a href="#" class="text-decoration-none me-1 set-duration" data-weeks="2">+2w</a>
-                                    <a href="#" class="text-decoration-none me-1 set-duration" data-weeks="4">+4w</a>
-                                    <a href="#" class="text-decoration-none set-duration" data-weeks="8">+8w</a>
+                                    <a href="#" class="text-decoration-none set-duration" data-weeks="5">+5w</a>
                                 </div>
                             </div>
                             <div class="col-md-3">
@@ -192,12 +190,11 @@ require_once __DIR__ . '/header.php';
                             </div>
                             <div class="col-md-3 position-relative">
                                 <input type="date" name="start_dates[]" class="form-control start-date" value="<?= $season_year+1 ?>-01-01" required>
-                                <div class="quick-links mt-1 d-none text-center" style="font-size:0.75rem;">
+                                <div class="quick-links d-none text-center position-absolute w-100" style="font-size:0.75rem; top: 100%; left: 0; margin-top: 2px; z-index: 10;">
                                     <span class="text-muted fw-bold duration-label me-1"></span>
                                     <a href="#" class="text-decoration-none me-1 set-duration" data-weeks="1">+1w</a>
                                     <a href="#" class="text-decoration-none me-1 set-duration" data-weeks="2">+2w</a>
-                                    <a href="#" class="text-decoration-none me-1 set-duration" data-weeks="4">+4w</a>
-                                    <a href="#" class="text-decoration-none set-duration" data-weeks="8">+8w</a>
+                                    <a href="#" class="text-decoration-none set-duration" data-weeks="5">+5w</a>
                                 </div>
                             </div>
                             <div class="col-md-3">
@@ -217,12 +214,11 @@ require_once __DIR__ . '/header.php';
                             <div class="col-md-3 position-relative">
                                 <?php if($idx === 0): ?><label class="form-label small text-muted fw-bold">Startdatum</label><?php endif; ?>
                                 <input type="date" name="start_dates[]" class="form-control start-date" value="<?= $p['start_date'] ?>" required>
-                                <div class="quick-links mt-1 d-none text-center" style="font-size:0.75rem;">
+                                <div class="quick-links d-none text-center position-absolute w-100" style="font-size:0.75rem; top: 100%; left: 0; margin-top: 2px; z-index: 10;">
                                     <span class="text-muted fw-bold duration-label me-1"></span>
                                     <a href="#" class="text-decoration-none me-1 set-duration" data-weeks="1">+1w</a>
                                     <a href="#" class="text-decoration-none me-1 set-duration" data-weeks="2">+2w</a>
-                                    <a href="#" class="text-decoration-none me-1 set-duration" data-weeks="4">+4w</a>
-                                    <a href="#" class="text-decoration-none set-duration" data-weeks="8">+8w</a>
+                                    <a href="#" class="text-decoration-none set-duration" data-weeks="5">+5w</a>
                                 </div>
                             </div>
                             <div class="col-md-3">
@@ -260,12 +256,11 @@ document.addEventListener('DOMContentLoaded', function() {
             </div>
             <div class="col-md-3 position-relative">
                 <input type="date" name="start_dates[]" class="form-control start-date" required>
-                <div class="quick-links mt-1 d-none text-center" style="font-size:0.75rem;">
+                <div class="quick-links d-none text-center position-absolute w-100" style="font-size:0.75rem; top: 100%; left: 0; margin-top: 2px; z-index: 10;">
                     <span class="text-muted fw-bold duration-label me-1"></span>
                     <a href="#" class="text-decoration-none me-1 set-duration" data-weeks="1">+1w</a>
                     <a href="#" class="text-decoration-none me-1 set-duration" data-weeks="2">+2w</a>
-                    <a href="#" class="text-decoration-none me-1 set-duration" data-weeks="4">+4w</a>
-                    <a href="#" class="text-decoration-none set-duration" data-weeks="8">+8w</a>
+                    <a href="#" class="text-decoration-none set-duration" data-weeks="5">+5w</a>
                 </div>
             </div>
             <div class="col-md-3">

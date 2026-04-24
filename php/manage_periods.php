@@ -109,7 +109,7 @@ require_once __DIR__ . '/header.php';
 
     <div class="alert alert-info border-0 shadow-sm">
         <i class="fa-solid fa-info-circle me-2"></i> <strong>Hoe werkt dit?</strong><br>
-        Splits je seizoen op in logische blokken (bv. Voorbereiding, Najaar, Voorjaar). Je kan deze blokken later op de statistiekenpagina gebruiken als filter.<br>
+        Splits je seizoen op in logische blokken (bv. Voorbereiding, Heenronde, Terugronde deel 1). Je kan deze blokken later op de statistiekenpagina gebruiken als filter.<br>
         <span class="text-danger fw-bold"><i class="fa-solid fa-triangle-exclamation me-1 mt-2"></i> Belangrijk:</span> Periodes moeten <strong>naadloos aansluiten</strong> op elkaar! Er mogen geen gaten of overlappen tussen de datums zitten. We raden sterk aan om op 1 juli te starten en op 30 juni te eindigen.
     </div>
 
@@ -146,19 +146,20 @@ require_once __DIR__ . '/header.php';
                                 <label class="form-label small text-muted fw-bold">Naam Periode</label>
                                 <input type="text" name="names[]" class="form-control period-name" value="Voorbereiding" required>
                             </div>
-                            <div class="col-md-3">
+                            <div class="col-md-3 position-relative">
                                 <label class="form-label small text-muted fw-bold">Startdatum</label>
                                 <input type="date" name="start_dates[]" class="form-control start-date" value="<?= $season_year ?>-07-01" required>
+                                <div class="quick-links mt-1 d-none text-center" style="font-size:0.75rem;">
+                                    <span class="text-muted fw-bold duration-label me-1"></span>
+                                    <a href="#" class="text-decoration-none me-1 set-duration" data-weeks="1">+1w</a>
+                                    <a href="#" class="text-decoration-none me-1 set-duration" data-weeks="2">+2w</a>
+                                    <a href="#" class="text-decoration-none me-1 set-duration" data-weeks="4">+4w</a>
+                                    <a href="#" class="text-decoration-none set-duration" data-weeks="8">+8w</a>
+                                </div>
                             </div>
-                            <div class="col-md-3 position-relative">
+                            <div class="col-md-3">
                                 <label class="form-label small text-muted fw-bold">Einddatum</label>
                                 <input type="date" name="end_dates[]" class="form-control end-date" value="<?= $season_year ?>-08-31" required>
-                                <div class="quick-links mt-1 d-none text-center" style="font-size:0.75rem;">
-                                    <a href="#" class="text-decoration-none me-1 shift-date" data-days="-7">-1w</a>
-                                    <a href="#" class="text-decoration-none me-1 shift-date" data-days="-14">-2w</a>
-                                    <a href="#" class="text-decoration-none me-1 shift-date" data-days="7">+1w</a>
-                                    <a href="#" class="text-decoration-none shift-date" data-days="14">+2w</a>
-                                </div>
                             </div>
                             <div class="col-md-2">
                                 <button type="button" class="btn btn-outline-danger w-100 remove-btn"><i class="fa-solid fa-trash"></i></button>
@@ -168,17 +169,18 @@ require_once __DIR__ . '/header.php';
                             <div class="col-md-4">
                                 <input type="text" name="names[]" class="form-control period-name" value="Heenronde" required>
                             </div>
-                            <div class="col-md-3">
-                                <input type="date" name="start_dates[]" class="form-control start-date" value="<?= $season_year ?>-09-01" required>
-                            </div>
                             <div class="col-md-3 position-relative">
-                                <input type="date" name="end_dates[]" class="form-control end-date" value="<?= $season_year ?>-12-31" required>
+                                <input type="date" name="start_dates[]" class="form-control start-date" value="<?= $season_year ?>-09-01" required>
                                 <div class="quick-links mt-1 d-none text-center" style="font-size:0.75rem;">
-                                    <a href="#" class="text-decoration-none me-1 shift-date" data-days="-7">-1w</a>
-                                    <a href="#" class="text-decoration-none me-1 shift-date" data-days="-14">-2w</a>
-                                    <a href="#" class="text-decoration-none me-1 shift-date" data-days="7">+1w</a>
-                                    <a href="#" class="text-decoration-none shift-date" data-days="14">+2w</a>
+                                    <span class="text-muted fw-bold duration-label me-1"></span>
+                                    <a href="#" class="text-decoration-none me-1 set-duration" data-weeks="1">+1w</a>
+                                    <a href="#" class="text-decoration-none me-1 set-duration" data-weeks="2">+2w</a>
+                                    <a href="#" class="text-decoration-none me-1 set-duration" data-weeks="4">+4w</a>
+                                    <a href="#" class="text-decoration-none set-duration" data-weeks="8">+8w</a>
                                 </div>
+                            </div>
+                            <div class="col-md-3">
+                                <input type="date" name="end_dates[]" class="form-control end-date" value="<?= $season_year ?>-12-31" required>
                             </div>
                             <div class="col-md-2">
                                 <button type="button" class="btn btn-outline-danger w-100 remove-btn"><i class="fa-solid fa-trash"></i></button>
@@ -188,17 +190,18 @@ require_once __DIR__ . '/header.php';
                             <div class="col-md-4">
                                 <input type="text" name="names[]" class="form-control period-name" value="Terugronde" required>
                             </div>
-                            <div class="col-md-3">
-                                <input type="date" name="start_dates[]" class="form-control start-date" value="<?= $season_year+1 ?>-01-01" required>
-                            </div>
                             <div class="col-md-3 position-relative">
-                                <input type="date" name="end_dates[]" class="form-control end-date" value="<?= $season_year+1 ?>-06-30" required>
+                                <input type="date" name="start_dates[]" class="form-control start-date" value="<?= $season_year+1 ?>-01-01" required>
                                 <div class="quick-links mt-1 d-none text-center" style="font-size:0.75rem;">
-                                    <a href="#" class="text-decoration-none me-1 shift-date" data-days="-7">-1w</a>
-                                    <a href="#" class="text-decoration-none me-1 shift-date" data-days="-14">-2w</a>
-                                    <a href="#" class="text-decoration-none me-1 shift-date" data-days="7">+1w</a>
-                                    <a href="#" class="text-decoration-none shift-date" data-days="14">+2w</a>
+                                    <span class="text-muted fw-bold duration-label me-1"></span>
+                                    <a href="#" class="text-decoration-none me-1 set-duration" data-weeks="1">+1w</a>
+                                    <a href="#" class="text-decoration-none me-1 set-duration" data-weeks="2">+2w</a>
+                                    <a href="#" class="text-decoration-none me-1 set-duration" data-weeks="4">+4w</a>
+                                    <a href="#" class="text-decoration-none set-duration" data-weeks="8">+8w</a>
                                 </div>
+                            </div>
+                            <div class="col-md-3">
+                                <input type="date" name="end_dates[]" class="form-control end-date" value="<?= $season_year+1 ?>-06-30" required>
                             </div>
                             <div class="col-md-2">
                                 <button type="button" class="btn btn-outline-danger w-100 remove-btn"><i class="fa-solid fa-trash"></i></button>
@@ -211,19 +214,20 @@ require_once __DIR__ . '/header.php';
                                 <?php if($idx === 0): ?><label class="form-label small text-muted fw-bold">Naam Periode</label><?php endif; ?>
                                 <input type="text" name="names[]" class="form-control period-name" value="<?= htmlspecialchars($p['name']) ?>" required>
                             </div>
-                            <div class="col-md-3">
+                            <div class="col-md-3 position-relative">
                                 <?php if($idx === 0): ?><label class="form-label small text-muted fw-bold">Startdatum</label><?php endif; ?>
                                 <input type="date" name="start_dates[]" class="form-control start-date" value="<?= $p['start_date'] ?>" required>
+                                <div class="quick-links mt-1 d-none text-center" style="font-size:0.75rem;">
+                                    <span class="text-muted fw-bold duration-label me-1"></span>
+                                    <a href="#" class="text-decoration-none me-1 set-duration" data-weeks="1">+1w</a>
+                                    <a href="#" class="text-decoration-none me-1 set-duration" data-weeks="2">+2w</a>
+                                    <a href="#" class="text-decoration-none me-1 set-duration" data-weeks="4">+4w</a>
+                                    <a href="#" class="text-decoration-none set-duration" data-weeks="8">+8w</a>
+                                </div>
                             </div>
-                            <div class="col-md-3 position-relative">
+                            <div class="col-md-3">
                                 <?php if($idx === 0): ?><label class="form-label small text-muted fw-bold">Einddatum</label><?php endif; ?>
                                 <input type="date" name="end_dates[]" class="form-control end-date" value="<?= $p['end_date'] ?>" required>
-                                <div class="quick-links mt-1 d-none text-center" style="font-size:0.75rem;">
-                                    <a href="#" class="text-decoration-none me-1 shift-date" data-days="-7">-1w</a>
-                                    <a href="#" class="text-decoration-none me-1 shift-date" data-days="-14">-2w</a>
-                                    <a href="#" class="text-decoration-none me-1 shift-date" data-days="7">+1w</a>
-                                    <a href="#" class="text-decoration-none shift-date" data-days="14">+2w</a>
-                                </div>
                             </div>
                             <div class="col-md-2">
                                 <button type="button" class="btn btn-outline-danger w-100 remove-btn"><i class="fa-solid fa-trash"></i></button>
@@ -254,17 +258,18 @@ document.addEventListener('DOMContentLoaded', function() {
             <div class="col-md-4">
                 <input type="text" name="names[]" class="form-control period-name" placeholder="Naam" required>
             </div>
-            <div class="col-md-3">
-                <input type="date" name="start_dates[]" class="form-control start-date" required>
-            </div>
             <div class="col-md-3 position-relative">
-                <input type="date" name="end_dates[]" class="form-control end-date" required>
+                <input type="date" name="start_dates[]" class="form-control start-date" required>
                 <div class="quick-links mt-1 d-none text-center" style="font-size:0.75rem;">
-                    <a href="#" class="text-decoration-none me-1 shift-date" data-days="-7">-1w</a>
-                    <a href="#" class="text-decoration-none me-1 shift-date" data-days="-14">-2w</a>
-                    <a href="#" class="text-decoration-none me-1 shift-date" data-days="7">+1w</a>
-                    <a href="#" class="text-decoration-none shift-date" data-days="14">+2w</a>
+                    <span class="text-muted fw-bold duration-label me-1"></span>
+                    <a href="#" class="text-decoration-none me-1 set-duration" data-weeks="1">+1w</a>
+                    <a href="#" class="text-decoration-none me-1 set-duration" data-weeks="2">+2w</a>
+                    <a href="#" class="text-decoration-none me-1 set-duration" data-weeks="4">+4w</a>
+                    <a href="#" class="text-decoration-none set-duration" data-weeks="8">+8w</a>
                 </div>
+            </div>
+            <div class="col-md-3">
+                <input type="date" name="end_dates[]" class="form-control end-date" required>
             </div>
             <div class="col-md-2">
                 <button type="button" class="btn btn-outline-danger w-100 remove-btn"><i class="fa-solid fa-trash"></i></button>
@@ -279,14 +284,15 @@ document.addEventListener('DOMContentLoaded', function() {
             syncAllDates();
         }
         
-        if (e.target.classList.contains('shift-date')) {
+        if (e.target.classList.contains('set-duration')) {
             e.preventDefault();
             let row = e.target.closest('.period-row');
+            let startInput = row.querySelector('.start-date');
             let endInput = row.querySelector('.end-date');
-            if (endInput && endInput.value) {
-                let days = parseInt(e.target.getAttribute('data-days'));
-                let d = new Date(endInput.value);
-                d.setDate(d.getDate() + days);
+            if (startInput && startInput.value && endInput) {
+                let weeks = parseInt(e.target.getAttribute('data-weeks'));
+                let d = new Date(startInput.value);
+                d.setDate(d.getDate() + (weeks * 7) - 1); // Subtract 1 day so it ends EXACTLY on the day before the next period starts
                 endInput.value = d.toISOString().split('T')[0];
                 syncAllDates();
             }
@@ -313,16 +319,34 @@ document.addEventListener('DOMContentLoaded', function() {
     
     function syncAllDates() {
         let rows = Array.from(container.querySelectorAll('.period-row'));
-        for(let i=0; i<rows.length - 1; i++) {
-            let currentEnd = rows[i].querySelector('.end-date').value;
-            if (currentEnd) {
+        for(let i=0; i<rows.length; i++) {
+            let row = rows[i];
+            let startInput = row.querySelector('.start-date');
+            let endInput = row.querySelector('.end-date');
+            
+            // Sync duration badge
+            if (startInput.value && endInput.value) {
+                let sD = new Date(startInput.value);
+                let eD = new Date(endInput.value);
+                let diffTime = Math.abs(eD - sD) + (24 * 60 * 60 * 1000); // include start day
+                let diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+                let weeks = Math.round((diffDays / 7) * 10) / 10;
+                let lbl = row.querySelector('.duration-label');
+                if (lbl) lbl.textContent = '(' + weeks + 'w)';
+            }
+            
+            // Sync next row start date
+            if (i < rows.length - 1 && endInput.value) {
                 let nextStartInput = rows[i+1].querySelector('.start-date');
-                let d = new Date(currentEnd);
+                let d = new Date(endInput.value);
                 d.setDate(d.getDate() + 1);
                 nextStartInput.value = d.toISOString().split('T')[0];
             }
         }
     }
+    
+    // Initial calculate on load
+    syncAllDates();
 });
 </script>
 

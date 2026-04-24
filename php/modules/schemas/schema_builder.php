@@ -837,12 +837,9 @@ function calculateStats() {
     let pool = document.getElementById('player-pool');
     let poolItems = Array.from(pool.querySelectorAll('.pool-player'));
     
-    poolItems.sort((a, b) => {
-        let sidxA = parseInt(a.getAttribute('data-sidx'));
-        let sidxB = parseInt(b.getAttribute('data-sidx'));
-        
-        let pA = globalPlayerStats[sidxA] || { fieldMin: 0 };
-        let pB = globalPlayerStats[sidxB] || { fieldMin: 0 };
+    let sortPlayersFunc = (sidxA, sidxB) => {
+        let pA = globalPlayerStats[sidxA] || { fieldMin: 0, matchAvailable: 0 };
+        let pB = globalPlayerStats[sidxB] || { fieldMin: 0, matchAvailable: 0 };
         
         // 1. Primaire sortering: Wedstrijd percentage (laagste eerst)
         let ratioA = pA.matchAvailable > 0 ? (pA.fieldMin / pA.matchAvailable) : 0;
@@ -880,6 +877,12 @@ function calculateStats() {
         let histRatioB = histAvailableB > 0 ? ((parseInt(sB.histPlayed) + (pB.fieldMin * 60)) / histAvailableB) : 0;
         
         return histRatioA - histRatioB; // ascending
+    };
+
+    poolItems.sort((a, b) => {
+        let sidxA = parseInt(a.getAttribute('data-sidx'));
+        let sidxB = parseInt(b.getAttribute('data-sidx'));
+        return sortPlayersFunc(sidxA, sidxB);
     });
     
     poolItems.forEach(item => {
@@ -934,7 +937,7 @@ function calculateStats() {
             benchMin: globalPlayerStats[i].benchMin
         });
     }
-    statsArr.sort((a, b) => a.name.localeCompare(b.name));
+    statsArr.sort((a, b) => sortPlayersFunc(a.sidx, b.sidx));
 
     // For total match time context, find the total duration of locked blocks
     let totalLockedMin = 0;

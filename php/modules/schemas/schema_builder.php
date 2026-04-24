@@ -263,7 +263,7 @@ if ($numFieldPlayers > 0 && $totalFieldBlocks > 0 && $fixedGkIdPHP !== null) {
         // Since we only need the last game, we can query the most recent game id per player,
         // but a simple ORDER BY with PHP filtering is usually fast enough for a small squad.
         $queryLastGame = "
-            SELECT p.player_id, p.seconds_played, p.seconds_gk
+            SELECT p.player_id, p.seconds_played, p.seconds_gk, p.seconds_bank, g.id as game_id, g.opponent, g.game_date, g.is_home
             FROM game_playtime_logs p
             JOIN games g ON p.game_id = g.id
             WHERE p.player_id IN ($placeholders) 
@@ -278,9 +278,15 @@ if ($numFieldPlayers > 0 && $totalFieldBlocks > 0 && $fixedGkIdPHP !== null) {
         while ($row = $stmtLast->fetch(PDO::FETCH_ASSOC)) {
             $pid = $row['player_id'];
             if (!isset($lastMatchPlaytimes[$pid])) {
-                // we assume if they played GK, they played. The system tracks field+gk in seconds_played for pos 1, but let's just take seconds_played.
-                // Note: game_playtime_logs `seconds_played` includes GK time if they were on the pitch.
-                $lastMatchPlaytimes[$pid] = round($row['seconds_played'] / 60, 1);
+                $lastMatchPlaytimes[$pid] = [
+                    'mins' => round($row['seconds_played'] / 60, 1),
+                    'opponent' => $row['opponent'],
+                    'date' => date('d-m-Y', strtotime($row['game_date'])),
+                    'location' => isset($row['is_home']) && $row['is_home'] == 1 ? 'Thuis' : 'Uit',
+                    'bank' => round($row['seconds_bank'] / 60, 1),
+                    'gk' => round($row['seconds_gk'] / 60, 1),
+                    'game_id' => $row['game_id']
+                ];
             }
         }
         
@@ -303,12 +309,33 @@ if ($numFieldPlayers > 0 && $totalFieldBlocks > 0 && $fixedGkIdPHP !== null) {
             
             // For the last match display
             if ($fixedGkIdPHP !== null && (int)$pid === $fixedGkIdPHP) continue;
-            $mins = $lastMatchPlaytimes[$pid] ?? 0;
+            
+            $gameInfo = $lastMatchPlaytimes[$pid] ?? null;
+            $mins = $gameInfo['mins'] ?? 0;
+            
             if (!isset($minutesGroups[(string)$mins])) {
                 $minutesGroups[(string)$mins] = [];
             }
             $pName = htmlspecialchars($player_info[$pid]['display_name'] ?? $player_info[$pid]['first_name'] ?? $pid);
-            $minutesGroups[(string)$mins][] = "<strong>$pName</strong>";
+            
+            if ($gameInfo) {
+                $titleText = htmlspecialchars("Gespeeld tegen " . $gameInfo['opponent'] . " op " . $gameInfo['date']);
+                $contentHtml = htmlspecialchars(
+                    "<div class='small'>" .
+                    "<b>Tegenstander:</b> " . htmlspecialchars($gameInfo['opponent']) . "<br>" .
+                    "<b>Locatie:</b> " . $gameInfo['location'] . "<br>" .
+                    "<b>Datum:</b> " . $gameInfo['date'] . "<br>" .
+                    "<b>Veld:</b> " . $gameInfo['mins'] . "m<br>" .
+                    "<b>Doelman:</b> " . $gameInfo['gk'] . "m<br>" .
+                    "<b>Bank:</b> " . $gameInfo['bank'] . "m<br><br>" .
+                    "<a href='/games/" . $gameInfo['game_id'] . "' target='_blank' class='btn btn-sm btn-outline-primary w-100'>Bekijk Match</a>" .
+                    "</div>"
+                );
+                
+                $minutesGroups[(string)$mins][] = "<strong class='text-primary' style='cursor: pointer; text-decoration: underline dotted;' title='" . $titleText . "' data-bs-toggle='popover' data-bs-trigger='focus' tabindex='0' data-bs-html='true' data-bs-title='Match Details' data-bs-content='" . $contentHtml . "'>$pName</strong>";
+            } else {
+                $minutesGroups[(string)$mins][] = "<strong>$pName</strong>";
+            }
         }
         
         // Sort the minutes groups descending (highest minutes first, or you can do lowest first)

@@ -101,7 +101,7 @@ require_once dirname(__DIR__, 2) . '/header.php';
             </div>
         </div>
 
-        <div class="col-md-4">
+        <div class="col-md-4 d-none">
             <div class="card h-100 shadow-sm border-0 hover-shadow transition-all">
                 <div class="card-body text-center p-4">
                     <div class="display-4 text-info mb-3">

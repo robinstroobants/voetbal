@@ -293,6 +293,7 @@ require_once dirname(__DIR__, 2) . '/header.php';
                     <?php if($hasActivePeriod): ?>
                     <div class="form-check form-switch m-0" title="Schakel in om ook rekening te houden met de actieve periode">
                         <input class="form-check-input" type="checkbox" id="togglePeriodStats" checked onchange="calculateStats()">
+                        <label class="form-check-label small text-muted" for="togglePeriodStats">Periode-stats</label>
                     </div>
                     <?php endif; ?>
                 </div>
@@ -882,13 +883,27 @@ function calculateStats() {
         let pStats = globalPlayerStats[sidx];
         if(!pStats) return;
         
-        let sData = seasonStatsMap[sidx] || { histPlayed: 0, histAvailable: 0 };
-        let seasonPct = (sData.histAvailable + totalMinutes) > 0 ? Math.round(((sData.histPlayed + pStats.fieldMin) / (sData.histAvailable + totalMinutes)) * 100) : 0;
+        let sData = seasonStatsMap[sidx] || { histPlayed: 0, histAvailable: 0, periodPlayed: 0, periodAvailable: 0 };
+        
+        let usePeriodStats = document.getElementById('togglePeriodStats') ? document.getElementById('togglePeriodStats').checked : false;
+        
+        let histAvailSec = parseInt(sData.histAvailable) + (totalMinutes * 60);
+        let seasonPct = histAvailSec > 0 ? Math.round(((parseInt(sData.histPlayed) + (pStats.fieldMin * 60)) / histAvailSec) * 100) : 0;
+        
+        let pctHtml = '';
+        let periodAvailSec = parseInt(sData.periodAvailable) + (totalMinutes * 60);
+        
+        if (usePeriodStats && periodAvailSec > (totalMinutes * 60)) {
+            let periodPct = Math.round(((parseInt(sData.periodPlayed) + (pStats.fieldMin * 60)) / periodAvailSec) * 100);
+            pctHtml = `${periodPct}% <span style="font-size:0.6rem;">(P)</span>`;
+        } else {
+            pctHtml = `${seasonPct}% <span style="font-size:0.6rem;">(S)</span>`;
+        }
         
         let baseText = pStats.name;
         if (pStats.is_gk) baseText += " (GK)";
         
-        let infoHtml = `<span>${baseText}</span> <small class="fw-normal opacity-75">(${pStats.fieldMin}/${totalMinutes}m - ${seasonPct}%)</small>`;
+        let infoHtml = `<span>${baseText}</span> <small class="fw-normal opacity-75">(${pStats.fieldMin}/${totalMinutes}m - ${pctHtml})</small>`;
         
         if (pStats.benchMin > 0) {
             item.classList.add('on-bench-priority');

@@ -98,9 +98,10 @@ if ($onboarding_complete) {
         // Speelminuten ophalen (match specifiek of seizoen historiek)
         $player_playtimes = [];
         $player_available = [];
+        $player_postimes = [];
         $is_match_playtime = false;
         
-        $stmtLineup = $pdo->prepare("SELECT schema_id, player_order FROM game_lineups WHERE game_id = ? ORDER BY is_final DESC, score DESC LIMIT 1");
+        $stmtLineup = $pdo->prepare("SELECT schema_id, player_order, is_final FROM game_lineups WHERE game_id = ? ORDER BY is_final DESC, score DESC LIMIT 1");
         $stmtLineup->execute([$next_game['id']]);
         $lineup = $stmtLineup->fetch(PDO::FETCH_ASSOC);
 
@@ -126,6 +127,8 @@ if ($onboarding_complete) {
                             if (isset($players_arr[$pIndex])) {
                                 $pId = $players_arr[$pIndex];
                                 $player_playtimes[$pId] = ($player_playtimes[$pId] ?? 0) + $dur;
+                                if (!isset($player_postimes[$pId])) $player_postimes[$pId] = [];
+                                $player_postimes[$pId][$pos] = ($player_postimes[$pId][$pos] ?? 0) + $dur;
                             }
                         }
                     }
@@ -182,7 +185,9 @@ if ($onboarding_complete) {
         }
         $next_game['is_match_playtime'] = $is_match_playtime;
         $next_game['playtimes'] = $player_playtimes;
+        $next_game['postimes'] = $player_postimes;
         $next_game['available'] = $player_available;
+        $next_game['is_final'] = ($lineup && $lineup['is_final'] == 1);
 
         // Sort players by status (present first) and then by playtime percentage (lowest first)
         usort($next_game['players'], function($a, $b) use ($player_playtimes, $player_available) {
@@ -425,13 +430,23 @@ require_once __DIR__ . '/header.php';
                                     </div>
                                 </a>
 
+                                <?php if ($next_game['is_final']): ?>
+                                <a href="/games/<?= $next_game['id'] ?>/lineup" class="btn btn-success text-white fw-bold rounded px-3 py-2 shadow-sm d-inline-flex align-items-center transition-transform" style="transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+                                    <i class="fa-solid fa-eye me-2 fs-5"></i>
+                                    <div class="text-start">
+                                        <div class="small text-white text-opacity-75" style="line-height: 1;">Schema</div>
+                                        <div class="fw-bold mt-1 text-white" style="line-height: 1;">Bekijk Opstelling</div>
+                                    </div>
+                                </a>
+                                <?php else: ?>
                                 <a href="/games/<?= $next_game['id'] ?>/schema" class="btn <?= $next_game['selection_count'] > 0 ? 'btn-warning text-dark' : 'btn-outline-light disabled' ?> fw-bold rounded px-3 py-2 shadow-sm d-inline-flex align-items-center transition-transform" style="transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
                                     <i class="fa-solid fa-wand-magic-sparkles me-2 fs-5"></i>
                                     <div class="text-start">
                                         <div class="small text-dark text-opacity-75" style="line-height: 1;">Schema</div>
-                                        <div class="fw-bold mt-1 text-dark" style="line-height: 1;">Opstelling</div>
+                                        <div class="fw-bold mt-1 text-dark" style="line-height: 1;">Opstelling Maken</div>
                                     </div>
                                 </a>
+                                <?php endif; ?>
 
                                 <?php if ($next_game['selection_count'] > 0): ?>
                                 <button type="button" class="btn btn-success fw-bold rounded px-3 py-2 shadow-sm d-inline-flex align-items-center transition-transform" style="transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'" title="Kopieer selectie bericht" data-msg="<?= htmlspecialchars(json_encode($next_game['whatsapp_msg_raw']), ENT_QUOTES, 'UTF-8') ?>" onclick="copyToClipboard(this)">
@@ -468,9 +483,20 @@ require_once __DIR__ . '/header.php';
                                         <div class="text-truncate text-white <?= $p['status_id'] == 1 ? 'text-decoration-line-through opacity-50' : '' ?>" style="max-width: 180px; font-size: 0.9rem;">
                                             <?php if ($p['is_goalkeeper']): ?><i class="fa-solid fa-hands me-2 text-warning opacity-75"></i><?php endif; ?>
                                             <?= htmlspecialchars(stripslashes(trim($p['first_name'] . ' ' . $p['last_name']))) ?>
+                                            <?php if ($next_game['is_final'] && isset($next_game['postimes'][$p['id']]) && $p['status_id'] != 1): ?>
+                                                <div class="text-white text-opacity-50 mt-1" style="font-size: 0.7rem;">
+                                                    <?php 
+                                                    $pos_strings = [];
+                                                    foreach ($next_game['postimes'][$p['id']] as $pos => $dur) {
+                                                        $pos_strings[] = "P" . $pos . ": " . round($dur/60) . "m";
+                                                    }
+                                                    echo implode(' | ', $pos_strings);
+                                                    ?>
+                                                </div>
+                                            <?php endif; ?>
                                         </div>
                                         <span class="badge <?= $p['status_id'] == 1 ? 'bg-danger text-white' : 'bg-white bg-opacity-25 text-white' ?> rounded-pill" style="min-width: 45px; font-size: 0.8rem;" title="<?= round($pt / 60) ?> min gespeeld">
-                                            <?= $p['status_id'] == 1 ? 'afwezig' : $ptFormatted ?>
+                                            <?= $p['status_id'] == 1 ? 'afwezig' : ($next_game['is_final'] ? round($pt / 60).'m' : $ptFormatted) ?>
                                         </span>
                                     </li>
                                 <?php endforeach; ?>

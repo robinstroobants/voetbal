@@ -142,6 +142,18 @@ if (!empty($player['favorite_positions'])) {
 }
 
 $page_title = 'Spelersdashboard: ' . htmlspecialchars($player['first_name'] . ' ' . $player['last_name']);
+
+// Fetch Played Games
+$played_games_stmt = $pdo->prepare("
+    SELECT g.id, g.game_date, g.opponent, g.location, p.seconds_played, p.seconds_bank, p.seconds_gk 
+    FROM game_playtime_logs p
+    JOIN games g ON p.game_id = g.id
+    WHERE p.player_id = ?
+    ORDER BY g.game_date DESC, g.id DESC
+");
+$played_games_stmt->execute([$player_id]);
+$played_games = $played_games_stmt->fetchAll(PDO::FETCH_ASSOC);
+
 require_once dirname(__DIR__, 2) . '/header.php';
 ?>
 
@@ -401,6 +413,62 @@ require_once dirname(__DIR__, 2) . '/header.php';
                             <button type="submit" class="btn btn-dark px-5"><i class="fa-solid fa-save me-1"></i> Matrix Opslaan</button>
                         </div>
                     </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm border-0">
+                <div class="card-header bg-secondary text-white fw-bold d-flex justify-content-between align-items-center">
+                    <span><i class="fa-solid fa-clock-rotate-left me-1"></i> Gespeelde Wedstrijden</span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-striped mb-0 align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Datum</th>
+                                    <th>Tegenstander</th>
+                                    <th>Locatie</th>
+                                    <th class="text-center">Minuten Veld</th>
+                                    <th class="text-center">Minuten Doelman</th>
+                                    <th class="text-center">Minuten Bank</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php if (empty($played_games)): ?>
+                                    <tr>
+                                        <td colspan="6" class="text-center text-muted fst-italic py-4">Nog geen wedstrijden geregistreerd voor deze speler.</td>
+                                    </tr>
+                                <?php else: ?>
+                                    <?php foreach ($played_games as $game): ?>
+                                        <tr>
+                                            <td>
+                                                <a href="/games/<?= $game['id'] ?>" class="text-decoration-none fw-bold">
+                                                    <?= htmlspecialchars(date('d-m-Y', strtotime($game['game_date']))) ?>
+                                                </a>
+                                            </td>
+                                            <td><?= htmlspecialchars($game['opponent']) ?></td>
+                                            <td>
+                                                <?php if ($game['location'] === 'Thuis'): ?>
+                                                    <span class="badge bg-primary">Thuis</span>
+                                                <?php elseif ($game['location'] === 'Uit'): ?>
+                                                    <span class="badge bg-danger">Uit</span>
+                                                <?php else: ?>
+                                                    <span class="badge bg-secondary"><?= htmlspecialchars($game['location'] ?? 'Onbekend') ?></span>
+                                                <?php endif; ?>
+                                            </td>
+                                            <td class="text-center fw-bold text-success"><?= round($game['seconds_played'] / 60, 1) ?>m</td>
+                                            <td class="text-center fw-bold text-warning"><?= round($game['seconds_gk'] / 60, 1) ?>m</td>
+                                            <td class="text-center fw-bold text-danger"><?= round($game['seconds_bank'] / 60, 1) ?>m</td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                <?php endif; ?>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>

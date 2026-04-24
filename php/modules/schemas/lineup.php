@@ -149,11 +149,30 @@
                           <i class="fa-solid fa-check"></i> Maak Definitief
                       </button>
                   </li>
-              <?php else: ?>
+              <?php else: 
+                  $can_unlock = false;
+                  $finalizer_name = "een coach";
+                  if (isset($locked_lineup)) {
+                      $finalizer_name = $locked_lineup['finalizer_name'] ?? 'een coach';
+                      if (!isset($locked_lineup['finalized_by_user_id']) || 
+                          $locked_lineup['finalized_by_user_id'] == $_SESSION['user_id'] || 
+                          (isset($_SESSION['role']) && $_SESSION['role'] === 'superadmin')) {
+                          $can_unlock = true;
+                      }
+                  } else {
+                      $can_unlock = true; // Fallback if somehow locked_lineup is null here
+                  }
+              ?>
                   <li class="nav-item d-print-none" role="presentation">
+                      <?php if ($can_unlock): ?>
                       <button class="btn btn-warning ms-3 btn-sm mt-1" onclick="unlockLineups(<?= $gameId ?>)">
                           <i class="fa-solid fa-lock-open"></i> Ontgrendel Wedstrijd (Genereer Opnieuw)
                       </button>
+                      <?php else: ?>
+                      <button class="btn btn-secondary ms-3 btn-sm mt-1 disabled" title="Definitief gemaakt door <?= htmlspecialchars($finalizer_name) ?>. Enkel deze coach kan de wedstrijd ontgrendelen.">
+                          <i class="fa-solid fa-lock"></i> Wedstrijd Vergrendeld
+                      </button>
+                      <?php endif; ?>
                       <button onclick="window.print()" class="btn btn-outline-danger btn-sm ms-2 mt-1">
                           <i class="fa-solid fa-file-pdf me-1"></i> Opslaan als PDF
                       </button>

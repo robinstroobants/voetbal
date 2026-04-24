@@ -113,7 +113,13 @@
       // ------------------------------------------------------------
       // [DB] Ophalen Opgeslagen Lineups (Voorselecties / Final)
       // ------------------------------------------------------------
-      $stmtLineups = $pdo->prepare("SELECT * FROM game_lineups WHERE game_id = ? ORDER BY score DESC");
+      $stmtLineups = $pdo->prepare("
+          SELECT gl.*, u.first_name as finalizer_name 
+          FROM game_lineups gl 
+          LEFT JOIN users u ON gl.finalized_by_user_id = u.id 
+          WHERE gl.game_id = ? 
+          ORDER BY gl.score DESC
+      ");
       $stmtLineups->execute([$gameId]);
       $saved_lineups = $stmtLineups->fetchAll(PDO::FETCH_ASSOC);
 

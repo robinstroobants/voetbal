@@ -58,10 +58,11 @@ try {
         $lineup_id = (int)($_POST['lineup_id'] ?? 0);
         
         // Reset alle andere lineups voor the game naar 0
-        $pdo->prepare("UPDATE game_lineups SET is_final = 0 WHERE game_id = ?")->execute([$game_id]);
+        $pdo->prepare("UPDATE game_lineups SET is_final = 0, finalized_by_user_id = NULL WHERE game_id = ?")->execute([$game_id]);
         
-        // Set this one to final
-        $pdo->prepare("UPDATE game_lineups SET is_final = 1 WHERE id = ?")->execute([$lineup_id]);
+        // Set this one to final and record the user who did it
+        $userId = $_SESSION['user_id'] ?? null;
+        $pdo->prepare("UPDATE game_lineups SET is_final = 1, finalized_by_user_id = ? WHERE id = ?")->execute([$userId, $lineup_id]);
         
         require_once dirname(__DIR__, 1) . '/models/MatchManager.php';
         $mm = new MatchManager($pdo);
@@ -70,8 +71,19 @@ try {
         echo json_encode(["status" => "success"]);
     }
     elseif ($action === 'unlock') {
+        // Check if user is allowed to unlock
+        $checkLock = $pdo->prepare("SELECT finalized_by_user_id FROM game_lineups WHERE game_id = ? AND is_final = 1");
+        $checkLock->execute([$game_id]);
+        $finalizer = $checkLock->fetchColumn();
+        
+        $is_superadmin = isset($_SESSION['role']) && $_SESSION['role'] === 'superadmin';
+        if ($finalizer && $finalizer != $_SESSION['user_id'] && !$is_superadmin) {
+            echo json_encode(["status" => "error", "message" => "Toegang geweigerd: Enkel de coach die deze opstelling definitief heeft gemaakt kan ze ontgrendelen."]);
+            exit;
+        }
+
         // Unlock all lineups for generating mode
-        $pdo->prepare("UPDATE game_lineups SET is_final = 0 WHERE game_id = ?")->execute([$game_id]);
+        $pdo->prepare("UPDATE game_lineups SET is_final = 0, finalized_by_user_id = NULL WHERE game_id = ?")->execute([$game_id]);
         
         // Breek actieve share tokens
         $pdo->prepare("UPDATE games SET share_token = NULL, share_expires_at = NULL WHERE id = ?")->execute([$game_id]);

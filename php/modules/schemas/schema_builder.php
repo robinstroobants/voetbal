@@ -228,6 +228,92 @@ foreach ($squad as $idx => $pid) {
     ];
 }
 
+// Calculate pre-game analysis
+$pregame_analysis_html = '';
+$playPositions = [1, 2, 4, 5, 7, 9, 10, 11];
+if (strpos($search_format, '5v5') !== false) {
+    $playPositions = [1, 2, 4, 5, 9];
+}
+$fieldPositions = array_filter($playPositions, fn($p) => $p != 1);
+$numFieldPositions = count($fieldPositions);
+
+$fixedGkIdPHP = $gk_count === 1 ? (int)reset($gk_arr) : null;
+$numFieldPlayers = count($squad) - ($fixedGkIdPHP !== null ? 1 : 0);
+$totalBlocks = count($shift_definitions);
+$totalFieldBlocks = $numFieldPositions * $totalBlocks;
+
+if ($numFieldPlayers > 0 && $totalFieldBlocks > 0 && $fixedGkIdPHP !== null) {
+    $block_dur = $shift_definitions[0]['duration'];
+    $base_blocks = floor($totalFieldBlocks / $numFieldPlayers);
+    $extra_blocks = $totalFieldBlocks % $numFieldPlayers;
+    
+    $players_extra = $extra_blocks;
+    $players_base = $numFieldPlayers - $players_extra;
+    
+    $base_mins = $base_blocks * $block_dur;
+    $extra_mins = $base_mins + $block_dur;
+    
+    if ($players_extra > 0) {
+        $sortedPlayers = [];
+        foreach ($squad as $idx => $pid) {
+            if ($fixedGkIdPHP !== null && (int)$pid === $fixedGkIdPHP) continue;
+            
+            $st = $seasonStatsJson[$idx];
+            $periodAvail = $st['periodAvailable'];
+            $periodPct = $periodAvail > 0 ? ($st['periodPlayed'] / $periodAvail) : 0;
+            
+            $histAvail = $st['histAvailable'];
+            $histPct = $histAvail > 0 ? ($st['histPlayed'] / $histAvail) : 0;
+            
+            $sortedPlayers[] = [
+                'name' => htmlspecialchars($player_info[$pid]['display_name'] ?? $player_info[$pid]['first_name'] ?? $pid),
+                'periodPct' => $periodPct,
+                'histPct' => $histPct
+            ];
+        }
+        
+        usort($sortedPlayers, function($a, $b) use ($hasActivePeriod) {
+            if ($hasActivePeriod) {
+                if (abs($a['periodPct'] - $b['periodPct']) > 0.001) {
+                    return $a['periodPct'] <=> $b['periodPct'];
+                }
+            }
+            if (abs($a['histPct'] - $b['histPct']) > 0.001) {
+                return $a['histPct'] <=> $b['histPct'];
+            }
+            return strcmp(strtolower($a['name']), strtolower($b['name']));
+        });
+        
+        $suggestedExtra = array_slice($sortedPlayers, 0, $players_extra);
+        $suggestedBase = array_slice($sortedPlayers, $players_extra);
+        
+        $extraNames = array_map(fn($p) => "<strong>" . $p['name'] . "</strong>", $suggestedExtra);
+        $baseNames = array_map(fn($p) => "<strong>" . $p['name'] . "</strong>", $suggestedBase);
+        
+        $pregame_analysis_html = '
+        <div class="card mb-3 border-info shadow-sm" style="border-width: 2px;">
+            <div class="card-header bg-info text-white fw-bold d-flex align-items-center py-2" style="font-size: 0.9rem;">
+                <i class="fa-solid fa-lightbulb text-warning me-2"></i> Pre-Game Analyse
+            </div>
+            <div class="card-body bg-light text-dark p-3">
+                <p class="mb-2" style="font-size: 0.8rem; line-height: 1.3;">Met ' . $numFieldPlayers . ' veldspelers voor ' . $numFieldPositions . ' posities zijn er in totaal ' . $totalFieldBlocks . ' in te vullen kwartjes. Dit resulteert in:</p>
+                <ul class="mb-3" style="font-size: 0.8rem; line-height: 1.3; padding-left: 20px;">
+                    <li><strong>' . $players_extra . ' spelers</strong> spelen <strong>' . $extra_mins . 'm</strong> (' . ($base_blocks + 1) . ' blokjes)</li>
+                    <li><strong>' . $players_base . ' spelers</strong> spelen <strong>' . $base_mins . 'm</strong> (' . $base_blocks . ' blokjes)</li>
+                </ul>
+                <div class="p-2 bg-white rounded border mb-2">
+                    <p class="mb-1 fw-bold text-success" style="font-size: 0.8rem;"><i class="fa-solid fa-arrow-up me-1"></i>Meeste minuten (' . $extra_mins . 'm)</p>
+                    <p class="mb-0 text-muted" style="font-size: 0.75rem;">Aanbevolen: ' . implode(', ', $extraNames) . '</p>
+                </div>
+                <div class="p-2 bg-white rounded border">
+                    <p class="mb-1 fw-bold text-danger" style="font-size: 0.8rem;"><i class="fa-solid fa-arrow-down me-1"></i>Minste minuten (' . $base_mins . 'm)</p>
+                    <p class="mb-0 text-muted" style="font-size: 0.75rem;">Aanbevolen: ' . implode(', ', $baseNames) . '</p>
+                </div>
+            </div>
+        </div>';
+    }
+}
+
 $page_title = "Bouw Schema Manueel";
 require_once dirname(__DIR__, 2) . '/header.php';
 ?>
@@ -289,6 +375,8 @@ require_once dirname(__DIR__, 2) . '/header.php';
     <div class="row">
         <!-- Sidebar Pool -->
         <div class="col-md-3">
+            <?= $pregame_analysis_html ?>
+            
             <div class="pool-container sticky-top" style="top: 20px;">
                 <h5 class="mb-3 text-dark"><i class="fa-solid fa-users me-2"></i>Selectie Pool</h5>
                 <p class="small text-muted mb-3 fst-italic">Aanbevolen volgorde op basis van speelminuten</p>

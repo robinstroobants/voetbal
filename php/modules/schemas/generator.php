@@ -772,17 +772,28 @@
           
           $errHtml = "<div class='container mt-5'><div class='alert alert-danger shadow-sm border-0'><h4 class='alert-heading'><i class='fa-solid fa-triangle-exclamation'></i> Oeps! Geen opstelling mogelijk</h4>";
           $errHtml .= "<p>Het algoritme kon <strong>geen enkele</strong> geldige opstelling vinden die voldoet aan alle ingestelde team- en spelersregels.</p><hr>";
-          $errHtml .= "<p class='mb-1'><strong>Oorzaken voor deze " . count($squad) . " spelers:</strong></p><ul class='mb-0'>";
+          
+          $has_causes = false;
+          $causesHtml = "";
           foreach($fail_stats['no_max'] as $p => $c) {
-              if($c > 0) $errHtml .= "<li><strong>" . getPlayerName($p) . "</strong> kon niet op een mindere positie geplaatst worden (stond vorige match op de zwaarste positie).</li>";
+              if($c > 0) { $causesHtml .= "<li><strong>" . getPlayerName($p) . "</strong> kon niet op een mindere positie geplaatst worden (stond vorige match op de zwaarste positie).</li>"; $has_causes = true; }
           }
           foreach($fail_stats['no_min'] as $p => $c) {
-              if($c > 0) $errHtml .= "<li><strong>" . getPlayerName($p) . "</strong> kon niet op een zwaardere positie geplaatst worden (stond vorige match op een lichte positie).</li>";
+              if($c > 0) { $causesHtml .= "<li><strong>" . getPlayerName($p) . "</strong> kon niet op een zwaardere positie geplaatst worden (stond vorige match op een lichte positie).</li>"; $has_causes = true; }
           }
           foreach($fail_stats['forbidden'] as $p => $c) {
-              if($c > 0) $errHtml .= "<li><strong>" . getPlayerName($p) . "</strong> moest op een positie staan die verboden is volgens zijn/haar persoonlijke statistieken.</li>";
+              if($c > 0) { $causesHtml .= "<li><strong>" . getPlayerName($p) . "</strong> moest op een positie staan die verboden is volgens zijn/haar persoonlijke statistieken.</li>"; $has_causes = true; }
           }
-          $errHtml .= "</ul>";
+          
+          if ($has_causes) {
+              $errHtml .= "<p class='mb-1'><strong>Specifieke oorzaken voor deze " . count($squad) . " spelers:</strong></p><ul class='mb-0'>";
+              $errHtml .= $causesHtml;
+              $errHtml .= "</ul>";
+          } else {
+              $errHtml .= "<p class='mb-1'><strong>Oorzaak:</strong></p>";
+              $errHtml .= "<p class='mb-0 text-muted'>Er werden geen specifieke spelers geblokkeerd, maar er is geen enkel passend wisselschema in de database dat voldoet aan jouw ingestelde wedstrijdregels (zoals het vereiste aantal minimale posities per speler) voor " . count($squad) . " spelers.</p>";
+          }
+          
           $errHtml .= "<p class='mt-3 mb-0'><a href='/games/{$gameId}/edit' class='btn btn-sm btn-outline-danger'><i class='fa-solid fa-gear'></i> Pas wedstrijdregels aan</a> of gebruik de <a href='/games/{$gameId}/builder' class='fw-bold text-danger ms-2'>Zelf Bouwen</a> functie.</p>";
           $errHtml .= "</div></div>";
           

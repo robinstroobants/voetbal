@@ -887,10 +887,14 @@
         var fd = new FormData();
         fd.append('action', 'unlock');
         fd.append('game_id', gameId);
-        fetch('/api_save_lineup.php', { method: 'POST', body: fd })
+        fetch('/api/api_save_lineup.php', { method: 'POST', body: fd })
         .then(r => r.json())
         .then(data => {
-            window.location.reload();
+            if(data.status === 'success') {
+                window.location.href = '/games/' + gameId + '/schema';
+            } else {
+                alert(data.message || "Er liep iets mis.");
+            }
         });
     }
 

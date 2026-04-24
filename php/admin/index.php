@@ -272,7 +272,8 @@ $admin_stats = $pdo->query("
     SELECT 
         (SELECT COUNT(*) FROM users WHERE created_at > DATE_SUB(NOW(), INTERVAL 7 DAY)) as new_users_7d,
         (SELECT COUNT(*) FROM team_invitations WHERE status = 'pending') as invites_pending,
-        (SELECT COUNT(*) FROM team_invitations WHERE status = 'accepted') as invites_accepted
+        (SELECT COUNT(*) FROM team_invitations WHERE status = 'accepted') as invites_accepted,
+        (SELECT COUNT(*) FROM users WHERE account_status = 'pending') as waitlist_pending
 ")->fetch(PDO::FETCH_ASSOC);
 
 // Als het een Ajax verzoek is, onderbreek the HTML rest render en spuug enkel the partial uit
@@ -313,7 +314,7 @@ require_once __DIR__ . '/../header.php';
     <?php endif; ?>
 
     <div class="row mb-4">
-        <div class="col-md-6 mb-2">
+        <div class="col-md-4 mb-2">
             <div class="card shadow-sm border-0 bg-primary text-white h-100 position-relative" style="transition: transform 0.2s; cursor: pointer;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
                 <div class="card-body d-flex align-items-center">
                     <i class="fa-solid fa-user-plus fa-2x opacity-50 me-3"></i>
@@ -325,7 +326,19 @@ require_once __DIR__ . '/../header.php';
                 <a href="#superadminSearch" class="stretched-link" onclick="setTimeout(() => document.getElementById('superadminSearch').focus(), 100);"></a>
             </div>
         </div>
-        <div class="col-md-6 mb-2">
+        <div class="col-md-4 mb-2">
+            <div class="card shadow-sm border-0 bg-warning text-dark h-100 position-relative" style="transition: transform 0.2s; cursor: pointer;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
+                <div class="card-body d-flex align-items-center">
+                    <i class="fa-solid fa-hourglass-half fa-2x opacity-50 me-3"></i>
+                    <div>
+                        <h6 class="mb-1 opacity-75 fw-normal">Wachtlijst (Pending)</h6>
+                        <h3 class="mb-0 fw-bold"><?= $admin_stats['waitlist_pending'] ?></h3>
+                    </div>
+                </div>
+                <a href="/admin/users?q=pending" class="stretched-link"></a>
+            </div>
+        </div>
+        <div class="col-md-4 mb-2">
             <div class="card shadow-sm border-0 bg-success text-white h-100">
                 <div class="card-body d-flex align-items-center">
                     <i class="fa-solid fa-envelope-circle-check fa-2x opacity-50 me-3"></i>

@@ -55,17 +55,42 @@ $stmtStats = $pdo->prepare("
 $stmtStats->execute([$filter_start, $filter_end, $team_id]);
 $stats = $stmtStats->fetchAll(PDO::FETCH_ASSOC);
 
+// Haal alle team matchen op in deze periode om de absolute maximale speeltijd te berekenen
+$stmtTeamGames = $pdo->prepare("
+    SELECT DISTINCT g.id, g.format
+    FROM games g
+    JOIN game_playtime_logs gpl ON g.id = gpl.game_id
+    WHERE g.team_id = ? AND g.game_date BETWEEN ? AND ?
+");
+$stmtTeamGames->execute([$team_id, $filter_start, $filter_end]);
+$team_games = $stmtTeamGames->fetchAll(PDO::FETCH_ASSOC);
+
+$total_team_matches = count($team_games);
+$total_team_max_seconds = 0;
+foreach ($team_games as $g) {
+    if (preg_match('/_(\d+)x(\d+)/', $g['format'], $m)) {
+        $total_team_max_seconds += (int)$m[1] * (int)$m[2] * 60;
+    }
+}
+
 foreach ($stats as &$s) {
-    $max_seconds = 0;
+    $matches_absent = $total_team_matches - $s['matches_played'];
+    $s['matches_absent'] = max(0, $matches_absent); // Zeker zijn dat het niet negatief is
+    
+    // Bereken eigen aanwezige max time (voor info popover)
+    $own_max_seconds = 0;
     if (!empty($s['played_formats'])) {
         $formats = explode(',', $s['played_formats']);
         foreach ($formats as $f) {
             if (preg_match('/_(\d+)x(\d+)/', $f, $m)) {
-                $max_seconds += (int)$m[1] * (int)$m[2] * 60;
+                $own_max_seconds += (int)$m[1] * (int)$m[2] * 60;
             }
         }
     }
-    $s['max_seconds'] = $max_seconds;
+    $s['own_max_seconds'] = $own_max_seconds;
+    
+    // Gebruik de TEAM max_seconds om afwezigheden in rekening te brengen voor het percentage
+    $s['max_seconds'] = $total_team_max_seconds;
 }
 unset($s);
 
@@ -171,6 +196,7 @@ require_once dirname(__DIR__, 2) . '/header.php';
                     <tr>
                         <th>Speler</th>
                         <th class="text-center" title="Matchen Gespeeld"><i class="fa-solid fa-hashtag text-secondary"></i> Matchen</th>
+                        <th class="text-center" title="Matchen Afwezig"><i class="fa-solid fa-user-minus text-danger"></i> Afwezig</th>
                         <th class="text-center" title="Totaal Minuten op het Veld of in Doel"><i class="fa-solid fa-stopwatch text-success"></i> Gespeeld</th>
                         <?php if ($has_multiple_coaches): ?>
                         <th class="text-center" title="Verdeling van speeltijd per coach"><i class="fa-solid fa-chalkboard-user text-info"></i> Coach %</th>
@@ -186,6 +212,9 @@ require_once dirname(__DIR__, 2) . '/header.php';
                             <td class="text-center fw-semibold">
                                 <?= $s['matches_played'] ?>
                             </td>
+                            <td class="text-center fw-semibold text-danger">
+                                <?= $s['matches_absent'] ?>
+                            </td>
                             <td class="text-center fw-bold text-success">
                                 <?php
                                     $perc = $s['max_seconds'] > 0 ? round(($s['total_seconds'] / $s['max_seconds']) * 100) : 0;
@@ -193,32 +222,41 @@ require_once dirname(__DIR__, 2) . '/header.php';
                                     $max_time = formatTimeStats($s['max_seconds']);
                                     $bench_time = formatTimeStats($s['bank_seconds']);
                                     $gk_time = formatTimeStats($s['gk_seconds']);
+                                    $own_max_time = formatTimeStats($s['own_max_seconds']);
+                                    $missed_time = formatTimeStats($s['max_seconds'] - $s['own_max_seconds']);
                                     $avg_min_match = $s['matches_played'] > 0 ? round(($s['total_seconds'] / 60) / $s['matches_played']) : 0;
 
                                     $popover_content = "
                                         <div class='small' style='min-width: 180px;'>
                                             <div class='d-flex justify-content-between mb-1'>
                                                 <span class='text-muted'>Gespeeld:</span>
-                                                <span class='fw-bold'>$total_time</span>
+                                                <span class='fw-bold text-success'>$total_time</span>
                                             </div>
-                                            <div class='d-flex justify-content-between mb-2'>
-                                                <span class='text-muted'>Max. beschikbaar:</span>
+                                            <div class='d-flex justify-content-between mb-1'>
+                                                <span class='text-muted'>Tijd op de bank:</span>
+                                                <span class='fw-bold text-warning'>$bench_time</span>
+                                            </div>
+                                            <div class='d-flex justify-content-between mb-1'>
+                                                <span class='text-muted'>Gemist (afwezig):</span>
+                                                <span class='fw-bold text-danger'>$missed_time</span>
+                                            </div>
+                                            <div class='d-flex justify-content-between mb-2 pb-2 border-bottom'>
+                                                <span class='text-muted'>Max. team speeltijd:</span>
                                                 <span class='fw-bold'>$max_time</span>
                                             </div>
-                                            <hr class='my-2'>
                                             <div class='d-flex justify-content-between mb-1'>
                                                 <span class='text-muted'>Aantal matchen:</span>
-                                                <span class='fw-bold'>{$s['matches_played']}</span>
+                                                <span class='fw-bold'>{$s['matches_played']} / {$total_team_matches}</span>
+                                            </div>
+                                            <div class='d-flex justify-content-between mb-1'>
+                                                <span class='text-muted'>Aantal keer afwezig:</span>
+                                                <span class='fw-bold text-danger'>{$s['matches_absent']}</span>
                                             </div>
                                             <div class='d-flex justify-content-between mb-1'>
                                                 <span class='text-muted'>Als doelman:</span>
                                                 <span class='fw-bold text-info'>$gk_time</span>
                                             </div>
-                                            <div class='d-flex justify-content-between mb-1'>
-                                                <span class='text-muted'>Bankzitters tijd:</span>
-                                                <span class='fw-bold text-warning'>$bench_time</span>
-                                            </div>
-                                            <div class='d-flex justify-content-between'>
+                                            <div class='d-flex justify-content-between mt-2 pt-2 border-top'>
                                                 <span class='text-muted'>Gemiddeld / match:</span>
                                                 <span class='fw-bold'>$avg_min_match min</span>
                                             </div>

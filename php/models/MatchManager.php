@@ -283,6 +283,7 @@ class MatchManager {
 
             // Map string-ids om naar pure dbID's 
             $players = [];
+            $str_players = explode(',', $row['player_order']);
             foreach ($str_players as $name) {
                 $players[] = $name;
             }

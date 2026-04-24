@@ -18,6 +18,61 @@ $stmtCheck = $pdo->prepare("SELECT id FROM game_lineups WHERE game_id = ? AND is
 $stmtCheck->execute([$gameId]);
 $has_final = $stmtCheck->fetchColumn();
 
+// Fetch bestaande voorselecties (niet-definitief)
+$stmtPreviews = $pdo->prepare("
+    SELECT gl.id, gl.score, gl.created_at, gl.schema_id, gl.player_order, l.is_original, l.player_count, l.schema_data
+    FROM game_lineups gl
+    JOIN lineups l ON gl.schema_id = l.id
+    WHERE gl.game_id = ? AND gl.is_final = 0 
+    ORDER BY gl.created_at DESC
+");
+$stmtPreviews->execute([$gameId]);
+$previews = $stmtPreviews->fetchAll(PDO::FETCH_ASSOC);
+
+// Map player names for previews
+$mm = new MatchManager($pdo);
+$matchData = $mm->getSelection($gameId);
+$playerInfo = $matchData['player_info'] ?? [];
+
+foreach($previews as &$p) {
+    $pids = explode(',', $p['player_order']);
+    
+    // Parse schema data to calculate playtime
+    $schema_data = json_decode($p['schema_data'], true);
+    $playerMinutes = array_fill_keys($pids, 0);
+    
+    if (is_array($schema_data)) {
+        foreach($schema_data as $block) {
+            $dur = isset($block['duration']) ? (int)$block['duration'] / 60 : 0;
+            if (isset($block['lineup']) && is_array($block['lineup'])) {
+                foreach($block['lineup'] as $generic_id) {
+                    if (isset($pids[$generic_id])) {
+                        $pid = $pids[$generic_id];
+                        $playerMinutes[$pid] += $dur;
+                    }
+                }
+            }
+        }
+    }
+    
+    // Group by minutes
+    $grouped = [];
+    foreach($playerMinutes as $pid => $mins) {
+        $roundedMins = round($mins);
+        if (!isset($grouped[$roundedMins])) $grouped[$roundedMins] = [];
+        if (isset($playerInfo[$pid])) {
+            $grouped[$roundedMins][] = $playerInfo[$pid]['first_name'];
+        }
+    }
+    krsort($grouped); // Sort high minutes to low
+    $p['grouped_mins'] = $grouped;
+    
+    // Check if it's purely original or modified
+    $p['type'] = $p['is_original'] == 1 ? 'AI Gegenereerd' : 'Manueel';
+    $p['type_icon'] = $p['is_original'] == 1 ? 'fa-wand-magic-sparkles text-primary' : 'fa-hammer text-warning';
+}
+unset($p); // Critical to prevent PHP reference overwrite bug!
+
 // Auto-redirect naar de definitieve opstelling om een nutteloze extra klik op het dashboard te vermijden
 if ($has_final && empty($_GET['force_dashboard'])) {
     header("Location: /games/$gameId/lineup");
@@ -121,6 +176,53 @@ require_once dirname(__DIR__, 2) . '/header.php';
         </div>
         
     </div>
+
+    <?php if (count($previews) > 0): ?>
+    <div class="mt-5">
+        <h4 class="mb-3"><i class="fa-solid fa-layer-group me-2"></i>Bestaande Voorselecties</h4>
+        <p class="text-muted mb-3">Je hebt de volgende schemas reeds gebouwd of gegenereerd. Kies er één om verder te bekijken of definitief te maken.</p>
+        <div class="row g-3">
+            <?php foreach($previews as $p): ?>
+            <div class="col-md-4">
+                <div class="card shadow-sm border-0 border-start border-4 border-info">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <h6 class="card-title mb-1 fw-bold text-dark">Voorselectie #<?= $p['id'] ?> <small class="text-muted fw-normal ms-1">(Schema #<?= $p['schema_id'] ?>)</small></h6>
+                                <div class="mb-1">
+                                    <small class="text-muted"><i class="fa-solid <?= $p['type_icon'] ?> me-1"></i> <?= $p['type'] ?></small>
+                                </div>
+                                <div>
+                                    <small class="text-muted"><i class="fa-regular fa-clock me-1"></i> <?= date('d M Y - H:i', strtotime($p['created_at'])) ?></small>
+                                </div>
+                            </div>
+                            <?php if ($p['score'] > 0): ?>
+                            <div class="text-end">
+                                <span class="badge bg-<?= $p['score'] >= 80 ? 'success' : ($p['score'] >= 60 ? 'warning' : 'danger') ?> fs-6 mb-1"><?= number_format($p['score'], 1) ?>%</span>
+                            </div>
+                            <?php endif; ?>
+                        </div>
+                        
+                        <div class="bg-light p-2 rounded mt-3 mb-3 border">
+                            <p class="small text-muted mb-2 border-bottom pb-1" style="font-size: 0.75rem;">
+                                <strong><i class="fa-solid fa-users me-1"></i> <?= $p['player_count'] ?> Spelers & Speelminuten:</strong>
+                            </p>
+                            <?php foreach($p['grouped_mins'] as $mins => $names): ?>
+                            <div class="d-flex mb-1" style="font-size: 0.75rem;">
+                                <span class="badge bg-secondary me-2" style="width: 40px;"><?= $mins ?>m</span>
+                                <span class="text-muted text-truncate"><?= htmlspecialchars(implode(', ', $names)) ?></span>
+                            </div>
+                            <?php endforeach; ?>
+                        </div>
+                        
+                        <a href="/games/<?= $gameId ?>/lineup?preview=<?= $p['id'] ?>" class="btn btn-sm btn-outline-primary w-100 fw-bold">Bekijk Preview</a>
+                    </div>
+                </div>
+            </div>
+            <?php endforeach; ?>
+        </div>
+    </div>
+    <?php endif; ?>
 
 </div>
 

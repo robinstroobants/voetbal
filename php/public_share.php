@@ -36,4 +36,4 @@ $_SESSION['team_id'] = $game['team_id']; // Voorkom crashes in generator.php
 $page_title = "Opstelling: " . htmlspecialchars($game['opponent']);
 
 // We laden gewoon lineup.php in, maar lineup.php moet zich nu gedragen als readonly publieke view.
-require_once __DIR__ . '/lineup.php';
+require_once __DIR__ . '/modules/schemas/lineup.php';

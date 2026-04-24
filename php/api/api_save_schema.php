@@ -237,8 +237,9 @@ if ($overwrite && !empty($data['original_schema_id'])) {
     $mm->syncGameLogs($gameId);
 } else {
     // Nieuw schema opslaan, eventueel met parent_id = originalId
+    $parentId = $originalId > 0 ? $originalId : null;
     $stmtIns = $pdo->prepare("INSERT INTO lineups (game_format, player_count, legacy_id, parent_id, schema_data, is_original, team_id) VALUES (?, ?, 0, ?, ?, 0, ?)");
-    $stmtIns->execute([$format, $aantal, $originalId, json_encode($new_schema), $_SESSION['team_id']]);
+    $stmtIns->execute([$format, $aantal, $parentId, json_encode($new_schema), $_SESSION['team_id']]);
     $new_id = $pdo->lastInsertId();
 }
 

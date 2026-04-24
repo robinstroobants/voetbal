@@ -141,6 +141,9 @@
                       <a href="<?= build_url($base_url, ['wedstrijd' => $gameId]) ?>" class="btn btn-secondary ms-3 btn-sm mt-1">
                           <i class="fa-solid fa-xmark"></i> Sluit Preview
                       </a>
+                      <a href="/games/<?= $gameId ?>/builder?preview=<?= $_GET['preview'] ?>" class="btn btn-warning ms-2 btn-sm mt-1">
+                          <i class="fa-solid fa-hammer"></i> Bewerk in Builder
+                      </a>
                       <?php endif; ?>
                       <button class="btn btn-success ms-2 btn-sm mt-1" onclick="setFinalLineup(<?= $gameId ?>, <?= $preview_lineup['id'] ?>)">
                           <i class="fa-solid fa-check"></i> Maak Definitief
@@ -927,10 +930,10 @@
         fd.append('action', 'set_final');
         fd.append('game_id', gameId);
         fd.append('lineup_id', lineupId);
-        fetch('/api_save_lineup.php', { method: 'POST', body: fd })
+        fetch('/api/api_save_lineup.php', { method: 'POST', body: fd })
         .then(r => r.json())
         .then(data => {
-            window.location.reload();
+            window.location.href = '/games/' + gameId + '/lineup';
         });
     }
 
@@ -940,10 +943,10 @@
         fd.append('action', 'delete');
         fd.append('game_id', gameId);
         fd.append('lineup_id', lineupId);
-        fetch('/api_save_lineup.php', { method: 'POST', body: fd })
+        fetch('/api/api_save_lineup.php', { method: 'POST', body: fd })
         .then(r => r.json())
         .then(data => {
-            window.location.reload();
+            window.location.href = '/games/' + gameId + '/schema';
         });
     }
 

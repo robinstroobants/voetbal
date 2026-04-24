@@ -199,6 +199,24 @@ foreach ($squad as $idx => $pid) {
     ];
 }
 
+// Preload existing schema if requested
+$preload_shift_data = 'null';
+if (isset($_GET['schema_id']) && (int)$_GET['schema_id'] > 0) {
+    $stmtLoad = $pdo->prepare("SELECT schema_data FROM lineups WHERE id = ?");
+    $stmtLoad->execute([(int)$_GET['schema_id']]);
+    $db_schema = $stmtLoad->fetchColumn();
+    if ($db_schema) {
+        $preload_shift_data = $db_schema;
+    }
+} elseif (isset($_GET['preview']) && (int)$_GET['preview'] > 0) {
+    $stmtLoad = $pdo->prepare("SELECT schema_data FROM lineups WHERE id = (SELECT schema_id FROM game_lineups WHERE id = ?)");
+    $stmtLoad->execute([(int)$_GET['preview']]);
+    $db_schema = $stmtLoad->fetchColumn();
+    if ($db_schema) {
+        $preload_shift_data = $db_schema;
+    }
+}
+
 // Fetch historical season stats for these exact players before this game
 $teamId = $_SESSION['team_id'] ?? 0;
 $gameDate = $matchData['game']['game_date'];
@@ -459,13 +477,12 @@ require_once dirname(__DIR__, 2) . '/header.php';
             <?= $pregame_analysis_html ?>
             
             <div class="pool-container sticky-top" style="top: 20px;">
-                <h5 class="mb-3 text-dark"><i class="fa-solid fa-users me-2"></i>Selectie</h5>
                 <div id="player-pool" class="d-flex flex-column gap-2">
                     <!-- JS fills this initially -->
                 </div>
                
                 <div class="d-flex justify-content-between align-items-center mb-2 mt-4">
-                    <h5 class="mb-0 text-dark"><i class="fa-solid fa-chart-line me-2"></i>Live Statistieken</h5>
+                    <h5 class="mb-0 text-dark"><i class="fa-solid fa-chart-line me-2"></i> Statistieken</h5>
                 </div>
                 <div class="table-responsive bg-white rounded shadow-sm mb-3">
                     <table class="table table-sm table-hover mb-0" style="font-size: 0.85rem;">
@@ -514,6 +531,7 @@ const gameId = <?= $gameId ?>;
 const volgordeStr = "<?= $volgorde ?>";
 const gkCount = <?= $gk_count ?>;
 const fixedGkId = <?= $gk_count === 1 ? json_encode((int)reset($gk_arr)) : 'null' ?>;
+const preloadedSchemaData = <?= $preload_shift_data ?>;
 
 let playPositions = [1, 2, 4, 5, 7, 9, 10, 11];
 if (formatStr.includes('5v5')) {
@@ -650,6 +668,52 @@ function initBuilder() {
     
     // Zorg ervoor dat statistieken zichtbaar zijn bij laden pagina
     calculateStats();
+    
+    // Auto-load existing schema if provided
+    if (preloadedSchemaData !== null && preloadedSchemaData.length > 0) {
+        setTimeout(() => loadPreloadedSchema(preloadedSchemaData), 100);
+    }
+}
+
+function loadPreloadedSchema(data) {
+    for(let i=0; i<numShifts; i++) {
+        if (!data[i]) break;
+        let sData = data[i];
+        
+        // Let's place players from pool to correct positions
+        for(let pos in sData.lineup) {
+            if (fixedGkId !== null && parseInt(pos) === 1) continue; // always pre-filled
+            let sidx = sData.lineup[pos];
+            let pEl = document.querySelector('#player-pool .pool-player[data-sidx="'+sidx+'"]');
+            if (pEl) {
+                let wrapper = document.querySelector('#shift-'+i+' .pos-wrapper[data-pos="'+pos+'"]');
+                if (wrapper) wrapper.appendChild(pEl);
+            }
+        }
+        
+        // Place bench players
+        if (sData.bench && Array.isArray(sData.bench)) {
+            sData.bench.forEach(sidx => {
+                let pEl = document.querySelector('#player-pool .pool-player[data-sidx="'+sidx+'"]');
+                if (pEl) {
+                    let benchWrappers = document.querySelectorAll('#shift-'+i+' .pos-wrapper[data-pos="bench"]');
+                    for(let bw of benchWrappers) {
+                        if (bw.children.length === 1) { // only badge present
+                            bw.appendChild(pEl);
+                            break;
+                        }
+                    }
+                }
+            });
+        }
+        
+        if (i < numShifts - 1) {
+            lockBlock(i); // Simulate lock which copies state to next shift
+        } else {
+            updateShiftData(i);
+            calculateStats();
+        }
+    }
 }
 
 let draggedEl = null;
@@ -791,6 +855,7 @@ function resetBlock(shiftIdx) {
     if(prevBlock.querySelector('.btn-reset')) prevBlock.querySelector('.btn-reset').classList.remove('d-none');
     
     calculateStats();
+    document.getElementById('player-pool').innerHTML = '';
     prevBlock.scrollIntoView({behavior: "smooth", block: "center"});
 }
 
@@ -892,6 +957,8 @@ function unlockBlock(shiftIdx) {
         });
         updateShiftData(i);
     }
+    
+    document.getElementById('player-pool').innerHTML = '';
     calculateStats();
 }
 
@@ -978,11 +1045,9 @@ function calculateStats() {
         globalPlayerStats[i].priority = 0; globalPlayerStats[i].benchMin=0; globalPlayerStats[i].fieldMin=0;
         globalPlayerStats[i].positions = {};
     }
-    // Calculate from locked shifts
+    // Calculate from all shifts (live updates)
     shiftData.forEach((sData, i) => {
-        let block = document.getElementById('shift-' + i);
-        if(block.classList.contains('locked')) {
-            sData.bench.forEach(s => {
+        sData.bench.forEach(s => {
                 if (globalPlayerStats[s]) {
                     globalPlayerStats[s].benchMin += (sData.duration / 60);
                     globalPlayerStats[s].priority += 10;
@@ -996,7 +1061,6 @@ function calculateStats() {
                     globalPlayerStats[s].positions[pos] += (sData.duration / 60);
                 }
             });
-        }
     });
 
     // Compute matchAvailable for each player
@@ -1119,11 +1183,13 @@ function calculateStats() {
     }
     statsArr.sort((a, b) => sortPlayersFunc(a.sidx, b.sidx));
 
-    // For total match time context, find the total duration of locked blocks
-    let totalLockedMin = 0;
+    // For total match time context, find the total duration of blocks being worked on
+    let totalProcessedMin = 0;
     shiftData.forEach((sData, i) => {
-        if(document.getElementById('shift-' + i).classList.contains('locked')) {
-            totalLockedMin += (sData.duration / 60);
+        let block = document.getElementById('shift-' + i);
+        // Count if locked or if it's the currently active (unlocked) block
+        if(block.classList.contains('locked') || block.querySelectorAll('.pool-player').length > 0) {
+            totalProcessedMin += (sData.duration / 60);
         }
     });
 
@@ -1146,7 +1212,7 @@ function calculateStats() {
             if (st.matchPerc < 50) matchColor = "text-danger fw-bold";
             else if (st.matchPerc >= 65) matchColor = "text-success fw-bold";
             else matchColor = "text-warning fw-bold";
-        } else if (totalLockedMin > 0) {
+        } else if (totalProcessedMin > 0) {
             matchText = "-";
         }
         
@@ -1213,7 +1279,7 @@ function calculateStats() {
     let posCanvas = document.getElementById('position-stats-canvas');
     let posTitle = document.getElementById('position-stats-title');
     
-    if (totalLockedMin > 0) {
+    if (totalProcessedMin > 0) {
         posTitle.classList.remove('d-none');
         
         let posHtml = '';
@@ -1290,7 +1356,7 @@ function saveNewSchema() {
         sd.lineup = fixedLineup;
     });
 
-    fetch('/modules/schemas/api_save_schema.php', {
+    fetch('/api/api_save_schema.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1324,12 +1390,13 @@ function saveNewSchema() {
         }
     }).catch(err => {
         alert("Server error");
+        btn.innerHTML = '<i class="fa-solid fa-floppy-disk me-1"></i> Opslaan';
         btn.disabled = false;
     });
 }
 
 function submitForced() {
-    fetch('/modules/schemas/api_save_schema.php', {
+    fetch('/api/api_save_schema.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

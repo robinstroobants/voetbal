@@ -169,9 +169,11 @@
                           <i class="fa-solid fa-lock-open"></i> Ontgrendel Wedstrijd (Genereer Opnieuw)
                       </button>
                       <?php else: ?>
-                      <button class="btn btn-secondary ms-3 btn-sm mt-1 disabled" title="Definitief gemaakt door <?= htmlspecialchars($finalizer_name) ?>. Enkel deze coach kan de wedstrijd ontgrendelen.">
-                          <i class="fa-solid fa-lock"></i> Wedstrijd Vergrendeld
-                      </button>
+                      <span class="d-inline-block ms-3 mt-1" tabindex="0" data-bs-toggle="tooltip" title="Definitief gemaakt door <?= htmlspecialchars($finalizer_name) ?>. Enkel deze coach kan de wedstrijd ontgrendelen.">
+                          <button class="btn btn-secondary btn-sm disabled" style="pointer-events: none;">
+                              <i class="fa-solid fa-lock"></i> Wedstrijd Vergrendeld
+                          </button>
+                      </span>
                       <?php endif; ?>
                       <button onclick="window.print()" class="btn btn-outline-danger btn-sm ms-2 mt-1">
                           <i class="fa-solid fa-file-pdf me-1"></i> Opslaan als PDF

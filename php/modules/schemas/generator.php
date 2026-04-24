@@ -144,6 +144,13 @@
           $active_lineup = $saved_lineups[0]; // Laad simpelweg de 1e (beste) opgeslagen optie
           $preview_lineup = $active_lineup; // Behandel het in de UI als een preview
       }
+      
+      // LOG USAGE (AI Generation Load)
+      if ($generate_requested && !isset($_SESSION["logged_generation_$gameId"])) {
+          $pdo->prepare("INSERT INTO usage_logs (user_id, team_id, action_type, cost_weight) VALUES (?, ?, 'ai_generation', 10)")
+              ->execute([$_SESSION['user_id'] ?? 0, $_SESSION['team_id'] ?? 0]);
+          $_SESSION["logged_generation_$gameId"] = true; // Prevent F5 refresh double-billing for the same session loop
+      }
 
       if ($active_lineup) {
           $shuffle_type = "coach";

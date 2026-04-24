@@ -81,6 +81,7 @@ if ($has_final && empty($_GET['force_dashboard'])) {
 
 // Check if generating is requested immediately via url param
 if (isset($_GET['generate']) && $_GET['generate'] == 1) {
+    unset($_SESSION["logged_generation_$gameId"]); // Allow billing for explicit re-generation
     header("Location: /games/$gameId/lineup?generate=1");
     exit;
 }

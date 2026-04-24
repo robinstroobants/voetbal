@@ -22,11 +22,17 @@
         <div class="accordion-body bg-white rounded-bottom">
             
             <div class="row align-items-center p-3 mb-3" style="background:#f8f9fa; border-radius: 8px;">
-                <div class="col-md-6">
+                <div class="col-md-4">
                     <h6 class="mb-1 text-muted text-uppercase" style="font-size:0.75rem; letter-spacing:1px;">Facturatie</h6>
                     <div class="fs-5 fw-bold"><?= ucfirst($t['subscription_plan']) ?> <span class="ms-2 badge <?= $isExpired ? 'bg-danger' : 'bg-success' ?>"><?= date('d M Y - H:i', strtotime($t['subscription_valid_until'])) ?></span></div>
                 </div>
-                <div class="col-md-6 text-end flex-wrap gap-2 d-flex justify-content-end">
+                <div class="col-md-3">
+                    <h6 class="mb-1 text-muted text-uppercase" style="font-size:0.75rem; letter-spacing:1px;">Verbruik (Load)</h6>
+                    <div class="fs-5 fw-bold">
+                        <i class="fa-solid fa-bolt text-warning me-1"></i> <?= (int)$t['total_usage'] ?>
+                    </div>
+                </div>
+                <div class="col-md-5 text-end flex-wrap gap-2 d-flex justify-content-end">
                     <form method="POST" class="d-inline-flex gap-2">
                         <input type="hidden" name="action" value="extend_sub">
                         <input type="hidden" name="team_id" value="<?= $t['id'] ?>">

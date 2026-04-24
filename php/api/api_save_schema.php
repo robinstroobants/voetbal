@@ -241,6 +241,11 @@ if ($overwrite && !empty($data['original_schema_id'])) {
     $stmtIns = $pdo->prepare("INSERT INTO lineups (game_format, player_count, legacy_id, parent_id, schema_data, is_original, team_id) VALUES (?, ?, 0, ?, ?, 0, ?)");
     $stmtIns->execute([$format, $aantal, $parentId, json_encode($new_schema), $_SESSION['team_id']]);
     $new_id = $pdo->lastInsertId();
+    
+    // Log manual builder usage (only once per originalId to avoid billing 1 credit per small edit, or just bill 1 credit per save)
+    // We will log it every time they save a NEW manual version.
+    $pdo->prepare("INSERT INTO usage_logs (user_id, team_id, action_type, cost_weight) VALUES (?, ?, 'manual_builder', 1)")
+        ->execute([$_SESSION['user_id'] ?? 0, $_SESSION['team_id'] ?? 0]);
 }
 
 // Opschonen database

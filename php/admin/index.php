@@ -215,15 +215,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $searchTerm = $_GET['ajax_q'] ?? '';
 $isAjax = isset($_GET['ajax_q']);
 
-$queryStr = "SELECT * FROM teams";
+$queryStr = "SELECT t.*, 
+            (SELECT SUM(cost_weight) FROM usage_logs WHERE team_id = t.id) as total_usage
+             FROM teams t";
 $params = [];
 
 if ($searchTerm !== '') {
-    $queryStr .= " WHERE name LIKE ? OR id IN (SELECT ut.team_id FROM user_teams ut JOIN users u ON ut.user_id = u.id WHERE u.first_name LIKE ? OR u.last_name LIKE ?)";
+    $queryStr .= " WHERE t.name LIKE ? OR t.id IN (SELECT ut.team_id FROM user_teams ut JOIN users u ON ut.user_id = u.id WHERE u.first_name LIKE ? OR u.last_name LIKE ?)";
     $params = ["%$searchTerm%", "%$searchTerm%", "%$searchTerm%"];
 }
 
-$queryStr .= " ORDER BY id DESC LIMIT 10";
+$queryStr .= " ORDER BY t.id DESC LIMIT 10";
 
 $stmtTeams = $pdo->prepare($queryStr);
 $stmtTeams->execute($params);

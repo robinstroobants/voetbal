@@ -255,6 +255,36 @@ if ($numFieldPlayers > 0 && $totalFieldBlocks > 0 && $fixedGkIdPHP !== null) {
     
     if ($players_extra > 0) {
         $sortedPlayers = [];
+        
+        // Fetch last match playtime for these players
+        $lastMatchPlaytimes = [];
+        $placeholders = implode(',', array_fill(0, count($squad), '?'));
+        // Get the latest game before this one for each player
+        // Since we only need the last game, we can query the most recent game id per player,
+        // but a simple ORDER BY with PHP filtering is usually fast enough for a small squad.
+        $queryLastGame = "
+            SELECT p.player_id, p.seconds_played, p.seconds_gk
+            FROM game_playtime_logs p
+            JOIN games g ON p.game_id = g.id
+            WHERE p.player_id IN ($placeholders) 
+              AND g.team_id = ? 
+              AND g.game_date < ?
+            ORDER BY g.game_date DESC, g.id DESC
+        ";
+        $paramsLastGame = array_merge($squad, [$teamId, $gameDate]);
+        $stmtLast = $pdo->prepare($queryLastGame);
+        $stmtLast->execute($paramsLastGame);
+        
+        while ($row = $stmtLast->fetch(PDO::FETCH_ASSOC)) {
+            $pid = $row['player_id'];
+            if (!isset($lastMatchPlaytimes[$pid])) {
+                // we assume if they played GK, they played. The system tracks field+gk in seconds_played for pos 1, but let's just take seconds_played.
+                // Note: game_playtime_logs `seconds_played` includes GK time if they were on the pitch.
+                $lastMatchPlaytimes[$pid] = round($row['seconds_played'] / 60, 1);
+            }
+        }
+        
+        $minutesGroups = [];
         foreach ($squad as $idx => $pid) {
             if ($fixedGkIdPHP !== null && (int)$pid === $fixedGkIdPHP) continue;
             
@@ -270,6 +300,27 @@ if ($numFieldPlayers > 0 && $totalFieldBlocks > 0 && $fixedGkIdPHP !== null) {
                 'periodPct' => $periodPct,
                 'histPct' => $histPct
             ];
+            
+            // For the last match display
+            if ($fixedGkIdPHP !== null && (int)$pid === $fixedGkIdPHP) continue;
+            $mins = $lastMatchPlaytimes[$pid] ?? 0;
+            if (!isset($minutesGroups[(string)$mins])) {
+                $minutesGroups[(string)$mins] = [];
+            }
+            $pName = htmlspecialchars($player_info[$pid]['display_name'] ?? $player_info[$pid]['first_name'] ?? $pid);
+            $minutesGroups[(string)$mins][] = "<strong>$pName</strong>";
+        }
+        
+        // Sort the minutes groups descending (highest minutes first, or you can do lowest first)
+        krsort($minutesGroups);
+        $lastMatchHtml = '';
+        if (!empty($minutesGroups)) {
+            $lastMatchHtml = '<div class="p-2 bg-white rounded border mb-2">';
+            $lastMatchHtml .= '<p class="mb-1 fw-bold text-dark" style="font-size: 0.8rem;"><i class="fa-solid fa-clock-rotate-left text-secondary me-1"></i>Speeltijd vorige wedstrijd</p>';
+            foreach ($minutesGroups as $mins => $names) {
+                $lastMatchHtml .= '<p class="mb-0 text-muted" style="font-size: 0.75rem;">' . $mins . 'm: ' . implode(', ', $names) . '</p>';
+            }
+            $lastMatchHtml .= '</div>';
         }
         
         usort($sortedPlayers, function($a, $b) use ($hasActivePeriod) {
@@ -296,11 +347,12 @@ if ($numFieldPlayers > 0 && $totalFieldBlocks > 0 && $fixedGkIdPHP !== null) {
                 <i class="fa-solid fa-lightbulb text-warning me-2"></i> Pre-Game Analyse
             </div>
             <div class="card-body bg-light text-dark p-3">
-                <p class="mb-2" style="font-size: 0.8rem; line-height: 1.3;">Met ' . $numFieldPlayers . ' veldspelers voor ' . $numFieldPositions . ' posities zijn er in totaal ' . $totalFieldBlocks . ' in te vullen kwartjes. Dit resulteert in:</p>
+                <p class="mb-2" style="font-size: 0.8rem; line-height: 1.3;">Met ' . $numFieldPlayers . ' veldspelers voor ' . $numFieldPositions . ' posities resulteert dit in:</p>
                 <ul class="mb-3" style="font-size: 0.8rem; line-height: 1.3; padding-left: 20px;">
                     <li><strong>' . $players_extra . ' spelers</strong> spelen <strong>' . $extra_mins . 'm</strong> (' . ($base_blocks + 1) . ' blokjes)</li>
                     <li><strong>' . $players_base . ' spelers</strong> spelen <strong>' . $base_mins . 'm</strong> (' . $base_blocks . ' blokjes)</li>
                 </ul>
+                ' . $lastMatchHtml . '
                 <div class="p-2 bg-white rounded border mb-2">
                     <p class="mb-1 fw-bold text-success" style="font-size: 0.8rem;"><i class="fa-solid fa-arrow-up me-1"></i>Meeste minuten (' . $extra_mins . 'm)</p>
                     <p class="mb-0 text-muted" style="font-size: 0.75rem;">Aanbevolen: ' . implode(', ', $extraNames) . '</p>

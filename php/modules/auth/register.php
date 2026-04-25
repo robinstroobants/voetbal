@@ -120,11 +120,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error) {
                     require_once dirname(__DIR__, 2) . '/core/Mailer.php';
                     Mailer::send($email, $subject, $message);
                     
-                    if ($account_status === 'pending') {
-                        $admin_subject = "Nieuwe wachtlijst aanmelding: $first_name $last_name";
-                        $admin_msg = "Er is een nieuwe registratie op Lineup.\nNaam: $first_name $last_name\nEmail: $email\nTeam: " . ($team_name ?: 'Onbekend') . "\n\nDeze gebruiker staat op de wachtlijst en wacht op goedkeuring in het admin dashboard (sectie Gebruikers).";
-                        Mailer::send('robin@webbit.be', $admin_subject, $admin_msg);
-                    }
+
 
                     // Redirect naar login pagina met melding in plaats van direct in te loggen
                     header("Location: /login?msg=registered");

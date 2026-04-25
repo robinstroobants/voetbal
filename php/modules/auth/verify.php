@@ -18,6 +18,22 @@ if (isset($_GET['token'])) {
         } else {
             $update = $pdo->prepare("UPDATE users SET is_verified = 1, verification_token = NULL WHERE id = ?");
             if ($update->execute([$user['id']])) {
+                // Fetch user info for the email notification
+                $stmtInfo = $pdo->prepare("SELECT u.first_name, u.last_name, u.email, u.account_status, t.name as team_name 
+                                           FROM users u 
+                                           LEFT JOIN user_teams ut ON u.id = ut.user_id 
+                                           LEFT JOIN teams t ON ut.team_id = t.id 
+                                           WHERE u.id = ?");
+                $stmtInfo->execute([$user['id']]);
+                $uInfo = $stmtInfo->fetch();
+                
+                if ($uInfo && $uInfo['account_status'] === 'pending') {
+                    require_once dirname(__DIR__, 2) . '/core/Mailer.php';
+                    $admin_subject = "Nieuwe wachtlijst aanmelding BEVESTIGD: " . $uInfo['first_name'] . " " . $uInfo['last_name'];
+                    $admin_msg = "Er is een nieuwe registratie op Lineup en het e-mailadres is zojuist bevestigd.\nNaam: " . $uInfo['first_name'] . " " . $uInfo['last_name'] . "\nEmail: " . $uInfo['email'] . "\nTeam: " . ($uInfo['team_name'] ?: 'Onbekend') . "\n\nDeze gebruiker staat op de wachtlijst en wacht op goedkeuring in het admin dashboard (sectie Gebruikers).";
+                    Mailer::send('robin@webbit.be', $admin_subject, $admin_msg);
+                }
+
                 // Redirect user to login with success message so they don't stay on verify page
                 header("Location: /login?msg=verified");
                 exit;

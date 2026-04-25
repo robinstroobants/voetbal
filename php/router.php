@@ -47,6 +47,8 @@ $routes = [
     '/forgot_password' => ['target' => 'modules/auth/forgot_password.php', 'auth' => false],
     '/reset_password' => ['target' => 'modules/auth/reset_password.php', 'auth' => false],
     '/verify.php' => ['target' => 'modules/auth/verify.php', 'auth' => false],
+    '/google_auth' => ['target' => 'modules/auth/google_auth.php', 'auth' => false],
+    '/google_callback' => ['target' => 'modules/auth/google_callback.php', 'auth' => false],
     '/games' => ['target' => 'modules/games/manage_games.php', 'auth' => true, 'permission' => Permissions::PERM_MANAGE_GAMES],
     '/players' => ['target' => 'modules/players/edit_players.php', 'auth' => true, 'permission' => Permissions::PERM_MANAGE_PLAYERS],
     '/scores' => ['target' => 'modules/players/edit_scores.php', 'auth' => true, 'permission' => Permissions::PERM_EDIT_SCORES],

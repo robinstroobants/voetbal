@@ -479,7 +479,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error) {
             <div class="divider"><span>of</span></div>
             
             <div class="login-social">
-                <button type="button" class="btn-social" onclick="alert('Google Register in opbouw!');">
+                <button type="button" class="btn-social" onclick="window.location.href='/google_auth';">
                     <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                         <g transform="matrix(1, 0, 0, 1, 27.009001, -39.238998)">
                             <path fill="#4285F4" d="M -3.264 51.509 C -3.264 50.719 -3.334 49.969 -3.454 49.239 L -14.754 49.239 L -14.754 53.749 L -8.284 53.749 C -8.574 55.229 -9.424 56.479 -10.684 57.329 L -10.684 60.329 L -6.824 60.329 C -4.564 58.239 -3.264 55.159 -3.264 51.509 Z"/>
@@ -490,12 +490,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error) {
                     </svg>
                     Google
                 </button>
-                <button type="button" class="btn-social" onclick="alert('Apple Register in opbouw!');">
-                    <svg viewBox="0 0 24 24" fill="#000" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.19 2.31-.88 3.5-.88 1.5 0 2.8.62 3.5 1.5-3.03 1.92-2.52 5.5.5 6.67-1.12 2.6-2.6 5.5-2.58 4.88zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.36 2.38-1.92 4.39-3.74 4.25z"/>
-                    </svg>
-                    Apple
-                </button>
+
             </div>
         </div>
         

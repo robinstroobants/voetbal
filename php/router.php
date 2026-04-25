@@ -167,6 +167,17 @@ if (isset($routes[$path])) {
         require_once __DIR__ . '/public_share.php';
         $route_matched = true;
     }
+    // Expliciete API route fallbacks voor als browser JS files cacht of router ltrim() de path niet goed detecteert
+    elseif ($path === '/api/api_save_lineup.php' || $path === '/api_save_lineup.php') {
+        enforce_auth();
+        require_once __DIR__ . '/api/api_save_lineup.php';
+        $route_matched = true;
+    }
+    elseif ($path === '/api/api_save_schema.php' || $path === '/api_save_schema.php') {
+        enforce_auth();
+        require_once __DIR__ . '/api/api_save_schema.php';
+        $route_matched = true;
+    }
 }
 
 // 4. Fallback voor native requests (.php, scripts, API)

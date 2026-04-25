@@ -37,6 +37,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             $error = "❌ Wachtwoord moet minimaal 6 tekens lang zijn.";
         }
+    } elseif ($action === 'delete_user') {
+        $uid = (int)$_POST['user_id'];
+        if ($uid) {
+            if ($uid === $_SESSION['user_id']) {
+                $error = "❌ Fout: Je kan jezelf niet verwijderen.";
+            } else {
+                $pdo->prepare("DELETE FROM user_teams WHERE user_id = ?")->execute([$uid]);
+                $pdo->prepare("DELETE FROM users WHERE id = ?")->execute([$uid]);
+                $success = "✅ Gebruiker definitief verwijderd uit het systeem.";
+            }
+        }
     }
 }
 
@@ -203,6 +214,16 @@ require_once __DIR__ . '/../header.php';
                                                     <button type="submit" class="dropdown-item text-success"><i class="fa-solid fa-user-secret me-2"></i> Impersonate</button>
                                                 </form>
                                             </li>
+                                            <?php if ($u['id'] !== $_SESSION['user_id']): ?>
+                                            <li><hr class="dropdown-divider"></li>
+                                            <li>
+                                                <form method="POST" action="/admin/users" class="m-0 p-0" onsubmit="return confirm('ALARM: Zeker dat je deze gebruiker DEFINITIEF wilt wissen uit het systeem? Dit kan niet ongedaan worden gemaakt.');">
+                                                    <input type="hidden" name="action" value="delete_user">
+                                                    <input type="hidden" name="user_id" value="<?= $u['id'] ?>">
+                                                    <button type="submit" class="dropdown-item text-danger"><i class="fa-solid fa-trash me-2"></i> Verwijderen</button>
+                                                </form>
+                                            </li>
+                                            <?php endif; ?>
                                         </ul>
                                     </div>
                                 </td>

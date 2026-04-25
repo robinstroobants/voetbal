@@ -830,7 +830,7 @@
         fd.append('player_order', playerOrder);
         fd.append('score', score);
         
-        fetch('/api_save_lineup.php', { method: 'POST', body: fd })
+        fetch('/api/api_save_lineup.php', { method: 'POST', body: fd })
         .then(r => r.json())
         .then(data => {
             if(data.status === 'success') {

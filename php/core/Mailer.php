@@ -20,19 +20,19 @@ class Mailer {
         try {
             // Server settings
             $mail->isSMTP();
-            $mail->Host       = $_SERVER['SMTP_HOST'] ?? (getenv('SMTP_HOST') ?: 'smtp.gmail.com');
+            $mail->Host       = 'smtp.gmail.com';
             $mail->SMTPAuth   = true;
             
             // SMTP Auth
-            $mail->Username   = $_SERVER['SMTP_USER'] ?? getenv('SMTP_USER');
+            $mail->Username   = 'robin@webbit.be';
             $mail->Password   = $_SERVER['SMTP_PASS'] ?? getenv('SMTP_PASS'); 
             
             $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-            $mail->Port       = $_SERVER['SMTP_PORT'] ?? (getenv('SMTP_PORT') ?: 587);
+            $mail->Port       = 587;
 
             // Recipients
-            $fromEmail = $_SERVER['SMTP_FROM_EMAIL'] ?? (getenv('SMTP_FROM_EMAIL') ?: 'no-reply@notifications.webbit.be');
-            $fromName  = $_SERVER['SMTP_FROM_NAME'] ?? (getenv('SMTP_FROM_NAME') ?: 'LineUp');
+            $fromEmail = 'no-reply@notifications.webbit.be';
+            $fromName  = 'LineUp';
             
             $mail->setFrom($fromEmail, $fromName);
             $mail->addAddress($to);

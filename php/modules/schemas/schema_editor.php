@@ -439,16 +439,6 @@ require_once dirname(__DIR__, 2) . '/header.php';
                 <span class="text-muted">Wedstrijd format: <?= $search_format ?></span>
                 </div>
             </div>
-            <div class="mt-2 d-flex align-items-center gap-4">
-                <?php if($hasActivePeriod): ?>
-                <div class="form-check form-switch mb-0" title="Schakel in om de sortering ook te baseren op de actuele periode">
-                    <input class="form-check-input" type="checkbox" id="togglePeriodStats" checked onchange="calculateStats()" style="cursor: pointer;">
-                    <label class="form-check-label small text-primary fw-bold" for="togglePeriodStats" style="cursor: pointer; padding-top:2px;">
-                        Periode-statistieken gebruiken
-                    </label>
-                </div>
-                <?php endif; ?>
-            </div>
         </div>
         <div>
             <a href="/games/<?= $gameId ?>/lineup" class="btn btn-outline-secondary me-2"><i class="fa-solid fa-arrow-left"></i> Terug</a>

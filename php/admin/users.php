@@ -61,8 +61,8 @@ $queryStr = "SELECT u.id, u.first_name, u.last_name, u.email, u.role, u.is_beta_
 
 $params = [];
 if ($searchTerm !== '') {
-    $queryStr .= " WHERE u.first_name LIKE ? OR u.last_name LIKE ? OR u.email LIKE ? OR t.name LIKE ?";
-    $params = ["%$searchTerm%", "%$searchTerm%", "%$searchTerm%", "%$searchTerm%"];
+    $queryStr .= " WHERE u.first_name LIKE ? OR u.last_name LIKE ? OR u.email LIKE ? OR t.name LIKE ? OR u.account_status LIKE ?";
+    $params = ["%$searchTerm%", "%$searchTerm%", "%$searchTerm%", "%$searchTerm%", "%$searchTerm%"];
 }
 
 $queryStr .= " GROUP BY u.id ORDER BY u.last_activity DESC, u.created_at DESC LIMIT 100";

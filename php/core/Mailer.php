@@ -14,7 +14,7 @@ class Mailer {
      * @param string $body Inhoud van de mail (HTML of Plain text)
      * @return bool True bij succes, False bij mislukken
      */
-    public static function send($to, $subject, $body) {
+    public static function send($to, $subject, $body, $isHTML = false) {
         $mail = new PHPMailer(true);
 
         try {
@@ -23,24 +23,33 @@ class Mailer {
             $mail->Host       = getenv('SMTP_HOST') ?: 'smtp.gmail.com';
             $mail->SMTPAuth   = true;
             
-            // Gmail App Password
-            $mail->Username   = getenv('SMTP_USER') ?: 'robin@webbit.be';
-            $mail->Password   = getenv('SMTP_PASS') ?: 'zswkgsukapbwntmf'; 
+            // SMTP Auth
+            $mail->Username   = getenv('SMTP_USER');
+            $mail->Password   = getenv('SMTP_PASS'); 
             
             $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
             $mail->Port       = getenv('SMTP_PORT') ?: 587;
 
             // Recipients
-            $fromEmail = getenv('SMTP_FROM_EMAIL') ?: 'lineup@webbit.be';
-            $fromName  = getenv('SMTP_FROM_NAME') ?: 'LineUp Automail';
+            $fromEmail = getenv('SMTP_FROM_EMAIL') ?: 'no-reply@notifications.webbit.be';
+            $fromName  = getenv('SMTP_FROM_NAME') ?: 'LineUp';
             
             $mail->setFrom($fromEmail, $fromName);
             $mail->addAddress($to);
 
-            // Content
-            $mail->isHTML(false); // Standaard sturen we plain-text mails in de huidige setup
+            // Anti-Spam optimalisatie: Stuur als multipart (HTML + AltBody)
+            $mail->isHTML(true);
             $mail->Subject = $subject;
-            $mail->Body    = $body;
+            
+            if ($isHTML) {
+                $mail->Body    = $body;
+                // Verwijder tags en zet breaks om naar newlines voor de AltBody
+                $mail->AltBody = strip_tags(str_replace(['<br>', '<br/>', '<br />'], "\n", $body));
+            } else {
+                // Als de originele string plain-text was, zet het mooi om naar HTML en gebruik de originele als AltBody
+                $mail->Body    = nl2br(htmlspecialchars($body));
+                $mail->AltBody = $body;
+            }
 
             $mail->send();
             return true;

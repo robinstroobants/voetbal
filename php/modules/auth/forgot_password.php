@@ -8,14 +8,14 @@ $success = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $email = filter_var($_POST['email'] ?? '', FILTER_SANITIZE_EMAIL);
     if ($email) {
-        $stmt = $pdo->prepare("SELECT id, first_name FROM users WHERE email = ? LIMIT 1");
+        $stmt = $pdo->prepare("SELECT id, first_name, account_status FROM users WHERE email = ? LIMIT 1");
         $stmt->execute([$email]);
         $user = $stmt->fetch();
         
         // Altijd de succesboodschap tonen om e-mail enumeratie te voorkomen
         $success = "Als dit e-mailadres bij ons geregistreerd staat, ontvang je spoedig verdere instructies in je mailbox.";
         
-        if ($user) {
+        if ($user && (!isset($user['account_status']) || $user['account_status'] !== 'pending')) {
             $token = bin2hex(random_bytes(32));
             $expires = date('Y-m-d H:i:s', strtotime('+1 hour'));
             
@@ -23,7 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($update->execute([$token, $expires, $user['id']])) {
                 $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http");
                 $host = $_SERVER['HTTP_HOST'];
-                $reset_link = "$protocol://$host/reset_password.php?token=$token";
+                $reset_link = "$protocol://$host/reset_password?token=$token";
                 
                 $subject = "Wachtwoord herstellen - Lineup";
                 $message = "Beste " . $user['first_name'] . ",\n\nEr is een verzoek ingediend om je wachtwoord te herstellen op Lineup.\nKlik op de onderstaande link om een nieuw wachtwoord in te stellen. Deze link is 1 uur geldig:\n$reset_link\n\nAls jij dit niet hebt aangevraagd, hoef je niets te doen en je account blijft veilig.\n\nMet vriendelijke groeten,\nHet Lineup Team";

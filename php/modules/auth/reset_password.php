@@ -30,7 +30,7 @@ if (!$user && empty($_POST)) {
         
         $update = $pdo->prepare("UPDATE users SET password_hash = ?, reset_token = NULL, reset_expires_at = NULL WHERE id = ?");
         if ($update->execute([$hash, $user['id']])) {
-            header("Location: login.php?msg=password_reset");
+            header("Location: /login?msg=password_reset");
             exit;
         } else {
             $error = "Er liep iets mis bij het updaten van de database. Probeer het later opnieuw.";

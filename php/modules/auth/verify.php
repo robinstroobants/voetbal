@@ -19,7 +19,7 @@ if (isset($_GET['token'])) {
             $update = $pdo->prepare("UPDATE users SET is_verified = 1, verification_token = NULL WHERE id = ?");
             if ($update->execute([$user['id']])) {
                 // Redirect user to login with success message so they don't stay on verify page
-                header("Location: login.php?msg=verified");
+                header("Location: /login?msg=verified");
                 exit;
             } else {
                 $error = "Er is een database fout opgetreden. Probeer het later opnieuw.";
@@ -29,7 +29,7 @@ if (isset($_GET['token'])) {
         $error = "Ongeldige of verlopen activatielink.";
     }
 } else {
-    header("Location: login.php");
+    header("Location: /login");
     exit;
 }
 ?>

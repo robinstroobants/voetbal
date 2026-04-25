@@ -127,7 +127,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error) {
                     }
 
                     // Redirect naar login pagina met melding in plaats van direct in te loggen
-                    header("Location: login.php?msg=registered");
+                    header("Location: /login?msg=registered");
                     exit;
 
                 } catch (Exception $e) {

@@ -410,6 +410,22 @@ if ($numFieldPlayers > 0 && $totalFieldBlocks > 0 && $fixedGkIdPHP !== null) {
                 </div>
             </div>
         </div>';
+    } else {
+        $pregame_analysis_html = '
+        <div class="card mb-3 border-success shadow-sm" style="border-width: 2px;">
+            <div class="card-header bg-success text-white fw-bold d-flex align-items-center py-2" style="font-size: 0.9rem; cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#pregameCollapse" aria-expanded="true">
+                <i class="fa-solid fa-check-circle text-white me-2"></i> Pre-Game Analyse
+                <i class="fa-solid fa-chevron-down ms-auto"></i>
+            </div>
+            <div class="collapse show" id="pregameCollapse">
+                <div class="card-body bg-light text-dark p-3">
+                    <p class="mb-2" style="font-size: 0.8rem; line-height: 1.3;">Met ' . $numFieldPlayers . ' veldspelers voor ' . $numFieldPositions . ' posities resulteert dit in:</p>
+                    <div class="alert alert-success p-2 mb-0" style="font-size: 0.8rem;">
+                        <strong>Perfecte wiskunde!</strong> Alle ' . $numFieldPlayers . ' veldspelers spelen exact <strong>' . $base_mins . 'm</strong> (' . $base_blocks . ' blokjes). Er hoeft geen extra onderscheid gemaakt te worden.
+                    </div>
+                </div>
+            </div>
+        </div>';
     }
 }
 

@@ -117,7 +117,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error) {
                     $subject = "Activeer je Lineup account";
                     $message = "Beste $first_name,\n\nWelkom bij Lineup!\nKlik op de onderstaande link om je account te activeren:\n$verify_link\n\nMet vriendelijke groeten,\nHet Lineup Team";
                     
-                    require_once __DIR__ . '/Mailer.php';
+                    require_once dirname(__DIR__, 2) . '/core/Mailer.php';
                     Mailer::send($email, $subject, $message);
                     
                     if ($account_status === 'pending') {

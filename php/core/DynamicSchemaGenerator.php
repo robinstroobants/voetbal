@@ -221,7 +221,31 @@ class DynamicSchemaGenerator {
 
             // Assign positions greedily based on player scores to maximize rating
             $available_positions = $fieldPositions;
+            
+            // PASS 1: Houd spelers op hun huidige positie indien mogelijk
+            $unassigned_indexes = [];
+            $prev_lineup = ($shift_idx > 0) ? $schema_parts[$shift_idx - 1]['lineup'] : [];
+            
             foreach ($selected_indexes as $idx) {
+                $kept_pos = false;
+                if (!empty($prev_lineup)) {
+                    $old_pos = array_search($idx, $prev_lineup);
+                    if ($old_pos !== false && in_array($old_pos, $available_positions)) {
+                        $shift_data['lineup'][$old_pos] = $idx;
+                        $key = array_search($old_pos, $available_positions);
+                        if ($key !== false) {
+                            unset($available_positions[$key]);
+                        }
+                        $kept_pos = true;
+                    }
+                }
+                if (!$kept_pos) {
+                    $unassigned_indexes[] = $idx;
+                }
+            }
+            
+            // PASS 2: Wijs overige spelers toe o.b.v. score
+            foreach ($unassigned_indexes as $idx) {
                 $pid = $field_players[$idx]['pid'];
                 $best_pos = -1;
                 $best_score = -1;
@@ -247,6 +271,8 @@ class DynamicSchemaGenerator {
                     unset($available_positions[$best_pos_key]);
                 }
             }
+            
+            ksort($shift_data['lineup']);
 
             // Add remaining to bench and update minutes
             foreach ($field_players as $idx => &$fp) {

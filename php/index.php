@@ -261,7 +261,10 @@ if ($onboarding_complete) {
 
     // 6. Tip van de week pool
     $coaching_tips = [
-
+        "Werk je met verschillende reeksen (zoals Najaar en Voorjaar)? Stel dan Seizoensperiodes in via de instellingen om je speelminuten eerlijker te spreiden over die specifieke weken!",
+        "De 'Maak Definitief' knop bewaart niet alleen je opstelling, maar logt ook op de seconde af wie er hoelang op het veld, op de bank of in doel stond.",
+        "Komt een speler toch niet opdagen? Zet hem op 'Afwezig' en het AI-algoritme zal de speelminuten van de rest automatisch herschikken om alles eerlijk te houden.",
+        "Wist je dat je via Instellingen ook de standaard wedstrijdduur en het aantal wisselblokjes van je team kan configureren?"
     ];
     $tip_of_the_day = !empty($coaching_tips) ? $coaching_tips[array_rand($coaching_tips)] : null;
 }

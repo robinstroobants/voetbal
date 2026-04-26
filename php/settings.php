@@ -257,7 +257,7 @@ require_once __DIR__ . '/header.php';
 
     <!-- UITNODIGINGEN SECTION -->
     <h3 class="mt-5"><i class="fa-solid fa-user-plus me-2 text-primary"></i> Team Coaches</h3>
-    <p class="text-muted">Nodig tot 3 extra stafleden uit om dit team (Team) samen te beheren.</p>
+    <p class="text-muted">Nodig tot 2 extra stafleden uit om je team samen te beheren (totaal maximaal 3 coaches).</p>
     
     <div class="card shadow-sm border-0 mt-3">
         <ul class="list-group list-group-flush">

@@ -106,6 +106,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error) {
                         // 3. Koppel de gebruiker aan het zojuist gemaakte team als primary en in user_teams
                         $pdo->prepare("UPDATE users SET team_id = ? WHERE id = ?")->execute([$team_id, $user_id]);
                         $pdo->prepare("INSERT IGNORE INTO user_teams (user_id, team_id) VALUES (?, ?)")->execute([$user_id, $team_id]);
+                        
+                        // 4. Voeg de gebruiker direct toe als eerste Coach
+                        $coach_name = trim($first_name . ' ' . $last_name);
+                        if (!empty($coach_name)) {
+                            $pdo->prepare("INSERT INTO coaches (team_id, name) VALUES (?, ?)")->execute([$team_id, $coach_name]);
+                        }
                     }
 
                     $pdo->commit();

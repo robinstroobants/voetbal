@@ -35,7 +35,7 @@ if (strpos($default_format, '2v2') === 0 || strpos($default_format, '3v3') === 0
 }
 $remaining_players = max(0, $max_players - $players_count);
 
-$onboarding_complete = ($players_count >= $required_players && $coaches_count >= 1);
+$onboarding_complete = ($players_count >= $required_players);
 
 // Haal de Dashboard Data op indien onboarding compleet is
 $next_games = [];
@@ -343,23 +343,17 @@ require_once __DIR__ . '/header.php';
                         </div>
                     </div>
                     
-                    <!-- Stap 2: Coaches -->
+                    <!-- Stap 2: Team Instellingen -->
                     <div class="col-md-6 border-start border-light ps-md-4">
                         <div class="d-flex align-items-start">
-                            <div class="bg-<?php echo ($coaches_count >= 1) ? 'success' : 'light'; ?> text-<?php echo ($coaches_count >= 1) ? 'white' : 'secondary'; ?> rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 45px; height: 45px; flex-shrink: 0;">
-                                <?php if($coaches_count >= 1): ?>
-                                    <i class="fa-solid fa-check fs-5"></i>
-                                <?php else: ?>
-                                    <span class="fs-5 fw-bold">2</span>
-                                <?php endif; ?>
+                            <div class="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 45px; height: 45px; flex-shrink: 0;">
+                                <i class="fa-solid fa-gear fs-5"></i>
                             </div>
                             <div>
-                                <h5 class="fw-bold">Coach(es) Registreren</h5>
-                                <p class="text-muted small mb-1">We hebben de namen van de trainers nodig zodat dit kloppend is op wedstrijdbladen.</p>
+                                <h5 class="fw-bold">Team Instellingen</h5>
+                                <p class="text-muted small mb-2">Configureer extra opties zoals de vaste wedstrijdduur (nu <strong><?= htmlspecialchars($default_format) ?></strong>), periodes en samenkomsttijden voor je wedstrijden.</p>
                                 
-                                <div class="mb-3 fw-semibold text-secondary">Huidig aantal: <?= $coaches_count ?></div>
-                                
-                                <button class="btn btn-sm <?= ($coaches_count >= 1)? 'btn-outline-success' : 'btn-success text-white' ?>" data-bs-toggle="modal" data-bs-target="#addCoachModal"><i class="fa-solid fa-chalkboard-user me-1"></i> Coach Toevoegen</button>
+                                <a href="/settings" class="btn btn-sm btn-outline-primary"><i class="fa-solid fa-arrow-right me-1"></i> Bekijk Instellingen</a>
                             </div>
                         </div>
                     </div>

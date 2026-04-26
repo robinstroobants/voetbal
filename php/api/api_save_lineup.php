@@ -25,13 +25,40 @@ try {
     }
 
     if ($action === 'save_preselection') {
-        $schema_id = (int)($_POST['schema_id'] ?? 0);
+        $schema_id = $_POST['schema_id'] ?? 0;
         $player_order = trim($_POST['player_order'] ?? '');
         $score = (float)($_POST['score'] ?? 0);
 
-        if ($schema_id <= 0 || empty($player_order)) {
-            echo json_encode(["status" => "error", "message" => "Missing schema or order"]);
-            exit;
+        if ($schema_id === 'DYNAMIC' || $schema_id == 0) {
+            if (!empty($_POST['dynamic_json'])) {
+                // Determine format and player_count from the game record
+                $stmtGame = $pdo->prepare("SELECT format FROM games WHERE id = ?");
+                $stmtGame->execute([$game_id]);
+                $gameFormat = $stmtGame->fetchColumn() ?: 'unknown';
+                $playerCount = count(explode(',', $player_order));
+
+                $schemaData = json_decode($_POST['dynamic_json'], true);
+                if (!$schemaData) {
+                    echo json_encode(["status" => "error", "message" => "Ongeldige dynamische schema data"]);
+                    exit;
+                }
+                
+                $schemaJsonStr = json_encode($schemaData);
+
+                // Insert into lineups
+                $stmtInsert = $pdo->prepare("INSERT INTO lineups (team_id, game_format, schema_data, is_original, player_count, legacy_id) VALUES (?, ?, ?, 1, ?, 0)");
+                $stmtInsert->execute([$_SESSION['team_id'] ?? 1, $gameFormat, $schemaJsonStr, $playerCount]);
+                $schema_id = $pdo->lastInsertId();
+            } else {
+                echo json_encode(["status" => "error", "message" => "Missing schema or order"]);
+                exit;
+            }
+        } else {
+            $schema_id = (int)$schema_id;
+            if ($schema_id <= 0 || empty($player_order)) {
+                echo json_encode(["status" => "error", "message" => "Missing schema or order"]);
+                exit;
+            }
         }
 
         // Controleer of deze zelfde voorselectie al bestaat voor de wedstrijd

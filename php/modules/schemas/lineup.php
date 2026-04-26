@@ -203,9 +203,10 @@
                   </li>
               <?php elseif (!isset($locked_lineup) && isset($_GET['dynamic'])): 
                   $namen_tonen_str = implode(", ", array_map('getPlayerName', array_keys($lineup->playerindex)));
+                  $dynamic_json_str = isset($dynamic_schema_parts) ? json_encode($dynamic_schema_parts) : '""';
               ?>
                   <li class="nav-item d-print-none" role="presentation">
-                      <button class="btn btn-sm btn-outline-success ms-3 mt-1" onclick='savePreselection(this, <?= json_encode((int)$gameId) ?>, <?= json_encode($selected['ws_id'] ?? 0) ?>, <?= json_encode(implode(',', array_keys($lineup->playerindex))) ?>, <?= json_encode((float)($t_opt['rating'] ?? 0)) ?>, <?= json_encode($namen_tonen_str) ?>)'>
+                      <button class="btn btn-sm btn-outline-success ms-3 mt-1" onclick='savePreselection(this, <?= json_encode((int)$gameId) ?>, <?= json_encode($selected['ws_id'] ?? 0) ?>, <?= json_encode(implode(',', array_keys($lineup->playerindex))) ?>, <?= json_encode((float)($t_opt['rating'] ?? 0)) ?>, <?= json_encode($namen_tonen_str) ?>, <?= $dynamic_json_str ?>)'>
                           <i class="fa-solid fa-floppy-disk"></i> Bewaar Dynamisch Schema in Voorselecties
                       </button>
                       <button onclick="window.print()" class="btn btn-outline-danger btn-sm ms-2 mt-1">
@@ -883,7 +884,7 @@
     </div> <!-- End container -->
 
     <script>
-    function savePreselection(btnElem, gameId, schemaId, playerOrder, score, playerNamesStr) {
+    function savePreselection(btnElem, gameId, schemaId, playerOrder, score, playerNamesStr, dynamicJson = null) {
         var defaultHtml = btnElem.innerHTML;
         btnElem.innerHTML = '<i class="feather-check"></i> Aan het opslaan...';
         btnElem.disabled = true;
@@ -894,6 +895,9 @@
         fd.append('schema_id', schemaId);
         fd.append('player_order', playerOrder);
         fd.append('score', score);
+        if (dynamicJson) {
+            fd.append('dynamic_json', JSON.stringify(dynamicJson));
+        }
         
         fetch('/api/api_save_lineup.php', { method: 'POST', body: fd })
         .then(r => r.json())

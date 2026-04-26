@@ -49,6 +49,15 @@
   if (!isset($patterns[$selected_pattern_key])) {
       $selected_pattern_key = array_key_first($patterns);
   }
+  
+  $hasActivePeriod = false;
+  if (isset($_SESSION['team_id']) && $_SESSION['team_id']) {
+      $stmtPeriodsCheck = $pdo->prepare("SELECT COUNT(*) FROM team_periods WHERE team_id = ?");
+      $stmtPeriodsCheck->execute([$_SESSION['team_id']]);
+      if ($stmtPeriodsCheck->fetchColumn() > 0) {
+          $hasActivePeriod = true;
+      }
+  }
   ?>
     
   <main>
@@ -1095,6 +1104,13 @@
                             <?php endforeach; ?>
                         </select>
                     </div>
+                    
+                    <?php if ($hasActivePeriod): ?>
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" role="switch" id="usePeriodToggle" name="use_period" value="1" checked>
+                        <label class="form-check-label small fw-bold" for="usePeriodToggle">Neem de huidige beoordelingsperiode mee in de weging</label>
+                    </div>
+                    <?php endif; ?>
                     
                     <button type="submit" class="btn btn-warning fw-bold text-dark w-100">
                         <i class="fa-solid fa-rocket me-2"></i>Genereer Dynamisch

@@ -25,6 +25,10 @@ if ($target_team_id) {
         $_SESSION['default_format'] = $team['default_format'] ?: '8v8';
         $_SESSION['default_game_parts'] = $team['default_game_parts'] ?: '4x15';
         
+        if (!isset($_SESSION['original_user_id'])) {
+            $pdo->prepare("UPDATE users SET last_active_team_id = ? WHERE id = ?")->execute([$team['id'], $_SESSION['user_id']]);
+        }
+        
         $validUntil = strtotime($team['subscription_valid_until']);
         // When impersonating, role might be coach, so it strictly respects their read-only state.
         if ($_SESSION['role'] !== 'superadmin' && $validUntil < time()) {

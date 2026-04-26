@@ -18,17 +18,25 @@ class Mailer {
         $mail = new PHPMailer(true);
 
         try {
-            // Server settings
+            // Check of we lokaal draaien
+            $is_localhost = isset($_SERVER['HTTP_HOST']) && (strpos($_SERVER['HTTP_HOST'], 'localhost') !== false || strpos($_SERVER['HTTP_HOST'], '127.0.0.1') !== false);
+
             $mail->isSMTP();
-            $mail->Host       = 'smtp.gmail.com';
-            $mail->SMTPAuth   = true;
             
-            // SMTP Auth
-            $mail->Username   = 'robin@webbit.be';
-            $mail->Password   = $_SERVER['SMTP_PASS'] ?? getenv('SMTP_PASS'); 
-            
-            $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-            $mail->Port       = 587;
+            if ($is_localhost) {
+                // Lokale Mailpit configuratie
+                $mail->Host       = 'mailpit';
+                $mail->SMTPAuth   = false;
+                $mail->Port       = 1025;
+            } else {
+                // Productie configuratie (Gmail)
+                $mail->Host       = 'smtp.gmail.com';
+                $mail->SMTPAuth   = true;
+                $mail->Username   = 'robin@webbit.be';
+                $mail->Password   = $_SERVER['SMTP_PASS'] ?? getenv('SMTP_PASS'); 
+                $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+                $mail->Port       = 587;
+            }
 
             // Recipients
             $fromEmail = 'no-reply@notifications.webbit.be';

@@ -175,7 +175,7 @@ class MatchManager {
     }
 
     /**
-     * Helper functie om ontbrekende wedstrijdduur dynamisch op te halen uit bestaande theorie schema's
+     * Helper functie om ontbrekende wedstrijdduur dynamisch op te halen uit bestaande schema schema's
      * en deze definitief op te slaan in de games tabel.
      */
     private function fixGameDuration(int $gameId, string $format): int {
@@ -221,9 +221,9 @@ class MatchManager {
             $stmtClear = $this->pdo->prepare("DELETE FROM game_selections WHERE game_id = ?");
             $stmtClear->execute([$gameId]);
 
-            // Wis out-of-date opgeslagen theorie-schemas die gekoppeld zijn aan de oude spelers samenstelling
+            // Wis out-of-date opgeslagen schema-schemas die gekoppeld zijn aan de oude spelers samenstelling
             if ($statusId == 2) {
-                // We deleten enkel theorie-schemas als we effectief de 'Wedscheids Selectie' wijzigen
+                // We deleten enkel schema-schemas als we effectief de 'Wedscheids Selectie' wijzigen
                 $stmtClearLineups = $this->pdo->prepare("DELETE FROM game_lineups WHERE game_id = ?");
                 $stmtClearLineups->execute([$gameId]);
             }

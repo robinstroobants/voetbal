@@ -26,10 +26,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $password = $_POST['password'] ?? '';
 
     if ($email && $password) {
-        $stmt = $pdo->prepare("SELECT u.id, u.email, u.password_hash, u.role, u.team_id, u.is_verified, u.account_status, u.is_beta_user, t.name as team_name, t.default_format, t.default_game_parts, t.subscription_valid_until 
-                               FROM users u 
-                               LEFT JOIN teams t ON u.team_id = t.id 
-                               WHERE u.email = ? LIMIT 1");
+        $stmt = $pdo->prepare("SELECT id, email, password_hash, role, is_verified, account_status, is_beta_user, last_active_team_id 
+                               FROM users 
+                               WHERE email = ? LIMIT 1");
         $stmt->execute([$email]);
         $user = $stmt->fetch();
 
@@ -43,23 +42,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $_SESSION['role'] = $user['role'];
             $_SESSION['is_beta_user'] = $user['is_beta_user'];
             
-            // Fetch Workspaces (Multi-Team Support)
+            // Fetch Teams (Multi-Team Support)
             $stmtWs = $pdo->prepare("SELECT ut.team_id, t.name, t.default_format, t.default_game_parts, t.subscription_valid_until FROM user_teams ut JOIN teams t ON ut.team_id = t.id WHERE ut.user_id = ?");
             $stmtWs->execute([$user['id']]);
-            $workspaces = $stmtWs->fetchAll(PDO::FETCH_ASSOC);
-            $_SESSION['available_teams'] = $workspaces;
+            $teams = $stmtWs->fetchAll(PDO::FETCH_ASSOC);
+            $_SESSION['available_teams'] = $teams;
 
-            $_SESSION['team_id'] = $user['team_id'];
-            $_SESSION['team_name'] = $user['team_name'];
-            $_SESSION['default_format'] = $user['default_format'] ?: '8v8';
-            $_SESSION['default_game_parts'] = $user['default_game_parts'] ?: '4x15';
+            $_SESSION['team_id'] = null;
             
-            if (!$_SESSION['team_id'] && !empty($workspaces)) {
-                $_SESSION['team_id'] = $workspaces[0]['team_id'];
-                $_SESSION['team_name'] = $workspaces[0]['name'];
-                $_SESSION['default_format'] = $workspaces[0]['default_format'] ?: '8v8';
-                $_SESSION['default_game_parts'] = $workspaces[0]['default_game_parts'] ?: '4x15';
-                $user['subscription_valid_until'] = $workspaces[0]['subscription_valid_until'];
+            if (!empty($teams)) {
+                $selected_team = $teams[0];
+                if (!empty($user['last_active_team_id'])) {
+                    foreach ($teams as $t) {
+                        if ($t['team_id'] == $user['last_active_team_id']) {
+                            $selected_team = $t;
+                            break;
+                        }
+                    }
+                }
+                
+                $_SESSION['team_id'] = $selected_team['team_id'];
+                $_SESSION['team_name'] = $selected_team['name'];
+                $_SESSION['default_format'] = $selected_team['default_format'] ?: '8v8';
+                $_SESSION['default_game_parts'] = $selected_team['default_game_parts'] ?: '4x15';
+                $user['subscription_valid_until'] = $selected_team['subscription_valid_until'];
             }
             
             // Check subscription

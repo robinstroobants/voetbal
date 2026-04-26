@@ -29,7 +29,7 @@ class GameTest extends TestCase
             5 => ['name' => 'Speler 5'],
         ];
 
-        // We creëren een fictief theorie-moment
+        // We creëren een fictief schema-moment
         $mockEvents = [
             $format => [
                 5 => [ // Aantal spelers

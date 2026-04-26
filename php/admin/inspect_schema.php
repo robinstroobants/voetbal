@@ -19,7 +19,7 @@ if (!$schemaId) {
                         <div class="text-center mb-4">
                             <i class="fa-solid fa-microscope text-primary mb-3" style="font-size: 3rem;"></i>
                             <h2 class="fw-bold">Schema Diagnostics & Revisor</h2>
-                            <p class="text-muted">Analyseer en repareer wiskundige theoriematrices en JSON schema instellingen direct vanuit je browser.</p>
+                            <p class="text-muted">Analyseer en repareer wiskundige schemamatrices en JSON schema instellingen direct vanuit je browser.</p>
                         </div>
                         
                         <?php
@@ -338,7 +338,7 @@ foreach ($shifts as $i => $shift) {
             }
             if (!in_array($benchSitter, $currLineup)) {
                 $speelMins = $playtimes[$benchSitter] / 60;
-                $logic_errors[] = "<i class=\"fa-regular fa-hand-point-right me-2 text-primary\"></i> Zoals je kan zien in onderstaand schema staat <strong>Speler {$benchSitter}</strong> in <strong>Wedstrijd {$w}</strong> zowel in helft 1 als 2 op de bank. Kijk naar zijn totale speelminuten ({$speelMins} min) en zoek een speler die in die periode wél (lang) op het veld staat. Die kan waarschijnlijk gerust zijn positie ruilen met speler {$benchSitter} zonder de tijdslimiet-theorie te breken. (Referentie: Index ".($i-1)." en Index {$i}).";
+                $logic_errors[] = "<i class=\"fa-regular fa-hand-point-right me-2 text-primary\"></i> Zoals je kan zien in onderstaand schema staat <strong>Speler {$benchSitter}</strong> in <strong>Wedstrijd {$w}</strong> zowel in helft 1 als 2 op de bank. Kijk naar zijn totale speelminuten ({$speelMins} min) en zoek een speler die in die periode wél (lang) op het veld staat. Die kan waarschijnlijk gerust zijn positie ruilen met speler {$benchSitter} zonder de tijdslimiet-schema te breken. (Referentie: Index ".($i-1)." en Index {$i}).";
             }
         }
         
@@ -608,13 +608,13 @@ $is_broken = (count($unique_playtimes) > 2) || (count($logic_errors) > 0);
                 <?php if (count($unique_playtimes) > 2): ?>
                 <?php if (count($logic_errors) > 0): ?><hr><?php endif; ?>
                 <h5 class="text-danger"><i class="fa-solid fa-triangle-exclamation"></i> Schemamatrix Disbalans Gedetecteerd!</h5>
-                <p>Spelers klokken af op <strong><?= count($unique_playtimes) ?></strong> verschillende eindtijd totalen (<?= implode(', ', $unique_playtimes_min) ?> min in plaats van maximaal 2 varianten). Dit is oneerlijk t.o.v. de stamboek theorie.</p>
+                <p>Spelers klokken af op <strong><?= count($unique_playtimes) ?></strong> verschillende eindtijd totalen (<?= implode(', ', $unique_playtimes_min) ?> min in plaats van maximaal 2 varianten). Dit is oneerlijk t.o.v. de stamboek schema.</p>
                 <hr>
                 <strong><i class="fa-solid fa-calculator"></i> Matrix Analyse:</strong><br>
                 <?php if (count($full_time_players) > 0): ?>
                 - <span class="text-primary fw-bold"><?= count($full_time_players) ?> speler(s) negeren we.</span> Zij bezetten positie 1 onafgebroken voor de volle <?= $max_game_duration/60 ?> min.<br>
                 <?php endif; ?>
-                - Totaal op te vullen resterende wissel-slots in theorie: <?= $total_slots ?><br>
+                - Totaal op te vullen resterende wissel-slots in schema: <?= $total_slots ?><br>
                 - Dat delen we door de <?= $rotating_playercount ?> roterende veldspelers. Iedereen krijgt mathematisch recht op <code><?= $ideal_slots_per_player ?> slots</code>, en exact <code><?= $remainder ?></code> willekeurige speler(s) krijgen een extra looptijd van <code><?= $ideal_slots_per_player + 1?> slots</code>.<br>
                 - Ideale speeltijden zijn dus exact <strong><?= $ideal_time_base / 60 ?> minuten</strong> en <strong><?= $ideal_time_offset / 60 ?> minuten</strong>. Niets anders is wiskundig aanvaardbaar!<br>
                 <br>
@@ -685,7 +685,7 @@ $is_broken = (count($unique_playtimes) > 2) || (count($logic_errors) > 0);
     </div>
     
     <div class="alert alert-info mt-3 shadow-sm border-0">
-        <i class="fa-solid fa-circle-info me-2"></i> <strong>Opmerking speeltijd theorie:</strong><br>
+        <i class="fa-solid fa-circle-info me-2"></i> <strong>Opmerking speeltijd schema:</strong><br>
         Als er meer dan 2 verschillende waardes staan in de kolom "Totale Speeltijd" bij de matrix, faalt dit visueel en breekt de unit test.
     </div>
 </div>

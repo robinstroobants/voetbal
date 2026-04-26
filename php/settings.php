@@ -57,7 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         
                         $teamName = $_SESSION['team_name'];
                         $subject = "Je bent toegevoegd aan team " . $teamName;
-                        $message = "Beste " . ($existing_user['first_name'] ?: 'Coach') . ",\n\nJe bent zojuist toegevoegd als co-coach voor het team: $teamName.\n\nLog in op Lineup om je nieuwe Workspace te bekijken.\n\nMet vriendelijke groeten,\nHet Lineup Team";
+                        $message = "Beste " . ($existing_user['first_name'] ?: 'Coach') . ",\n\nJe bent zojuist toegevoegd als co-coach voor het team: $teamName.\n\nLog in op Lineup om je nieuwe Team te bekijken.\n\nMet vriendelijke groeten,\nHet Lineup Team";
                         
                         require_once __DIR__ . '/Mailer.php';
                         Mailer::send($invite_email, $subject, $message);
@@ -257,7 +257,7 @@ require_once __DIR__ . '/header.php';
 
     <!-- UITNODIGINGEN SECTION -->
     <h3 class="mt-5"><i class="fa-solid fa-user-plus me-2 text-primary"></i> Team Coaches</h3>
-    <p class="text-muted">Nodig tot 3 extra stafleden uit om dit team (Workspace) samen te beheren.</p>
+    <p class="text-muted">Nodig tot 3 extra stafleden uit om dit team (Team) samen te beheren.</p>
     
     <div class="card shadow-sm border-0 mt-3">
         <ul class="list-group list-group-flush">

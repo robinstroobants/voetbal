@@ -147,7 +147,7 @@ require_once __DIR__ . '/../header.php';
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h2><i class="fa-solid fa-sitemap text-primary me-2"></i> Schema Bibliotheek</h2>
-            <p class="text-muted mb-0">Beheer alle theorie-matrices en rotatieschema's.</p>
+            <p class="text-muted mb-0">Beheer alle schema-matrices en rotatieschema's.</p>
         </div>
         <a href="/admin" class="btn btn-outline-secondary"><i class="fa-solid fa-arrow-left me-1"></i> Terug naar Admin</a>
     </div>
@@ -164,7 +164,7 @@ require_once __DIR__ . '/../header.php';
         <div class="alert alert-warning shadow-sm border-0 border-start border-warning border-4 mb-4 d-flex justify-content-between align-items-center">
             <div>
                 <i class="fa-solid fa-bug me-2 text-danger"></i>
-                <strong>Let op:</strong> Er zijn momenteel <span class="badge bg-danger rounded-pill fs-6"><?= $broken_schemas_count ?></span> schema's in de bibliotheek die wiskundige theorie-fouten bevatten. Deze zullen falen in de Unit Tests.
+                <strong>Let op:</strong> Er zijn momenteel <span class="badge bg-danger rounded-pill fs-6"><?= $broken_schemas_count ?></span> schema's in de bibliotheek die wiskundige schema-fouten bevatten. Deze zullen falen in de Unit Tests.
             </div>
             <div class="d-flex gap-2">
                 <a href="/admin/inspect_schema" class="btn btn-sm btn-outline-danger fw-bold"><i class="fa-solid fa-stethoscope me-1"></i> Bekijk in Schema Diagnose</a>

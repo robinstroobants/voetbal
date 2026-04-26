@@ -1385,7 +1385,7 @@ function saveNewSchema() {
         } else if(data.success) {
             alert("Nieuw Manueel Schema succesvol opgeslagen! We gaan nu naar de weergave.");
             if(data.is_duplicate) {
-                alert("Tip: Je nieuwe schema bestond toevallig reeds wiskundig (ID #" + data.new_id + ") en werd in de theorie gekoppeld!");
+                alert("Tip: Je nieuwe schema bestond toevallig reeds wiskundig (ID #" + data.new_id + ") en werd in de schema gekoppeld!");
             }
             window.location.href = '/games/' + gameId + '/lineup?preview=' + data.lineup_id;
         } else {

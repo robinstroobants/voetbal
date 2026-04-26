@@ -18,7 +18,7 @@ class Permissions {
 
     private static $rolePermissions = [
         self::ROLE_SUPERADMIN => [
-            // Heeft in theorie alles
+            // Heeft in schema alles
             self::PERM_MANAGE_TENANTS,
             self::PERM_VIEW_SYSTEM_LOGS,
             self::PERM_MANAGE_TEAM_SETTINGS,

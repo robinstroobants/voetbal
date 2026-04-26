@@ -63,7 +63,7 @@ header("Expires: 0"); // Proxies blockeren
                     <i class="fa-regular fa-futbol me-2"></i><?= htmlspecialchars($_SESSION['team_name'] ?? 'Lineup') ?>
                 </a>
                 <ul class="dropdown-menu shadow">
-                    <li class="dropdown-header text-uppercase fw-bold"><i class="fa-solid fa-layer-group me-1"></i> Workspaces</li>
+                    <li class="dropdown-header text-uppercase fw-bold"><i class="fa-solid fa-layer-group me-1"></i> Teams</li>
                     <?php foreach($_SESSION['available_teams'] as $ws): ?>
                         <li>
                             <form method="POST" action="switch_team.php" class="m-0 p-0">

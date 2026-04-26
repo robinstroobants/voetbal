@@ -118,7 +118,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($check->fetchColumn() == 0) {
             $pdo->prepare("DELETE FROM users WHERE id = ?")->execute([$uid]);
         }
-        $success = "✅ Gebruiker ontkoppeld (en definitief gewist indien geen andere workspaces).";
+        $success = "✅ Gebruiker ontkoppeld (en definitief gewist indien geen andere teams).";
     } elseif ($action === 'invite_coach') {
         $tid = (int)$_POST['team_id'];
         $invite_email = filter_var($_POST['invite_email'] ?? '', FILTER_SANITIZE_EMAIL);
@@ -132,7 +132,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $p_invites = (int)$stmtI->fetchColumn();
 
             if (($c_coaches + $p_invites) >= 3) {
-                $error = "De limiet van 3 coaches per team is bereikt voor deze workspace.";
+                $error = "De limiet van 3 coaches per team is bereikt voor deze team.";
             } else {
                 $stmtCheck = $pdo->prepare("SELECT id, first_name FROM users WHERE email = ?");
                 $stmtCheck->execute([$invite_email]);
@@ -145,13 +145,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $error = "Deze gebruiker heeft al toegang tot dit team.";
                     } else {
                         $pdo->prepare("INSERT IGNORE INTO user_teams (user_id, team_id) VALUES (?, ?)")->execute([$existing_user['id'], $tid]);
-                        $success = "✅ Bestaande gebruiker succesvol gekoppeld aan de workspace.";
+                        $success = "✅ Bestaande gebruiker succesvol gekoppeld aan de team.";
                     }
                 } else {
                     $stmtInvCheck = $pdo->prepare("SELECT id FROM team_invitations WHERE email = ? AND team_id = ? AND expires_at > NOW()");
                     $stmtInvCheck->execute([$invite_email, $tid]);
                     if ($stmtInvCheck->fetchColumn()) {
-                        $error = "Er staat al een open uitnodiging voor dit e-mailadres in deze workspace.";
+                        $error = "Er staat al een open uitnodiging voor dit e-mailadres in deze team.";
                     } else {
                         $token = bin2hex(random_bytes(32));
                         $expires_at = date('Y-m-d H:i:s', strtotime('+7 days'));
@@ -193,7 +193,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmtDummies = $pdo->prepare("SELECT id FROM games WHERE opponent LIKE '%DUMMY REVISOR MATCH%' OR is_theory = 1");
             $stmtDummies->execute();
             $dummyIds = $stmtDummies->fetchAll(PDO::FETCH_COLUMN);
-        } elseif (isset($_POST['include_theories'])) {
+        } elseif (isset($_POST['include_schemas'])) {
             $stmtDummies = $pdo->prepare("SELECT id FROM games WHERE (opponent LIKE '%DUMMY REVISOR MATCH%' AND created_at < NOW() - INTERVAL 1 HOUR) OR is_theory = 1");
             $stmtDummies->execute();
             $dummyIds = $stmtDummies->fetchAll(PDO::FETCH_COLUMN);
@@ -204,7 +204,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $pdo->prepare("DELETE FROM game_lineups WHERE game_id IN ($inQ)")->execute($dummyIds);
             $pdo->prepare("DELETE FROM game_selections WHERE game_id IN ($inQ)")->execute($dummyIds);
             $pdo->prepare("DELETE FROM games WHERE id IN ($inQ)")->execute($dummyIds);
-            $success = "✅ " . count($dummyIds) . " dummy test sessies/theorieën succesvol opgeruimd!";
+            $success = "✅ " . count($dummyIds) . " dummy test sessies/schema's succesvol opgeruimd!";
         } else {
             $success = "ℹ️ Geen dummy wedstrijden gevonden om op te ruimen.";
         }
@@ -234,20 +234,20 @@ $teams = $stmtTeams->fetchAll(PDO::FETCH_ASSOC);
 // 2. Haal alle gebruikers op, gegroepeerd
 $users = [];
 $usersResult = $pdo->query("
-    SELECT u.*, ut.team_id as workspace_id 
+    SELECT u.*, ut.team_id as team_id 
     FROM users u 
     LEFT JOIN user_teams ut ON u.id = ut.user_id 
     ORDER BY u.created_at DESC
 ")->fetchAll();
 
 foreach ($usersResult as $u) {
-    $tId = $u['workspace_id'] ?: $u['team_id'];
+    $tId = $u['team_id'] ?: $u['team_id'];
     if ($tId) {
         $users[$tId][$u['id']] = $u; 
     }
 }
 
-// Fetch all linked workspaces per user for UI Badges
+// Fetch all linked teams per user for UI Badges
 $allUserTeams = [];
 $utResult = $pdo->query("SELECT ut.user_id, t.name, t.id as team_id FROM user_teams ut JOIN teams t ON ut.team_id = t.id")->fetchAll();
 foreach ($utResult as $ut) {
@@ -296,19 +296,19 @@ require_once __DIR__ . '/../header.php';
     <?php if ($dummyStats && $dummyStats['total_count'] > 0): ?>
     <div class="alert bg-black bg-opacity-25 border border-warning border-opacity-50 text-white d-flex align-items-center justify-content-between rounded-3 mb-4">
         <div>
-            <h6 class="fw-bold mb-1"><i class="fa-solid fa-spider text-warning me-2"></i> Tijdelijke Revisor Sessies & Theorieën Gevonden (<?= $dummyStats['total_count'] ?>)</h6>
+            <h6 class="fw-bold mb-1"><i class="fa-solid fa-spider text-warning me-2"></i> Tijdelijke Revisor Sessies & Schema's Gevonden (<?= $dummyStats['total_count'] ?>)</h6>
             <div class="small text-white text-opacity-75">
-                Deze onzichtbare (dummy) wedstrijden worden door het systeem tijdelijk in de database geplaatst zodra een coach de "schema editor" debugt, of wanneer een Standalone Theorie wordt opgeslagen.
-                Er zijn momenteel <strong><?= (int)$dummyStats['expired_count'] ?></strong> revisor dummies ouder dan 1 uur en <strong><?= (int)$dummyStats['theory_count'] ?></strong> theorieën. 
+                Deze onzichtbare (dummy) wedstrijden worden door het systeem tijdelijk in de database geplaatst zodra een coach de "schema editor" debugt, of wanneer een Standalone Schema wordt opgeslagen.
+                Er zijn momenteel <strong><?= (int)$dummyStats['expired_count'] ?></strong> revisor dummies ouder dan 1 uur en <strong><?= (int)$dummyStats['theory_count'] ?></strong> schema's. 
             </div>
         </div>
         <form method="POST" class="ms-3 flex-shrink-0 d-flex align-items-center">
             <input type="hidden" name="action" value="cleanup_dummies">
             <div class="form-check form-switch me-3">
-                <input class="form-check-input mt-0" type="checkbox" role="switch" id="includeTheories" name="include_theories" value="1">
-                <label class="form-check-label small fw-bold text-nowrap text-white" for="includeTheories">Incl. Theorieën</label>
+                <input class="form-check-input mt-0" type="checkbox" role="switch" id="includeSchemas" name="include_schemas" value="1">
+                <label class="form-check-label small fw-bold text-nowrap text-white" for="includeSchemas">Incl. Schema's</label>
             </div>
-            <button type="submit" name="force_all" value="1" class="btn btn-sm btn-warning fw-bold text-dark" onclick="return confirm('Dit opruimen wist definitief de geselecteerde verborgen tests/theorieën. OK?')">
+            <button type="submit" name="force_all" value="1" class="btn btn-sm btn-warning fw-bold text-dark" onclick="return confirm('Dit opruimen wist definitief de geselecteerde verborgen tests/schema's. OK?')">
                 <i class="fa-solid fa-broom me-1"></i> Opruimen
             </button>
         </form>

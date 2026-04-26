@@ -41,7 +41,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $oldCoachId = $oldData['coach_id'] ?? null;
 
             if ($oldFormat !== $format) {
-                // Formaat is gewijzigd, theorie is nu nutteloos, opruimen!
+                // Formaat is gewijzigd, schema is nu nutteloos, opruimen!
                 $pdo->prepare("DELETE FROM game_lineups WHERE game_id = ?")->execute([$gameId]);
             }
 

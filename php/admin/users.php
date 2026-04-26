@@ -48,6 +48,75 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $success = "✅ Gebruiker definitief verwijderd uit het systeem.";
             }
         }
+    } elseif ($action === 'resend_activation') {
+        $uid = (int)$_POST['user_id'];
+        if ($uid) {
+            $stmt = $pdo->prepare("SELECT email, first_name, verification_token FROM users WHERE id = ?");
+            $stmt->execute([$uid]);
+            $u = $stmt->fetch();
+            if ($u) {
+                $token = $u['verification_token'];
+                if (!$token) {
+                    $token = bin2hex(random_bytes(32));
+                    $pdo->prepare("UPDATE users SET verification_token = ? WHERE id = ?")->execute([$token, $uid]);
+                }
+                $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http");
+                $host = $_SERVER['HTTP_HOST'];
+                $verify_link = "$protocol://$host/verify.php?token=$token";
+                
+                $subject = "Activeer je Lineup account";
+                $message = "Beste " . $u['first_name'] . ",\n\nWelkom bij Lineup!\nKlik op de onderstaande link om je account te activeren:\n$verify_link\n\nMet vriendelijke groeten,\nHet Lineup Team";
+                
+                require_once dirname(__DIR__) . '/core/Mailer.php';
+                Mailer::send($u['email'], $subject, $message);
+                $success = "✅ Activatiemail succesvol (opnieuw) verzonden naar " . htmlspecialchars($u['email']) . ".";
+            }
+        }
+    } elseif ($action === 'send_reset_email') {
+        $uid = (int)$_POST['user_id'];
+        if ($uid) {
+            $stmt = $pdo->prepare("SELECT email, first_name FROM users WHERE id = ?");
+            $stmt->execute([$uid]);
+            $u = $stmt->fetch();
+            if ($u) {
+                $token = bin2hex(random_bytes(32));
+                $expires = date('Y-m-d H:i:s', strtotime('+1 hour'));
+                $pdo->prepare("UPDATE users SET reset_token = ?, reset_expires_at = ? WHERE id = ?")->execute([$token, $expires, $uid]);
+                
+                $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http");
+                $host = $_SERVER['HTTP_HOST'];
+                $reset_link = "$protocol://$host/reset_password?token=$token";
+                
+                $subject = "Wachtwoord herstellen - Lineup";
+                $message = "Beste " . $u['first_name'] . ",\n\nEr is een verzoek ingediend door een beheerder om je wachtwoord te herstellen op Lineup.\nKlik op de onderstaande link om een nieuw wachtwoord in te stellen. Deze link is 1 uur geldig:\n$reset_link\n\nAls dit een fout is, hoef je niets te doen.\n\nMet vriendelijke groeten,\nHet Lineup Team";
+                
+                require_once dirname(__DIR__) . '/core/Mailer.php';
+                Mailer::send($u['email'], $subject, $message);
+                $success = "✅ Wachtwoord reset e-mail verzonden naar " . htmlspecialchars($u['email']) . ".";
+            }
+        }
+    } elseif ($action === 'approve_user') {
+        $uid = (int)$_POST['user_id'];
+        if ($uid) {
+            $stmt = $pdo->prepare("SELECT email, first_name, account_status FROM users WHERE id = ?");
+            $stmt->execute([$uid]);
+            $u = $stmt->fetch();
+            
+            if ($u && $u['account_status'] === 'pending') {
+                $pdo->prepare("UPDATE users SET account_status = 'active' WHERE id = ?")->execute([$uid]);
+                
+                $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http");
+                $host = $_SERVER['HTTP_HOST'];
+                $login_link = "$protocol://$host/login";
+                
+                $subject = "Je Lineup account is goedgekeurd!";
+                $message = "Beste " . $u['first_name'] . ",\n\nGoed nieuws! Je account op Lineup is zojuist goedgekeurd door een beheerder.\nJe kan nu inloggen via de onderstaande link:\n$login_link\n\nMet vriendelijke groeten,\nHet Lineup Team";
+                
+                require_once dirname(__DIR__) . '/core/Mailer.php';
+                Mailer::send($u['email'], $subject, $message);
+                $success = "✅ Gebruiker goedgekeurd en welkomstmail verzonden naar " . htmlspecialchars($u['email']) . ".";
+            }
+        }
     }
 }
 
@@ -93,27 +162,31 @@ require_once __DIR__ . '/../header.php';
     <?php endif; ?>
 
     <div class="card border-0 shadow-sm rounded-4 mb-4">
-        <div class="card-header bg-white border-bottom p-4">
+        <div class="card-header bg-white border-bottom p-4 rounded-top-4">
             <form method="GET" action="/admin/users">
-                <div class="input-group input-group-lg shadow-sm rounded-pill overflow-hidden">
-                    <span class="input-group-text bg-light border-0"><i class="fa-solid fa-search text-muted"></i></span>
-                    <input type="text" name="q" class="form-control bg-light border-0 px-3" placeholder="Zoek op naam, e-mail of team..." value="<?= htmlspecialchars($searchTerm) ?>" autofocus>
-                    <button class="btn btn-primary px-4 fw-bold" type="submit">Zoeken</button>
+                <div class="input-group shadow-sm rounded-3">
+                    <span class="input-group-text bg-light border-end-0 text-muted"><i class="fa-solid fa-search"></i></span>
+                    <input type="text" name="q" class="form-control bg-light border-start-0 ps-0" placeholder="Zoek op naam, e-mail of team..." value="<?= htmlspecialchars($searchTerm) ?>" autofocus>
+                    <button class="btn btn-primary px-3" type="submit" title="Zoeken">
+                        <i class="fa-solid fa-magnifying-glass d-sm-none"></i><span class="d-none d-sm-inline fw-bold">Zoeken</span>
+                    </button>
                     <?php if ($searchTerm): ?>
-                        <a href="/admin/users" class="btn btn-secondary px-4 fw-bold">Wissen</a>
+                        <a href="/admin/users" class="btn btn-secondary px-3" title="Wissen">
+                            <i class="fa-solid fa-xmark d-sm-none"></i><span class="d-none d-sm-inline fw-bold">Wissen</span>
+                        </a>
                     <?php endif; ?>
                 </div>
             </form>
         </div>
-        <div class="card-body p-0">
-            <div class="table-responsive">
+        <div class="card-body p-0 rounded-bottom-4">
+            <div class="table-responsive" style="padding-bottom: 120px; min-height: 350px;">
                 <table class="table table-hover align-middle mb-0">
                     <thead class="table-light text-uppercase" style="font-size: 0.8rem;">
                         <tr>
                             <th class="ps-4">ID</th>
                             <th>Naam</th>
                             <th>E-mail</th>
-                            <th>Workspaces</th>
+                            <th>Teams</th>
                             <th>Rol & Status</th>
                             <th>Laatst Actief</th>
                             <th class="text-end pe-4">Acties</th>
@@ -144,7 +217,7 @@ require_once __DIR__ . '/../header.php';
                                             <span class="badge bg-light text-dark border"><i class="fa-solid fa-layer-group me-1 text-muted"></i> <?= htmlspecialchars($u['team_names']) ?></span>
                                         </div>
                                     <?php else: ?>
-                                        <span class="text-muted small"><i>Geen workspaces</i></span>
+                                        <span class="text-muted small"><i>Geen teams</i></span>
                                     <?php endif; ?>
                                 </td>
                                 <td>
@@ -188,10 +261,20 @@ require_once __DIR__ . '/../header.php';
                                 </td>
                                 <td class="text-end pe-4">
                                     <div class="dropdown">
-                                        <button class="btn btn-sm btn-light border dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                        <button class="btn btn-sm btn-light border dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" data-bs-boundary="window">
                                             Acties
                                         </button>
                                         <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                                            <?php if ($u['account_status'] === 'pending'): ?>
+                                            <li>
+                                                <form method="POST" action="/admin/users" class="m-0 p-0">
+                                                    <input type="hidden" name="action" value="approve_user">
+                                                    <input type="hidden" name="user_id" value="<?= $u['id'] ?>">
+                                                    <button type="submit" class="dropdown-item text-success fw-bold"><i class="fa-solid fa-check-circle me-2"></i> Goedkeuren & Mailen</button>
+                                                </form>
+                                            </li>
+                                            <li><hr class="dropdown-divider"></li>
+                                            <?php endif; ?>
                                             <li><a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#editUserModal" 
                                                data-uid="<?= $u['id'] ?>"
                                                data-fname="<?= htmlspecialchars($u['first_name'] ?? '') ?>"
@@ -207,6 +290,24 @@ require_once __DIR__ . '/../header.php';
                                                data-name="<?= htmlspecialchars(trim($u['first_name'] . ' ' . $u['last_name'])) ?>">
                                                <i class="fa-solid fa-key text-warning me-2"></i> Wachtwoord Reset
                                             </a></li>
+                                            <?php if (!$u['is_verified']): ?>
+                                            <li><hr class="dropdown-divider"></li>
+                                            <li>
+                                                <form method="POST" action="/admin/users" class="m-0 p-0">
+                                                    <input type="hidden" name="action" value="resend_activation">
+                                                    <input type="hidden" name="user_id" value="<?= $u['id'] ?>">
+                                                    <button type="submit" class="dropdown-item text-primary"><i class="fa-solid fa-paper-plane me-2"></i> Activatiemail sturen</button>
+                                                </form>
+                                            </li>
+                                            <?php elseif ($u['account_status'] !== 'pending'): ?>
+                                            <li>
+                                                <form method="POST" action="/admin/users" class="m-0 p-0">
+                                                    <input type="hidden" name="action" value="send_reset_email">
+                                                    <input type="hidden" name="user_id" value="<?= $u['id'] ?>">
+                                                    <button type="submit" class="dropdown-item text-primary"><i class="fa-solid fa-envelope me-2"></i> Reset mail sturen</button>
+                                                </form>
+                                            </li>
+                                            <?php endif; ?>
                                             <li><hr class="dropdown-divider"></li>
                                             <li>
                                                 <form action="/admin/impersonate?action=start" method="POST" class="m-0 p-0">

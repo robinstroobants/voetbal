@@ -2,8 +2,9 @@
 session_start();
 
 if (isset($_SESSION['user_id'])) {
-    header("Location: index.php");
-    exit;
+    session_unset();
+    session_destroy();
+    session_start();
 }
 
 require_once dirname(__DIR__, 2) . '/core/getconn.php';
@@ -85,7 +86,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error) {
                     $user_id = $pdo->lastInsertId();
 
                     if ($invited_team_id) {
-                        // 2. Koppel rechtstreeks aan bestaand team (Workspace)
+                        // 2. Koppel rechtstreeks aan bestaand team (Team)
                         $team_id = $invited_team_id;
                         $pdo->prepare("INSERT IGNORE INTO user_teams (user_id, team_id) VALUES (?, ?)")->execute([$user_id, $team_id]);
                         

@@ -212,6 +212,7 @@ if (!$route_matched) {
 
 // 5. Laatste reddingsboei: 404
 if (!$route_matched) {
+    error_log("ROUTER 404: " . $_SERVER['REQUEST_METHOD'] . " " . $uri . " (path: " . $path . ")");
     http_response_code(404);
     echo "<h1 style='text-align:center; margin-top: 50px; font-family: sans-serif;'>404 Pagina Niet Gevonden</h1>";
     echo "<p style='text-align:center;'><a href='/'>Ga terug naar start</a></p>";

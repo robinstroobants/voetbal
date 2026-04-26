@@ -1,5 +1,5 @@
 <?php
-require_once("game.php");
+require_once dirname(__DIR__, 2) . '/core/getconn.php';
 
 // Bepaal de zichtbare posities a.d.h.v. het format van dit team
 $stmtF = $pdo->prepare("SELECT default_format FROM teams WHERE id = ?");

@@ -574,7 +574,7 @@ require_once dirname(__DIR__, 2) . '/header.php';
                   <div class="form-text">Bepaalt of het algoritme enkel schemas toelaat waar elke speler op X unieke posities speelt.</div>
               </div>
               <div class="mb-3">
-                  <label class="form-label text-muted small fw-bold">TEAM VERANTWOORDELIJKE (Optioneel)</label>
+                  <label class="form-label text-muted small fw-bold">COACH</label>
                   <select class="form-select" name="coach_id" id="modal_coach_id">
                       <option value="">-- Geen coach geselecteerd --</option>
                       <?php foreach ($coachesData as $cd): ?>
@@ -768,7 +768,7 @@ function openGameModal(game = null, isDuplicate = false) {
         document.getElementById('modal_game_date').value = new Date().toISOString().split('T')[0];
         document.getElementById('modal_game_time').value = '09:00';
         document.getElementById('modal_min_pos').value = '0';
-        document.getElementById('modal_coach_id').value = '';
+        document.getElementById('modal_coach_id').value = '<?= $_SESSION['user_id'] ?? '' ?>';
         document.getElementById('modal_is_home').value = '1';
         
         let defFormat = '<?= $_SESSION['default_format'] ?? '8v8' ?>';

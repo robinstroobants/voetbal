@@ -482,7 +482,7 @@ while ($g = $stmtGK->fetch(PDO::FETCH_ASSOC)) {
             btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i>Genereren...';
             btn.disabled = true;
 
-            fetch('api_generate_scores.php', { method: 'POST' })
+            fetch('/api/api_generate_scores.php', { method: 'POST' })
             .then(res => res.json())
             .then(data => {
                 if(data.success) {

@@ -820,7 +820,7 @@ function submitApicall(formId) {
     btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
     btn.disabled = true;
     
-    fetch('api_onboarding_add.php', {
+    fetch('/api/api_onboarding_add.php', {
         method: 'POST',
         body: fd
     })

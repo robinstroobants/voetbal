@@ -84,7 +84,8 @@ class DynamicSchemaGenerator {
         }
         $fieldPositions = array_values(array_filter($playPositions, fn($p) => $p != 1));
         
-        $fixed_gk_idx = ($gk_count === 1) ? 0 : null; // Index 0 is always the GK if gk_count == 1
+        $rotating_gks = ($gk_count === 0);
+        $fixed_gk_idx = ($gk_count > 0) ? 0 : null; // Lock the first GK to index 0 if any
         
         $num_shifts = count($blocks);
         $num_field_players = $aantal - ($fixed_gk_idx !== null ? 1 : 0);
@@ -129,7 +130,8 @@ class DynamicSchemaGenerator {
                 'mins_game' => 0,
                 'pct_period' => $pct_period,
                 'pct_season' => $pct_season,
-                'name' => $name
+                'name' => $name,
+                'times_gk' => 0
             ];
             $idx_counter++;
         }
@@ -137,9 +139,38 @@ class DynamicSchemaGenerator {
         // 5. Build schema sequentially using greedy heuristic
         $schema_parts = [];
         $current_start = 0;
+        
+        $current_game_min = 0;
+        $game_idx = 1;
+        $game_gks = [];
 
         foreach ($blocks as $shift_idx => $dur_min) {
-            // Sort exactly according to user rules
+            // Determine GK for this game part if rotating
+            if ($rotating_gks && !isset($game_gks[$game_idx])) {
+                uasort($field_players, function($a, $b) use ($use_period) {
+                    if ($a['times_gk'] !== $b['times_gk']) {
+                        return $a['times_gk'] <=> $b['times_gk']; // Minste keren GK eerst
+                    }
+                    if (abs($a['mins_game'] - $b['mins_game']) > 0.01) {
+                        return $a['mins_game'] <=> $b['mins_game'];
+                    }
+                    if ($use_period && abs($a['pct_period'] - $b['pct_period']) > 0.001) {
+                        return $a['pct_period'] <=> $b['pct_period'];
+                    }
+                    if (abs($a['pct_season'] - $b['pct_season']) > 0.001) {
+                        return $a['pct_season'] <=> $b['pct_season'];
+                    }
+                    return strcmp($a['name'], $b['name']);
+                });
+                
+                $chosen_gk_idx = array_key_first($field_players);
+                $game_gks[$game_idx] = $chosen_gk_idx;
+                $field_players[$chosen_gk_idx]['times_gk']++;
+            }
+            
+            $current_gk_idx = $rotating_gks ? $game_gks[$game_idx] : $fixed_gk_idx;
+
+            // Sort exactly according to user rules for the FIELD positions
             uasort($field_players, function($a, $b) use ($use_period) {
                 // 1. Minste speelminuten deze wedstrijd
                 if (abs($a['mins_game'] - $b['mins_game']) > 0.01) {
@@ -162,8 +193,16 @@ class DynamicSchemaGenerator {
                 return strcmp($a['name'], $b['name']);
             });
 
+            // Exclude current GK from field positions
+            $available_field_indexes = [];
+            foreach (array_keys($field_players) as $idx) {
+                if ($idx !== $current_gk_idx) {
+                    $available_field_indexes[] = $idx;
+                }
+            }
+
             // Select top N players for the field
-            $selected_indexes = array_slice(array_keys($field_players), 0, $num_pos);
+            $selected_indexes = array_slice($available_field_indexes, 0, $num_pos);
             
             $shift_data = [
                 'duration' => $dur_min * 60, // seconds
@@ -172,8 +211,8 @@ class DynamicSchemaGenerator {
                 'bench' => []
             ];
 
-            if ($fixed_gk_idx !== null) {
-                $shift_data['lineup'][1] = 0; // Index 0 is GK
+            if ($current_gk_idx !== null) {
+                $shift_data['lineup'][1] = $current_gk_idx; // Index 0/Chosen is GK
             }
 
             // Assign positions greedily based on player scores to maximize rating
@@ -207,7 +246,7 @@ class DynamicSchemaGenerator {
 
             // Add remaining to bench and update minutes
             foreach ($field_players as $idx => &$fp) {
-                if (in_array($idx, $selected_indexes)) {
+                if (in_array($idx, $selected_indexes) || $idx === $current_gk_idx) {
                     $fp['mins_game'] += $dur_min;
                 } else {
                     $shift_data['bench'][] = $idx;
@@ -233,6 +272,13 @@ class DynamicSchemaGenerator {
 
             $schema_parts[$shift_idx] = $shift_data;
             $current_start += $dur_min;
+            
+            // Track game progression to rotate GK
+            $current_game_min += $dur_min;
+            if (abs($current_game_min - $game_duration_min) < 0.01) {
+                $game_idx++;
+                $current_game_min = 0;
+            }
         }
 
         // Return perfectly indexed schema + the ordered squad mapping

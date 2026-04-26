@@ -157,6 +157,19 @@ require_once dirname(__DIR__, 2) . '/header.php';
             </div>
         </div>
 
+        <div class="col-md-4">
+            <div class="card h-100 shadow-sm border-0 hover-shadow transition-all" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);">
+                <div class="card-body text-center p-4">
+                    <div class="display-4 text-success mb-3">
+                        <i class="fa-solid fa-bolt"></i>
+                    </div>
+                    <h5 class="card-title fw-bold text-dark">Dynamisch AI (Beta)</h5>
+                    <p class="card-text text-muted mb-4">Genereer een volledig nieuw schema "on the fly" gebaseerd op parameters, zónder de database-theorieën te gebruiken.</p>
+                    <a href="/games/<?= $gameId ?>/lineup?generate=1&dynamic=1" class="btn btn-success w-100 fw-bold">Dynamisch Genereren</a>
+                </div>
+            </div>
+        </div>
+
         <div class="col-md-4 d-none">
             <div class="card h-100 shadow-sm border-0 hover-shadow transition-all">
                 <div class="card-body text-center p-4">

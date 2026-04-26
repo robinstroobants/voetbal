@@ -571,8 +571,8 @@ require_once dirname(__DIR__, 2) . '/header.php';
                   <label class="form-label text-muted small fw-bold">MIN. POSITIES PER SPELER</label>
                   <select class="form-select" name="min_pos" id="modal_min_pos" required>
                       <option value="0">Geen minimum</option>
-                      <option value="2">Minstens 2 posities (20000+ serie)</option>
-                      <option value="3">Minstens 3 posities (30000+ serie)</option>
+                      <option value="2">Minstens 2 posities</option>
+                      <option value="3">Minstens 3 posities</option>
                   </select>
                   <div class="form-text">Bepaalt of het algoritme enkel schemas toelaat waar elke speler op X unieke posities speelt.</div>
               </div>

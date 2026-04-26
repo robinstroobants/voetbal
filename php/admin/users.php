@@ -122,6 +122,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Zoeken & Filteren
 $searchTerm = trim($_GET['q'] ?? '');
+$filter = trim($_GET['filter'] ?? '');
+
 $queryStr = "SELECT u.id, u.first_name, u.last_name, u.email, u.role, u.is_beta_user, u.account_status, u.is_verified, u.last_activity, u.created_at, 
              GROUP_CONCAT(t.name SEPARATOR ', ') as team_names 
              FROM users u 
@@ -129,9 +131,23 @@ $queryStr = "SELECT u.id, u.first_name, u.last_name, u.email, u.role, u.is_beta_
              LEFT JOIN teams t ON ut.team_id = t.id";
 
 $params = [];
+$conditions = [];
+
 if ($searchTerm !== '') {
-    $queryStr .= " WHERE u.first_name LIKE ? OR u.last_name LIKE ? OR u.email LIKE ? OR t.name LIKE ? OR u.account_status LIKE ?";
-    $params = ["%$searchTerm%", "%$searchTerm%", "%$searchTerm%", "%$searchTerm%", "%$searchTerm%"];
+    $conditions[] = "(u.first_name LIKE ? OR u.last_name LIKE ? OR u.email LIKE ? OR t.name LIKE ?)";
+    $params = array_merge($params, ["%$searchTerm%", "%$searchTerm%", "%$searchTerm%", "%$searchTerm%"]);
+}
+
+if ($filter === 'pending') {
+    $conditions[] = "u.account_status = 'pending'";
+} elseif ($filter === 'unverified') {
+    $conditions[] = "u.is_verified = 0";
+} elseif ($filter === 'new') {
+    $conditions[] = "u.created_at >= DATE_SUB(NOW(), INTERVAL 14 DAY)";
+}
+
+if (!empty($conditions)) {
+    $queryStr .= " WHERE " . implode(" AND ", $conditions);
 }
 
 $queryStr .= " GROUP BY u.id ORDER BY u.last_activity DESC, u.created_at DESC LIMIT 100";
@@ -164,17 +180,37 @@ require_once __DIR__ . '/../header.php';
     <div class="card border-0 shadow-sm rounded-4 mb-4">
         <div class="card-header bg-white border-bottom p-4 rounded-top-4">
             <form method="GET" action="/admin/users">
-                <div class="input-group shadow-sm rounded-3">
-                    <span class="input-group-text bg-light border-end-0 text-muted"><i class="fa-solid fa-search"></i></span>
-                    <input type="text" name="q" class="form-control bg-light border-start-0 ps-0" placeholder="Zoek op naam, e-mail of team..." value="<?= htmlspecialchars($searchTerm) ?>" autofocus>
-                    <button class="btn btn-primary px-3" type="submit" title="Zoeken">
-                        <i class="fa-solid fa-magnifying-glass d-sm-none"></i><span class="d-none d-sm-inline fw-bold">Zoeken</span>
-                    </button>
-                    <?php if ($searchTerm): ?>
-                        <a href="/admin/users" class="btn btn-secondary px-3" title="Wissen">
-                            <i class="fa-solid fa-xmark d-sm-none"></i><span class="d-none d-sm-inline fw-bold">Wissen</span>
-                        </a>
-                    <?php endif; ?>
+                <div class="row g-3 align-items-center">
+                    <div class="col-md-5 col-lg-4">
+                        <div class="input-group shadow-sm rounded-3">
+                            <span class="input-group-text bg-light border-end-0 text-muted"><i class="fa-solid fa-search"></i></span>
+                            <input type="text" name="q" class="form-control bg-light border-start-0 ps-0" placeholder="Zoek op naam, e-mail..." value="<?= htmlspecialchars($searchTerm) ?>" autofocus>
+                            <!-- Keep the filter active when searching -->
+                            <?php if ($filter): ?>
+                                <input type="hidden" name="filter" value="<?= htmlspecialchars($filter) ?>">
+                            <?php endif; ?>
+                            <button class="btn btn-primary px-3" type="submit" title="Zoeken">
+                                <i class="fa-solid fa-magnifying-glass"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="col-md-7 col-lg-8">
+                        <div class="d-flex flex-wrap gap-2 align-items-center">
+                            <span class="text-muted small fw-bold me-1 d-none d-lg-inline"><i class="fa-solid fa-filter me-1"></i>Filters:</span>
+                            
+                            <button type="submit" name="filter" value="" class="btn btn-sm <?= empty($filter) ? 'btn-dark' : 'btn-outline-secondary' ?> fw-bold rounded-pill shadow-sm">Alle</button>
+                            
+                            <button type="submit" name="filter" value="pending" class="btn btn-sm <?= $filter === 'pending' ? 'btn-warning text-dark' : 'btn-outline-warning text-dark' ?> fw-bold rounded-pill shadow-sm"><i class="fa-solid fa-hourglass-half me-1"></i>Wachtlijst</button>
+                            
+                            <button type="submit" name="filter" value="unverified" class="btn btn-sm <?= $filter === 'unverified' ? 'btn-primary' : 'btn-outline-primary' ?> fw-bold rounded-pill shadow-sm"><i class="fa-solid fa-envelope me-1"></i>Onbevestigd</button>
+                            
+                            <button type="submit" name="filter" value="new" class="btn btn-sm <?= $filter === 'new' ? 'btn-success' : 'btn-outline-success' ?> fw-bold rounded-pill shadow-sm"><i class="fa-solid fa-seedling me-1"></i>Nieuw (14d)</button>
+                            
+                            <?php if ($searchTerm || $filter): ?>
+                                <a href="/admin/users" class="btn btn-sm btn-light border text-muted fw-bold rounded-pill shadow-sm ms-auto"><i class="fa-solid fa-xmark me-1"></i>Reset</a>
+                            <?php endif; ?>
+                        </div>
+                    </div>
                 </div>
             </form>
         </div>

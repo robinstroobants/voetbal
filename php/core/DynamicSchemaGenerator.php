@@ -80,7 +80,7 @@ class DynamicSchemaGenerator {
         // 3. Setup positions
         $playPositions = [1, 2, 4, 5, 7, 9, 10, 11];
         if (strpos($search_format, '5v5') !== false) {
-            $playPositions = [1, 2, 4, 5, 9];
+            $playPositions = [1, 4, 7, 9, 11];
         }
         $fieldPositions = array_values(array_filter($playPositions, fn($p) => $p != 1));
         
@@ -262,14 +262,13 @@ class DynamicSchemaGenerator {
             if ($shift_idx > 0) {
                 $prev_lineup = $schema_parts[$shift_idx - 1]['lineup'];
                 $shift_data['subs'] = ['in' => [], 'out' => []];
-                foreach ($prev_lineup as $pos => $idx) {
-                    if (!in_array($idx, $shift_data['lineup'])) {
-                        $shift_data['subs']['out'][$pos] = $idx;
-                    }
-                }
-                foreach ($shift_data['lineup'] as $pos => $idx) {
-                    if (!in_array($idx, $prev_lineup)) {
-                        $shift_data['subs']['in'][$pos] = $idx;
+                foreach ($prev_lineup as $pos => $speler_oud) {
+                    if (isset($shift_data['lineup'][$pos])) {
+                        $speler_nieuw = $shift_data['lineup'][$pos];
+                        if ($speler_oud !== $speler_nieuw) {
+                            $shift_data['subs']['in'][$pos] = $speler_nieuw;
+                            $shift_data['subs']['out'][$pos] = $speler_oud;
+                        }
                     }
                 }
             }

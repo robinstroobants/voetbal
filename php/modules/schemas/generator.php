@@ -180,7 +180,19 @@
                   $dynamic_schema_parts = $dynResult['schema_parts'];
                   $sel = $dynResult['ordered_squad']; // Override player sequence!
                   $shuffle_type = "coach"; // Force direct execution of this 1 exact permutation
-                  $te_gebruiken_schema = 'DYNAMIC';
+                  
+                  // Opslaan in database om een geldig schema_id te hebben
+                  $schema_json = json_encode($dynamic_schema_parts);
+                  $stmtCheck = $pdo->prepare("SELECT id FROM lineups WHERE schema_data = ? AND game_format = ? AND player_count = ? LIMIT 1");
+                  $stmtCheck->execute([$schema_json, $format, count($sel)]);
+                  $existing = $stmtCheck->fetchColumn();
+                  if ($existing) {
+                      $te_gebruiken_schema = $existing;
+                  } else {
+                      $stmtInsert = $pdo->prepare("INSERT INTO lineups (team_id, game_format, schema_data, is_original, player_count) VALUES (?, ?, ?, 1, ?)");
+                      $stmtInsert->execute([$_SESSION['team_id'] ?? 1, $format, $schema_json, count($sel)]);
+                      $te_gebruiken_schema = $pdo->lastInsertId();
+                  }
               }
           }
       }
@@ -561,9 +573,7 @@
       $list_of_players = $squad;
       // We moeten het juiste schema inladen via de global variabelen voordat Game wordt geïnitialiseerd
       // Normaliter deed de iterator dat, maar in coach mode moeten we dit eenmalig manueel doen.
-      if (isset($te_gebruiken_schema) && $te_gebruiken_schema === 'DYNAMIC' && isset($dynamic_schema_parts)) {
-          $events[$format][count($list_of_players)] = $dynamic_schema_parts;
-      } else if (isset($te_gebruiken_schema)) {
+      if (isset($te_gebruiken_schema)) {
           $stmtSch = $pdo->prepare("SELECT schema_data FROM lineups WHERE id = ?");
           $stmtSch->execute([$te_gebruiken_schema]);
           $schema_json = $stmtSch->fetchColumn();

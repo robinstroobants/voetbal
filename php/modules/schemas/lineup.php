@@ -201,6 +201,17 @@
                           <i class="fa-solid fa-check"></i> Maak Definitief
                       </button>
                   </li>
+              <?php elseif (!isset($locked_lineup) && isset($_GET['dynamic'])): 
+                  $namen_tonen_str = implode(", ", array_map('getPlayerName', array_keys($lineup->playerindex)));
+              ?>
+                  <li class="nav-item d-print-none" role="presentation">
+                      <button class="btn btn-sm btn-outline-success ms-3 mt-1" onclick='savePreselection(this, <?= json_encode((int)$gameId) ?>, <?= json_encode($selected['ws_id'] ?? 0) ?>, <?= json_encode(implode(',', array_keys($lineup->playerindex))) ?>, <?= json_encode((float)($t_opt['rating'] ?? 0)) ?>, <?= json_encode($namen_tonen_str) ?>)'>
+                          <i class="fa-solid fa-floppy-disk"></i> Bewaar Dynamisch Schema in Voorselecties
+                      </button>
+                      <button onclick="window.print()" class="btn btn-outline-danger btn-sm ms-2 mt-1">
+                          <i class="fa-solid fa-file-pdf me-1"></i> Opslaan als PDF
+                      </button>
+                  </li>
               <?php else: 
                   $can_unlock = false;
                   $finalizer_name = "een coach";

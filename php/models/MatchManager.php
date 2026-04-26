@@ -493,7 +493,8 @@ class MatchManager {
                    SUM(p.seconds_bank) as total_bank,
                    SUM(p.seconds_gk) as total_gk,
                    SUM(CASE WHEN tp.id IS NOT NULL AND g.game_date BETWEEN tp.start_date AND tp.end_date THEN p.seconds_played ELSE 0 END) as period_played,
-                   SUM(CASE WHEN tp.id IS NOT NULL AND g.game_date BETWEEN tp.start_date AND tp.end_date THEN p.seconds_bank ELSE 0 END) as period_bank
+                   SUM(CASE WHEN tp.id IS NOT NULL AND g.game_date BETWEEN tp.start_date AND tp.end_date THEN p.seconds_bank ELSE 0 END) as period_bank,
+                   SUM(CASE WHEN tp.id IS NOT NULL AND g.game_date BETWEEN tp.start_date AND tp.end_date THEN p.seconds_gk ELSE 0 END) as period_gk
             FROM game_playtime_logs p
             JOIN games g ON p.game_id = g.id
             LEFT JOIN team_periods tp ON tp.team_id = g.team_id 
@@ -517,7 +518,8 @@ class MatchManager {
                 'bank' => (int)$row['total_bank'],
                 'gk' => (int)$row['total_gk'],
                 'period_played' => (int)$row['period_played'],
-                'period_bank' => (int)$row['period_bank']
+                'period_bank' => (int)$row['period_bank'],
+                'period_gk' => (int)$row['period_gk']
             ];
             // Total available time = the time they were on the match sheet (played + bank)
             $results[$pid]['available'] = $results[$pid]['played'] + $results[$pid]['bank'];
@@ -534,7 +536,8 @@ class MatchManager {
                     'available' => 0,
                     'period_played' => 0,
                     'period_bank' => 0,
-                    'period_available' => 0
+                    'period_available' => 0,
+                    'period_gk' => 0
                 ];
             }
         }

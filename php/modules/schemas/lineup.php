@@ -165,6 +165,11 @@
       
       <?php if (!empty($top_selected_options)): ?>
           <h4 class="text-center d-print-none mt-5 mb-2"><i class="fa-solid fa-wand-magic-sparkles"></i> Actuele Gegenereerde Opties</h4>
+          <?php if (isset($_GET['dynamic']) && $_GET['dynamic'] == 1 && $gk_count === 0): ?>
+              <div class="alert alert-info d-print-none text-center shadow-sm">
+                  <i class="fa-solid fa-rotate me-2"></i><strong>Roterende Doelman geactiveerd:</strong> Er is geen doelman geselecteerd, de rol wordt wiskundig eerlijk geroteerd over de veldspelers (op basis van wedstrijd, periode en seizoen).
+              </div>
+          <?php endif; ?>
       <?php endif; ?>
 
       <?php if (!empty($top_selected_options)): ?> 

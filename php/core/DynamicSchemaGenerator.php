@@ -119,9 +119,13 @@ class DynamicSchemaGenerator {
             if ($fixed_gk_idx !== null && $pid == $ordered_squad[0]) continue;
             
             $ordered_squad[$idx_counter] = $pid;
-            $st = $seasonStatsData[$pid] ?? ['played' => 0, 'available' => 0, 'period_played' => 0, 'period_available' => 0];
+            $st = $seasonStatsData[$pid] ?? ['played' => 0, 'available' => 0, 'period_played' => 0, 'period_available' => 0, 'gk' => 0, 'period_gk' => 0];
             $pct_season = ($st['available'] > 0) ? ($st['played'] / $st['available']) : 0;
             $pct_period = ($st['period_available'] > 0) ? ($st['period_played'] / $st['period_available']) : 0;
+            
+            $pct_season_gk = ($st['available'] > 0) ? ($st['gk'] / $st['available']) : 0;
+            $pct_period_gk = ($st['period_available'] > 0) ? ($st['period_gk'] / $st['period_available']) : 0;
+            
             $name = strtolower($names[$pid] ?? '');
             
             $field_players[$idx_counter] = [
@@ -130,8 +134,11 @@ class DynamicSchemaGenerator {
                 'mins_game' => 0,
                 'pct_period' => $pct_period,
                 'pct_season' => $pct_season,
+                'pct_period_gk' => $pct_period_gk,
+                'pct_season_gk' => $pct_season_gk,
                 'name' => $name,
-                'times_gk' => 0
+                'times_gk' => 0,
+                'random' => mt_rand()
             ];
             $idx_counter++;
         }
@@ -149,18 +156,15 @@ class DynamicSchemaGenerator {
             if ($rotating_gks && !isset($game_gks[$game_idx])) {
                 uasort($field_players, function($a, $b) use ($use_period) {
                     if ($a['times_gk'] !== $b['times_gk']) {
-                        return $a['times_gk'] <=> $b['times_gk']; // Minste keren GK eerst
+                        return $a['times_gk'] <=> $b['times_gk']; // Minste keren GK eerst deze match
                     }
-                    if (abs($a['mins_game'] - $b['mins_game']) > 0.01) {
-                        return $a['mins_game'] <=> $b['mins_game'];
+                    if ($use_period && abs($a['pct_period_gk'] - $b['pct_period_gk']) > 0.001) {
+                        return $a['pct_period_gk'] <=> $b['pct_period_gk']; // Minste keren GK deze periode
                     }
-                    if ($use_period && abs($a['pct_period'] - $b['pct_period']) > 0.001) {
-                        return $a['pct_period'] <=> $b['pct_period'];
+                    if (abs($a['pct_season_gk'] - $b['pct_season_gk']) > 0.001) {
+                        return $a['pct_season_gk'] <=> $b['pct_season_gk']; // Minste keren GK dit seizoen
                     }
-                    if (abs($a['pct_season'] - $b['pct_season']) > 0.001) {
-                        return $a['pct_season'] <=> $b['pct_season'];
-                    }
-                    return strcmp($a['name'], $b['name']);
+                    return $a['random'] <=> $b['random']; // Plain old random bij gelijke stand!
                 });
                 
                 $chosen_gk_idx = array_key_first($field_players);

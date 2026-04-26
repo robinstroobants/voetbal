@@ -126,7 +126,7 @@ if (preg_match('/^(\d+)v\d+/', $default_format, $matches)) {
     $required_players = (int)$matches[1];
 }
 
-$onboarding_complete = ($players_count >= $required_players && $coaches_count >= 1);
+$onboarding_complete = ($players_count >= $required_players);
 $missing_coaches_count = 0;
 
 foreach ($games as $game) {
@@ -262,7 +262,7 @@ require_once dirname(__DIR__, 2) . '/header.php';
     <?php if (!$onboarding_complete): ?>
     <div class="alert alert-warning shadow-sm border-0 border-start border-warning border-4 fw-bold mb-4">
         <i class="fa-solid fa-triangle-exclamation text-warning fs-5 align-middle me-2"></i> 
-        Je voldoet nog niet aan de ploegvereisten (minstens <?= $required_players ?> spelers en 1 coach).
+        Je voldoet nog niet aan de ploegvereisten (minstens <?= $required_players ?> spelers).
         <a href="/" class="alert-link text-decoration-underline ms-2">Keer terug naar het dashboard</a> om je inschrijving af te ronden!
     </div>
     <?php endif; ?>

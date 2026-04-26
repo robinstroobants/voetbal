@@ -34,11 +34,37 @@
             
             // Als de Generator specifieke back-tracking solver tijden heeft berekend, toon die dan mee:
             // Verborgen op aanvraag gebruiker
+            // Haal user info op als iemand is ingelogd
+            $footer_user_info = '';
+            if (isset($_SESSION['user_id'])) {
+                if (!isset($_SESSION['user_name_display']) || !isset($_SESSION['user_email_display'])) {
+                    if (isset($pdo)) {
+                        $stmtFU = $pdo->prepare("SELECT first_name, last_name, email FROM users WHERE id = ?");
+                        $stmtFU->execute([$_SESSION['user_id']]);
+                        $fu = $stmtFU->fetch(PDO::FETCH_ASSOC);
+                        if ($fu) {
+                            $_SESSION['user_name_display'] = trim($fu['first_name'] . ' ' . $fu['last_name']);
+                            $_SESSION['user_email_display'] = $fu['email'];
+                        }
+                    }
+                }
+                
+                if (isset($_SESSION['user_name_display']) && isset($_SESSION['user_email_display'])) {
+                    $footer_user_info = htmlspecialchars($_SESSION['user_name_display']) . ' (' . htmlspecialchars($_SESSION['user_email_display']) . ')';
+                }
+            }
         ?>
         <div class="text-secondary opacity-75">
             <i class="fa-solid fa-code-branch me-1"></i> <span class="fw-bold" style="letter-spacing: 0.5px;"><?= htmlspecialchars($app_version) ?></span> 
             <span class="mx-2">&middot;</span> <i class="fa-solid fa-stopwatch me-1"></i> <?= $global_load_ms ?> ms
             <span class="mx-2">&middot;</span> <i class="fa-solid fa-memory me-1"></i> <?= $mem_peak_mb ?> MB
+            
+            <?php if (!empty($footer_user_info)): ?>
+                <span class="mx-2 d-none d-md-inline">&middot;</span>
+                <div class="d-block d-md-inline mt-1 mt-md-0">
+                    <i class="fa-solid fa-user me-1"></i> <?= $footer_user_info ?>
+                </div>
+            <?php endif; ?>
         </div>
     </footer>
 

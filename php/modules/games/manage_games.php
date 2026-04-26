@@ -660,11 +660,11 @@ document.addEventListener("DOMContentLoaded", function() {
             if (selectedFormat === '11v11') {
                 parts = ['2x45', '2x40', '2x35'];
             } else if (selectedFormat === '8v8') {
-                parts = ['4x15', '2x30', '3x20'];
+                parts = ['4x15', '5x15', '6x15', '7x15', '4x20', '5x20', '6x20', '7x20'];
             } else if (selectedFormat === '5v5') {
-                parts = ['4x15', '4x10'];
+                parts = ['4x15', '5x15', '6x15', '7x15'];
             } else if (selectedFormat === '3v3' || selectedFormat === '2v2') {
-                parts = ['4x10', '4x15'];
+                parts = ['6x10'];
             } else {
                 parts = ['4x15'];
             }

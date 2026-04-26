@@ -747,45 +747,53 @@ function openGameModal(game = null, isDuplicate = false) {
         }
         document.getElementById('modal_format').value = formatBase;
         updateGameParts(formatParts);
-    } else if (game && isDuplicate) {
-        document.getElementById('gameModalLabel').innerText = 'Wedstrijd Dupliceren van ' + game.opponent;
-        document.getElementById('modal_source_game_id').value = game.id;
-        document.getElementById('modal_opponent').value = '';
-        document.getElementById('modal_game_date').value = new Date().toISOString().split('T')[0];
-        document.getElementById('modal_game_time').value = '09:00';
-        document.getElementById('modal_min_pos').value = game.min_pos || '0';
-        document.getElementById('modal_coach_id').value = game.coach_id || '';
-        if (game.is_home === undefined || game.is_home == 1) {
-            document.getElementById('loc_home').checked = true;
-        } else {
-            document.getElementById('loc_away').checked = true;
-        }
-        
-        let formatBase = '8v8';
-        let formatParts = '4x15';
-        if (game.format) {
-            const parts = game.format.split('_');
-            if (parts.length >= 2) {
-                formatBase = parts[0];
-                formatParts = parts[parts.length - 1];
-            } else {
-                formatBase = game.format;
-            }
-        }
-        document.getElementById('modal_format').value = formatBase;
-        updateGameParts(formatParts);
     } else {
-        document.getElementById('gameModalLabel').innerText = 'Nieuwe Wedstrijd Plannen';
-        document.getElementById('modal_game_date').value = new Date().toISOString().split('T')[0];
-        document.getElementById('modal_game_time').value = '09:00';
-        document.getElementById('modal_min_pos').value = '0';
-        document.getElementById('modal_coach_id').value = '<?= $_SESSION['user_id'] ?? '' ?>';
-        document.getElementById('loc_home').checked = true;
-        
-        let defFormat = '<?= $_SESSION['default_format'] ?? '8v8' ?>';
-        let defParts = '<?= $_SESSION['default_game_parts'] ?? '4x15' ?>';
-        document.getElementById('modal_format').value = defFormat;
-        updateGameParts(defParts);
+        let nextSat = new Date();
+        let daysToSat = 6 - nextSat.getDay();
+        if (daysToSat <= 0) daysToSat += 7; // If today is Saturday, get NEXT Saturday
+        nextSat.setDate(nextSat.getDate() + daysToSat);
+        let nextSatStr = nextSat.getFullYear() + '-' + String(nextSat.getMonth() + 1).padStart(2, '0') + '-' + String(nextSat.getDate()).padStart(2, '0');
+
+        if (isDuplicate) {
+            document.getElementById('gameModalLabel').innerText = 'Wedstrijd Dupliceren van ' + game.opponent;
+            document.getElementById('modal_source_game_id').value = game.id;
+            document.getElementById('modal_opponent').value = '';
+            document.getElementById('modal_game_date').value = nextSatStr;
+            document.getElementById('modal_game_time').value = '09:00';
+            document.getElementById('modal_min_pos').value = game.min_pos || '0';
+            document.getElementById('modal_coach_id').value = game.coach_id || '';
+            if (game.is_home === undefined || game.is_home == 1) {
+                document.getElementById('loc_home').checked = true;
+            } else {
+                document.getElementById('loc_away').checked = true;
+            }
+            
+            let formatBase = '8v8';
+            let formatParts = '4x15';
+            if (game.format) {
+                const parts = game.format.split('_');
+                if (parts.length >= 2) {
+                    formatBase = parts[0];
+                    formatParts = parts[parts.length - 1];
+                } else {
+                    formatBase = game.format;
+                }
+            }
+            document.getElementById('modal_format').value = formatBase;
+            updateGameParts(formatParts);
+        } else {
+            document.getElementById('gameModalLabel').innerText = 'Nieuwe Wedstrijd Plannen';
+            document.getElementById('modal_game_date').value = nextSatStr;
+            document.getElementById('modal_game_time').value = '09:00';
+            document.getElementById('modal_min_pos').value = '0';
+            document.getElementById('modal_coach_id').value = '<?= $_SESSION['user_id'] ?? '' ?>';
+            document.getElementById('loc_home').checked = true;
+            
+            let defFormat = '<?= $_SESSION['default_format'] ?? '8v8' ?>';
+            let defParts = '<?= $_SESSION['default_game_parts'] ?? '4x15' ?>';
+            document.getElementById('modal_format').value = defFormat;
+            updateGameParts(defParts);
+        }
     }
     
     modal.show();

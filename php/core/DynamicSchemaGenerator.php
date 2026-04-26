@@ -98,11 +98,11 @@ class DynamicSchemaGenerator {
 
         // 4. Load player names and stats
         $placeholders = implode(',', array_fill(0, count($squad), '?'));
-        $stmt = $this->pdo->prepare("SELECT id, first_name, display_name FROM players WHERE id IN ($placeholders)");
+        $stmt = $this->pdo->prepare("SELECT id, first_name, last_name FROM players WHERE id IN ($placeholders)");
         $stmt->execute($squad);
         $names = [];
         while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-            $names[$row['id']] = $row['display_name'] ?: $row['first_name'];
+            $names[$row['id']] = $row['first_name'] . ' ' . substr($row['last_name'], 0, 1) . '.';
         }
 
         $seasonStatsData = $this->matchManager->getSeasonStatsForSelection($this->teamId, $this->gameDate, $squad);

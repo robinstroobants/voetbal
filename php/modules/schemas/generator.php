@@ -189,7 +189,7 @@
                   if ($existing) {
                       $te_gebruiken_schema = $existing;
                   } else {
-                      $stmtInsert = $pdo->prepare("INSERT INTO lineups (team_id, game_format, schema_data, is_original, player_count) VALUES (?, ?, ?, 1, ?)");
+                      $stmtInsert = $pdo->prepare("INSERT INTO lineups (team_id, game_format, schema_data, is_original, player_count, legacy_id) VALUES (?, ?, ?, 1, ?, 0)");
                       $stmtInsert->execute([$_SESSION['team_id'] ?? 1, $format, $schema_json, count($sel)]);
                       $te_gebruiken_schema = $pdo->lastInsertId();
                   }

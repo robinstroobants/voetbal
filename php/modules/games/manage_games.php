@@ -550,10 +550,10 @@ require_once dirname(__DIR__, 2) . '/header.php';
                       <label class="form-label text-muted small fw-bold d-block">LOCATIE</label>
                       <div class="btn-group w-100" role="group">
                           <input type="radio" class="btn-check" name="is_home" id="loc_home" value="1" autocomplete="off" checked>
-                          <label class="btn btn-outline-primary" for="loc_home"><i class="fa-solid fa-house me-1"></i>Thuis</label>
+                          <label class="btn btn-outline-primary" for="loc_home" title="Thuis"><i class="fa-solid fa-house"></i></label>
 
                           <input type="radio" class="btn-check" name="is_home" id="loc_away" value="0" autocomplete="off">
-                          <label class="btn btn-outline-primary" for="loc_away"><i class="fa-solid fa-plane me-1"></i>Uit</label>
+                          <label class="btn btn-outline-primary" for="loc_away" title="Uit"><i class="fa-solid fa-plane"></i></label>
                       </div>
                   </div>
               </div>
@@ -657,7 +657,17 @@ document.addEventListener("DOMContentLoaded", function() {
         
         let parts = availableParts[selectedFormat] || [];
         if (parts.length === 0) {
-            parts = ['4x15', '3x20', '2x45'];
+            if (selectedFormat === '11v11') {
+                parts = ['2x45', '2x40', '2x35'];
+            } else if (selectedFormat === '8v8') {
+                parts = ['4x15', '2x30', '3x20'];
+            } else if (selectedFormat === '5v5') {
+                parts = ['4x15', '4x10'];
+            } else if (selectedFormat === '3v3' || selectedFormat === '2v2') {
+                parts = ['4x10', '4x15'];
+            } else {
+                parts = ['4x15'];
+            }
         }
 
         parts.forEach(part => {

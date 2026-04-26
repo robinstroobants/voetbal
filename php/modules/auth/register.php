@@ -441,9 +441,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error) {
                                 
                                 let parts = availableParts[selectedFormat] || [];
                                 if (parts.length === 0) {
-                                    parts = ['4x15', '3x20', '2x45'];
+                                    if (selectedFormat === '11v11') {
+                                        parts = ['2x45', '2x40', '2x35'];
+                                    } else if (selectedFormat === '8v8') {
+                                        parts = ['4x15', '2x30', '3x20'];
+                                    } else if (selectedFormat === '5v5') {
+                                        parts = ['4x15', '4x10'];
+                                    } else if (selectedFormat === '3v3' || selectedFormat === '2v2') {
+                                        parts = ['4x10', '4x15'];
+                                    } else {
+                                        parts = ['4x15'];
+                                    }
                                 }
-
                                 parts.forEach(part => {
                                     const option = document.createElement('option');
                                     option.value = part;

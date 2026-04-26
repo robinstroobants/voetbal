@@ -547,11 +547,14 @@ require_once dirname(__DIR__, 2) . '/header.php';
                       <input type="text" class="form-control" name="opponent" id="modal_opponent" required placeholder="BV. FC Barcelona">
                   </div>
                   <div class="col-md-4">
-                      <label class="form-label text-muted small fw-bold">LOCATIE</label>
-                      <select class="form-select" name="is_home" id="modal_is_home">
-                          <option value="1">Thuis</option>
-                          <option value="0">Uit</option>
-                      </select>
+                      <label class="form-label text-muted small fw-bold d-block">LOCATIE</label>
+                      <div class="btn-group w-100" role="group">
+                          <input type="radio" class="btn-check" name="is_home" id="loc_home" value="1" autocomplete="off" checked>
+                          <label class="btn btn-outline-primary" for="loc_home"><i class="fa-solid fa-house me-1"></i>Thuis</label>
+
+                          <input type="radio" class="btn-check" name="is_home" id="loc_away" value="0" autocomplete="off">
+                          <label class="btn btn-outline-primary" for="loc_away"><i class="fa-solid fa-plane me-1"></i>Uit</label>
+                      </div>
                   </div>
               </div>
               <div class="row mb-3">
@@ -725,7 +728,11 @@ function openGameModal(game = null, isDuplicate = false) {
         document.getElementById('modal_game_time').value = (game.game_date && game.game_date.includes(' ') && !game.game_date.includes('00:00:00')) ? game.game_date.split(' ')[1].substring(0, 5) : '';
         document.getElementById('modal_min_pos').value = game.min_pos || '0';
         document.getElementById('modal_coach_id').value = game.coach_id || '';
-        document.getElementById('modal_is_home').value = (game.is_home === undefined || game.is_home == 1) ? '1' : '0';
+        if (game.is_home === undefined || game.is_home == 1) {
+            document.getElementById('loc_home').checked = true;
+        } else {
+            document.getElementById('loc_away').checked = true;
+        }
         
         let formatBase = '8v8';
         let formatParts = '4x15';
@@ -748,7 +755,11 @@ function openGameModal(game = null, isDuplicate = false) {
         document.getElementById('modal_game_time').value = '09:00';
         document.getElementById('modal_min_pos').value = game.min_pos || '0';
         document.getElementById('modal_coach_id').value = game.coach_id || '';
-        document.getElementById('modal_is_home').value = (game.is_home === undefined || game.is_home == 1) ? '1' : '0';
+        if (game.is_home === undefined || game.is_home == 1) {
+            document.getElementById('loc_home').checked = true;
+        } else {
+            document.getElementById('loc_away').checked = true;
+        }
         
         let formatBase = '8v8';
         let formatParts = '4x15';
@@ -769,7 +780,7 @@ function openGameModal(game = null, isDuplicate = false) {
         document.getElementById('modal_game_time').value = '09:00';
         document.getElementById('modal_min_pos').value = '0';
         document.getElementById('modal_coach_id').value = '<?= $_SESSION['user_id'] ?? '' ?>';
-        document.getElementById('modal_is_home').value = '1';
+        document.getElementById('loc_home').checked = true;
         
         let defFormat = '<?= $_SESSION['default_format'] ?? '8v8' ?>';
         let defParts = '<?= $_SESSION['default_game_parts'] ?? '4x15' ?>';

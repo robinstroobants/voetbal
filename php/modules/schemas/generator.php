@@ -160,11 +160,28 @@
       } else {
           // Zet de spelers alfabetisch klaar voor random generator
           $sel = array_filter(array_map('trim', explode(',', $selectie)));
+          $gk_arr = [];
           if (!empty(trim($doelmannen))) {
               $gk_arr = array_filter(array_map('trim', explode(',', $doelmannen)));
               $sel = array_merge($gk_arr, $sel);
           }
           if (!isset($shuffle_type)) $shuffle_type = "random"; 
+          
+          // --- DYNAMIC GENERATOR INTERCEPT ---
+          if (isset($_GET['dynamic']) && $_GET['dynamic'] == 1) {
+              require_once dirname(__DIR__, 2) . '/core/DynamicSchemaGenerator.php';
+              $player_scores = $matchData['player_scores'];
+              $dynGen = new DynamicSchemaGenerator($pdo, $_SESSION['team_id'], $matchData['game']['game_date'], $matchManager, $player_scores);
+              $pattern_key = $_GET['pattern'] ?? 'half';
+              $dynResult = $dynGen->generate($sel, $gk_arr, $format, $pattern_key);
+              
+              if ($dynResult) {
+                  $dynamic_schema_parts = $dynResult['schema_parts'];
+                  $sel = $dynResult['ordered_squad']; // Override player sequence!
+                  $shuffle_type = "coach"; // Force direct execution of this 1 exact permutation
+                  $te_gebruiken_schema = 'DYNAMIC';
+              }
+          }
       }
 
       $player_scores = $matchData['player_scores']; // Vervangt playerscores.php
@@ -279,13 +296,15 @@
               }
           } else {
               $wisselschema_meta = []; // Fallback initialization
-              echo "<div style='padding:20px; background:#fff3cd; border:1px solid #ffeeba; color:#856404; margin:15px; border-radius:5px;'>";
-              echo "<h4>⚠️ Beperkte / Te kleine selectie</h4>";
-              echo "Geen rekenkundig wisselschema gevonden voor formaat <strong>" . htmlspecialchars($format) . "</strong> met <strong>" . $aantal . " spelers</strong>.<br/>";
-              echo "Voeg meer spelers toe aan je spelers selectie of kies een ander match-format.";
-              echo "</div>";
-              $top_selected_options = []; // Stop early
-              return; // We stoppen de generatie, weergave in index is blanco
+              if (!isset($dynamic_schema_parts)) {
+                  echo "<div style='padding:20px; background:#fff3cd; border:1px solid #ffeeba; color:#856404; margin:15px; border-radius:5px;'>";
+                  echo "<h4>⚠️ Beperkte / Te kleine selectie</h4>";
+                  echo "Geen rekenkundig wisselschema gevonden voor formaat <strong>" . htmlspecialchars($format) . "</strong> met <strong>" . $aantal . " spelers</strong>.<br/>";
+                  echo "Voeg meer spelers toe aan je spelers selectie of kies een ander match-format.";
+                  echo "</div>";
+                  $top_selected_options = []; // Stop early
+                  return; // We stoppen de generatie, weergave in index is blanco
+              }
           }
       } else {
           if ($building_lineup == 1) {
@@ -541,7 +560,9 @@
       $list_of_players = $squad;
       // We moeten het juiste schema inladen via de global variabelen voordat Game wordt geïnitialiseerd
       // Normaliter deed de iterator dat, maar in coach mode moeten we dit eenmalig manueel doen.
-      if (isset($te_gebruiken_schema)) {
+      if (isset($te_gebruiken_schema) && $te_gebruiken_schema === 'DYNAMIC' && isset($dynamic_schema_parts)) {
+          $events[$format][count($list_of_players)] = $dynamic_schema_parts;
+      } else if (isset($te_gebruiken_schema)) {
           $stmtSch = $pdo->prepare("SELECT schema_data FROM lineups WHERE id = ?");
           $stmtSch->execute([$te_gebruiken_schema]);
           $schema_json = $stmtSch->fetchColumn();

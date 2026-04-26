@@ -9,6 +9,46 @@
       }
       return htmlspecialchars($id);
   }
+  
+  // --- PATTERN LOGIC FOR DYNAMIC GENERATOR MODAL ---
+  $search_format = $format ?? '';
+  $gk_arr = array_filter(array_map('trim', explode(',', $doelmannen ?? '')));
+  $gk_count = count($gk_arr);
+  $aantal = count($squad ?? []);
+
+  if (strpos($search_format, 'gk') === false) {
+      if (preg_match('/^(\d+v\d+)_(\d+x\d+.*)$/', $search_format, $matches)) {
+          $search_format = $matches[1] . '_' . $gk_count . 'gk_' . $matches[2];
+      }
+  }
+
+  $nr_of_games = 4;
+  $game_duration_min = 15;
+  $sub_duration_min_parsed = 15;
+  if (preg_match('/_(\d+)x(\d+)(?:_([0-9.]+)min)?$/', $search_format, $m)) {
+      $nr_of_games = (int)$m[1];
+      $game_duration_min = (int)$m[2];
+      $sub_duration_min_parsed = isset($m[3]) ? (float)$m[3] : $game_duration_min;
+  }
+
+  $patterns = [];
+  if ($sub_duration_min_parsed != $game_duration_min) {
+      $patterns['default'] = ['name' => "Standaard: Wissel om de {$sub_duration_min_parsed}m"];
+  }
+  $patterns['no_sub'] = ['name' => "Niet wisselen ($nr_of_games wedstrijden van {$game_duration_min}m)"];
+  if ($game_duration_min % 2 == 0 || $game_duration_min == 15) {
+      $patterns['half'] = ['name' => "Wissel halverwege (Helften van " . ($game_duration_min / 2) . "m)"];
+  }
+  if ($game_duration_min == 15 && $nr_of_games >= 2) {
+      $patterns['custom_10_5_end'] = ['name' => "W1&W2 helften, W3(10m-5m), W4(5m-10m)"];
+      $patterns['custom_10_5_start'] = ['name' => "W1(10m-5m), W2(5m-10m), W3&W4 helften"];
+      $patterns['custom_10_5_all'] = ['name' => "Afwisselend 10m-5m en 5m-10m per wedstrijd"];
+      $patterns['custom_5_10_all'] = ['name' => "Afwisselend 5m-10m en 10m-5m per wedstrijd"];
+  }
+  $selected_pattern_key = isset($patterns['half']) ? 'half' : 'default';
+  if (!isset($patterns[$selected_pattern_key])) {
+      $selected_pattern_key = array_key_first($patterns);
+  }
   ?>
     
   <main>
@@ -68,9 +108,9 @@
       <div class="card mb-4 border-primary d-print-none shadow-sm" id="saved-lineups-container" style="<?= empty($saved_lineups) || $locked_lineup ? 'display:none;' : '' ?>">
           <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
               <div><i class="fa-solid fa-star"></i> <strong>Opgeslagen Voorselecties</strong></div>
-              <a href="<?= build_url($base_url, ['wedstrijd' => $gameId, 'generate' => 1]) ?>" class="btn btn-sm btn-warning fw-bold text-dark shadow-sm">
+              <button type="button" class="btn btn-sm btn-warning fw-bold text-dark shadow-sm" data-bs-toggle="modal" data-bs-target="#generateModal">
                   <i class="fa-solid fa-wand-magic-sparkles"></i> Genereer Nieuwe Opties
-              </a>
+              </button>
           </div>
           <div class="card-body p-0">
               <table class="table table-hover mb-0">
@@ -1014,3 +1054,57 @@
 
   
 <?php require_once dirname(__DIR__, 2) . '/footer.php'; ?>
+
+<!-- Generate Modal -->
+<div class="modal fade" id="generateModal" tabindex="-1" aria-labelledby="generateModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-primary text-white">
+        <h5 class="modal-title" id="generateModalLabel"><i class="fa-solid fa-wand-magic-sparkles me-2"></i>Opstelling Genereren</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Sluiten"></button>
+      </div>
+      <div class="modal-body">
+        <p>Kies hoe je nieuwe opstellingen wilt genereren. We kunnen putten uit <strong>bestaande sjablonen</strong> (snel & betrouwbaar) of een <strong>compleet nieuw schema</strong> berekenen op maat van deze specifieke wedstrijd (dynamisch).</p>
+        
+        <div class="d-grid gap-3">
+          <!-- Optie 1: Klassiek Database Sjablonen -->
+          <a href="<?= build_url($base_url, ['wedstrijd' => $gameId, 'generate' => 1]) ?>" class="btn btn-outline-primary text-start p-3 position-relative">
+            <h6 class="mb-1"><i class="fa-solid fa-database me-2"></i>Bestaande Database Sjablonen</h6>
+            <small class="text-muted">Gebruikt de opgeslagen matrixen uit de instellingen en zoekt de beste posities. (Standaard)</small>
+          </a>
+
+          <hr class="my-1">
+
+          <!-- Optie 2: Dynamisch -->
+          <div class="card border-warning">
+            <div class="card-body">
+                <h6 class="mb-2 text-dark"><i class="fa-solid fa-bolt text-warning me-2"></i>Dynamisch Schema (AI Solver)</h6>
+                <p class="small text-muted mb-3">Bouwt een matrix <em>from scratch</em> met gegarandeerd gelijke speelminuten en zonder dubbele bankzitters, aangepast aan speelhistoriek.</p>
+                <form method="GET" action="<?= htmlspecialchars($base_url) ?>">
+                    <input type="hidden" name="wedstrijd" value="<?= $gameId ?>">
+                    <input type="hidden" name="generate" value="1">
+                    <input type="hidden" name="dynamic" value="1">
+                    
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold">Wisselpatroon:</label>
+                        <select name="pattern" class="form-select form-select-sm border-warning bg-light">
+                            <?php foreach($patterns as $key => $pattern): ?>
+                                <option value="<?= htmlspecialchars($key) ?>" <?= $key === $selected_pattern_key ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($pattern['name']) ?>
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                    
+                    <button type="submit" class="btn btn-warning fw-bold text-dark w-100">
+                        <i class="fa-solid fa-rocket me-2"></i>Genereer Dynamisch
+                    </button>
+                </form>
+            </div>
+          </div>
+          
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

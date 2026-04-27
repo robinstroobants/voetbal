@@ -15,7 +15,7 @@ class DynamicSchemaGenerator {
         $this->playerScores = $playerScores;
     }
 
-    public function generate($squad, $gk_arr, $format, $pattern_key, $use_period = false) {
+    public function generate($squad, $gk_arr, $format, $pattern_key, $use_period = false, $min_pos_req = 0) {
         // 1. Determine match settings based on format
         $gk_count = count($gk_arr);
         $aantal = count($squad);
@@ -285,7 +285,12 @@ class DynamicSchemaGenerator {
                     
                     // Encourage variety: penalize positions already played in this match
                     if (isset($field_players[$idx]['played_positions'][$pos])) {
-                        $score -= 2.0; // Significant penalty
+                        $unique_played = count($field_players[$idx]['played_positions']);
+                        if ($unique_played < $min_pos_req) {
+                            $score -= 100.0; // Massive penalty to strictly enforce min_pos
+                        } else {
+                            $score -= 2.0; // Soft penalty once minimum is met
+                        }
                     }
                     
                     if ($score > $best_score) {

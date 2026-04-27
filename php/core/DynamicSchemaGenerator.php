@@ -358,7 +358,9 @@ class DynamicSchemaGenerator {
                 'mins_game' => $fp['mins_game'],
                 'mins_season' => $fp['mins_season'] ?? 0,
                 'pct_season' => $fp['pct_season'] ?? 0,
+                'pct_period' => $fp['pct_period'] ?? 0,
                 'pct_season_gk' => $fp['pct_season_gk'] ?? 0,
+                'pct_period_gk' => $fp['pct_period_gk'] ?? 0,
                 'times_gk' => $fp['times_gk'] ?? 0,
                 'is_gk' => false
             ];
@@ -366,14 +368,17 @@ class DynamicSchemaGenerator {
         foreach ($gk_arr as $idx => $pid) {
             // Estimate GK mins (divided equally if multiple)
             $gk_mins = $fixed_gk_count > 0 ? ($num_shifts * $dur_min) / $fixed_gk_count : 0;
-            $st = $seasonStatsData[$pid] ?? ['played' => 0, 'available' => 0];
+            $st = $seasonStatsData[$pid] ?? ['played' => 0, 'available' => 0, 'period_played' => 0, 'period_available' => 0];
             $pct_season = ($st['available'] > 0) ? ($st['played'] / $st['available']) : 0;
+            $pct_period = ($st['period_available'] > 0) ? ($st['period_played'] / $st['period_available']) : 0;
             $analysis['player_stats'][] = [
                 'pid' => $pid,
                 'mins_game' => $gk_mins,
                 'mins_season' => 0,
                 'pct_season' => $pct_season,
+                'pct_period' => $pct_period,
                 'pct_season_gk' => 1.0,
+                'pct_period_gk' => 1.0,
                 'times_gk' => $num_shifts / max(1, $fixed_gk_count),
                 'is_gk' => true
             ];

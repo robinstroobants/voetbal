@@ -170,68 +170,176 @@
                   <i class="fa-solid fa-rotate me-2"></i><strong>Roterende Doelman geactiveerd:</strong> Er is geen doelman geselecteerd, de rol wordt wiskundig eerlijk geroteerd over de veldspelers (op basis van wedstrijd, periode en seizoen).
               </div>
           <?php endif; ?>
-          <?php if (isset($dynamic_analysis)): ?>
-              <div class="card mb-4 shadow-sm border-info d-print-none">
-                  <div class="card-header bg-info text-white">
-                      <i class="fa-solid fa-calculator me-1"></i> <strong>FairShift Diagnose</strong>
+          <?php if (isset($dynamic_analysis)): 
+              // --- Bereken wiskundige theorie net zoals in schema_builder ---
+              $numFieldPlayers = $dynamic_analysis['field_players'];
+              $numFieldPositions = ($gk_count > 0) ? (count($fieldPositions)) : (count($fieldPositions) + 1);
+              if ($gk_count === 0) $numFieldPositions = count($fieldPositions); // Rotating GK takes 1 position.
+              
+              $totalBlocks = $dynamic_analysis['shifts'];
+              $block_dur = $dynamic_analysis['shift_duration'];
+              $totalFieldBlocks = $numFieldPositions * $totalBlocks;
+              
+              $base_blocks = ($numFieldPlayers > 0) ? floor($totalFieldBlocks / $numFieldPlayers) : 0;
+              $extra_blocks = ($numFieldPlayers > 0) ? $totalFieldBlocks % $numFieldPlayers : 0;
+              $players_extra = $extra_blocks;
+              $players_base = $numFieldPlayers - $players_extra;
+              $base_mins = $base_blocks * $block_dur;
+              $extra_mins = $base_mins + $block_dur;
+              
+              // Ophalen van 'Speeltijd vorige wedstrijd' voor de geselecteerde spelers
+              $lastMatchPlaytimes = [];
+              $squad_ids = array_column($dynamic_analysis['player_stats'], 'pid');
+              if (!empty($squad_ids)) {
+                  $placeholders = implode(',', array_fill(0, count($squad_ids), '?'));
+                  $queryLastGame = "
+                      SELECT p.player_id, p.seconds_played, p.seconds_gk, p.seconds_bank, g.id as game_id, g.opponent, g.game_date, g.is_home
+                      FROM game_playtime_logs p
+                      JOIN games g ON p.game_id = g.id
+                      WHERE p.player_id IN ($placeholders) 
+                        AND g.team_id = ? 
+                        AND g.game_date < ?
+                      ORDER BY g.game_date DESC, g.id DESC
+                  ";
+                  $paramsLastGame = array_merge($squad_ids, [$_SESSION['team_id'], $game['game_date']]);
+                  $stmtLast = $pdo->prepare($queryLastGame);
+                  $stmtLast->execute($paramsLastGame);
+                  
+                  while ($row = $stmtLast->fetch(PDO::FETCH_ASSOC)) {
+                      $pid = $row['player_id'];
+                      if (!isset($lastMatchPlaytimes[$pid])) {
+                          $lastMatchPlaytimes[$pid] = [
+                              'mins' => round($row['seconds_played'] / 60, 1),
+                              'opponent' => $row['opponent'],
+                              'date' => date('d-m-Y', strtotime($row['game_date'])),
+                              'location' => isset($row['is_home']) && $row['is_home'] == 1 ? 'Thuis' : 'Uit',
+                              'bank' => round($row['seconds_bank'] / 60, 1),
+                              'gk' => round($row['seconds_gk'] / 60, 1)
+                          ];
+                      }
+                  }
+              }
+              
+              $minutesGroups = [];
+              foreach ($dynamic_analysis['player_stats'] as $stat) {
+                  $pid = $stat['pid'];
+                  if ($stat['is_gk']) continue; // Exclude fixed GKs from field history grouping
+                  
+                  $gameInfo = $lastMatchPlaytimes[$pid] ?? null;
+                  $mins = $gameInfo['mins'] ?? 0;
+                  
+                  if (!isset($minutesGroups[(string)$mins])) {
+                      $minutesGroups[(string)$mins] = [];
+                  }
+                  
+                  $pName = htmlspecialchars(getPlayerName($pid));
+                  if ($gameInfo) {
+                      $titleText = htmlspecialchars("Gespeeld tegen " . $gameInfo['opponent'] . " op " . $gameInfo['date']);
+                      $contentHtml = htmlspecialchars(
+                          "<div class='small'>" .
+                          "<b>Tegenstander:</b> " . htmlspecialchars($gameInfo['opponent']) . "<br>" .
+                          "<b>Locatie:</b> " . $gameInfo['location'] . "<br>" .
+                          "<b>Datum:</b> " . $gameInfo['date'] . "<br>" .
+                          "<b>Veld:</b> " . $gameInfo['mins'] . "m<br>" .
+                          "<b>Doelman:</b> " . $gameInfo['gk'] . "m<br>" .
+                          "<b>Bank:</b> " . $gameInfo['bank'] . "m" .
+                          "</div>"
+                      );
+                      $minutesGroups[(string)$mins][] = "<strong class='text-dark' style='cursor: pointer; text-decoration: none; border-bottom: 1px solid transparent;' title='" . $titleText . "' data-bs-toggle='popover' data-bs-trigger='focus' tabindex='0' data-bs-html='true' data-bs-title='Match Details' data-bs-content='" . $contentHtml . "'>$pName</strong>";
+                  } else {
+                      $minutesGroups[(string)$mins][] = "<strong>$pName</strong>";
+                  }
+              }
+              
+              krsort($minutesGroups);
+              $lastMatchHtml = '';
+              if (!empty($minutesGroups)) {
+                  $lastMatchHtml = '<div class="p-2 bg-white rounded border mb-2">';
+                  $lastMatchHtml .= '<p class="mb-1 fw-bold text-dark" style="font-size: 0.8rem;"><i class="fa-solid fa-clock-rotate-left text-secondary me-1"></i>Speeltijd vorige wedstrijd</p>';
+                  foreach ($minutesGroups as $mins => $names) {
+                      $lastMatchHtml .= '<p class="mb-0 text-muted" style="font-size: 0.75rem;">' . $mins . 'm: ' . implode(', ', $names) . '</p>';
+                  }
+                  $lastMatchHtml .= '</div>';
+              }
+              
+              // Render GK ratio if rotating
+              $gkRatioHtml = '';
+              if ($gk_count === 0) {
+                  $use_period = isset($_GET['use_period']) && $_GET['use_period'] == 1;
+                  $statLabel = $use_period ? 'Periode %' : 'Seizoen %';
+                  
+                  $gkRatioHtml = '<div class="p-2 bg-white rounded border mb-2">';
+                  $gkRatioHtml .= '<p class="mb-1 fw-bold text-dark" style="font-size: 0.8rem;"><i class="fa-solid fa-hands-holding-circle text-warning me-1"></i>Historiek: Speelminuten Veld vs Doelman (' . ($use_period ? 'Huidige Periode' : 'Gehele Seizoen') . ')</p>';
+                  $gkRatioHtml .= '<table class="table table-sm table-borderless mb-0" style="font-size: 0.75rem;">';
+                  $gkRatioHtml .= '<tr><th class="py-0 text-muted">Speler</th><th class="py-0 text-muted">Veld (' . $statLabel . ')</th><th class="py-0 text-muted">Doelman (' . $statLabel . ')</th></tr>';
+                  
+                  // Sort by GK% ascending to show who stands the least in goal first
+                  $gkSortedStats = $dynamic_analysis['player_stats'];
+                  if ($use_period) {
+                      usort($gkSortedStats, fn($a, $b) => ($a['pct_period_gk'] ?? 0) <=> ($b['pct_period_gk'] ?? 0));
+                  } else {
+                      usort($gkSortedStats, fn($a, $b) => ($a['pct_season_gk'] ?? 0) <=> ($b['pct_season_gk'] ?? 0));
+                  }
+                  
+                  foreach ($gkSortedStats as $stat) {
+                      if ($stat['is_gk']) continue;
+                      $name = htmlspecialchars(getPlayerName($stat['pid']));
+                      $pctField = round((float)($use_period ? ($stat['pct_period'] ?? 0) : ($stat['pct_season'] ?? 0)) * 100);
+                      $pctGk = round((float)($use_period ? ($stat['pct_period_gk'] ?? 0) : ($stat['pct_season_gk'] ?? 0)) * 100);
+                      $gkRatioHtml .= "<tr><td class='py-0'><strong>$name</strong></td><td class='py-0'>{$pctField}%</td><td class='py-0'>{$pctGk}%</td></tr>";
+                  }
+                  $gkRatioHtml .= '</table></div>';
+              }
+              
+              // Group AI results by mins_game
+              $aiMinsGroups = [];
+              foreach ($dynamic_analysis['player_stats'] as $stat) {
+                  if ($stat['is_gk']) continue;
+                  $m = (string)$stat['mins_game'];
+                  if (!isset($aiMinsGroups[$m])) $aiMinsGroups[$m] = [];
+                  $aiMinsGroups[$m][] = "<strong>" . htmlspecialchars(getPlayerName($stat['pid'])) . "</strong>";
+              }
+              krsort($aiMinsGroups);
+          ?>
+              <div class="card mb-4 border-info shadow-sm d-print-none" style="border-width: 2px;">
+                  <div class="card-header bg-info text-white fw-bold d-flex align-items-center py-2" style="font-size: 0.9rem; cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#fairshiftCollapse" aria-expanded="true">
+                      <i class="fa-solid fa-lightbulb text-warning me-2"></i> FairShift Pre-Game Analyse
+                      <i class="fa-solid fa-chevron-down ms-auto"></i>
                   </div>
-                  <div class="card-body pb-0 text-sm">
-                      <p class="card-text mb-3">
-                          Dit systeem verdeelt het speelvolume (<?= $dynamic_analysis['shifts'] ?> helftjes x <?= $dynamic_analysis['shift_duration'] ?> min) wiskundig eerlijk over de actueel aanwezige spelers (<?= $dynamic_analysis['squad_size'] ?> spelers).
-                          De richtlijn voor vandaag is <strong><?= $dynamic_analysis['target_avg_mins'] ?> minuten speelrecht</strong> per veldspeler.
-                          Spelers met minder seizoensminuten kregen pro-actief de kans om dit in te halen, terwijl veel-spelers vandaag meer rust krijgen om de totale seizoensbalans te herstellen.
-                      </p>
-                      <div class="table-responsive">
-                          <table class="table table-sm table-bordered text-center align-middle">
-                              <thead class="table-light">
-                                  <tr>
-                                      <th>Speler</th>
-                                      <th>Vandaag Veld</th>
-                                      <?php if ($gk_count === 0): ?>
-                                      <th>Vandaag GK</th>
-                                      <?php endif; ?>
-                                      <th>Seizoensbalans vooraf</th>
-                                      <?php if ($gk_count === 0): ?>
-                                      <th>GK Balans vooraf</th>
-                                      <?php endif; ?>
-                                      <th>Diagnose (Waarom?)</th>
-                                  </tr>
-                              </thead>
-                              <tbody>
-                                  <?php 
-                                  // Sort by minutes played today
-                                  usort($dynamic_analysis['player_stats'], fn($a, $b) => $b['mins_game'] <=> $a['mins_game']);
-                                  foreach($dynamic_analysis['player_stats'] as $stat): 
-                                      $name = getPlayerName($stat['pid']);
-                                      $diff = $stat['mins_game'] - $dynamic_analysis['target_avg_mins'];
-                                      $gk_diff = isset($stat['times_gk']) ? $stat['times_gk'] : 0;
-                                      if ($stat['is_gk']) {
-                                          $reason = "<span class='badge bg-warning text-dark'>Vaste Doelman</span> Speelt normaal gezien alles of roteert onderling.";
-                                      } else {
-                                          if ($diff > 0) {
-                                              $reason = "<span class='text-success'><i class='fa-solid fa-arrow-trend-up'></i> Haalt achterstand van het seizoen in (+{$diff}m)</span>";
-                                          } else if ($diff < 0) {
-                                              $reason = "<span class='text-danger'><i class='fa-solid fa-arrow-trend-down'></i> Compenseert teveel speelminuten dit seizoen (" . $diff . "m)</span>";
-                                          } else {
-                                              $reason = "<span class='text-muted'><i class='fa-solid fa-scale-balanced'></i> In balans met de theorie</span>";
-                                          }
-                                      }
-                                  ?>
-                                  <tr>
-                                      <td class="text-start fw-bold"><?= htmlspecialchars($name) ?></td>
-                                      <td><?= $stat['mins_game'] ?> min</td>
-                                      <?php if ($gk_count === 0): ?>
-                                      <td><?= $stat['is_gk'] ? $stat['mins_game'] : ($gk_diff * $dynamic_analysis['shift_duration']) ?> min</td>
-                                      <?php endif; ?>
-                                      <td><?= round($stat['pct_season'] * 100, 1) ?>%</td>
-                                      <?php if ($gk_count === 0): ?>
-                                      <td><?= round(($stat['pct_season_gk'] ?? 0) * 100, 1) ?>%</td>
-                                      <?php endif; ?>
-                                      <td class="text-start"><?= $reason ?></td>
-                                  </tr>
-                                  <?php endforeach; ?>
-                              </tbody>
-                          </table>
+                  <div class="collapse show" id="fairshiftCollapse">
+                      <div class="card-body bg-light text-dark p-3">
+                          <p class="mb-2" style="font-size: 0.8rem; line-height: 1.3;">Met <?= $numFieldPlayers ?> veldspelers voor <?= $numFieldPositions ?> posities resulteert dit in:</p>
+                          
+                          <?php if ($players_extra > 0): ?>
+                          <ul class="mb-3" style="font-size: 0.8rem; line-height: 1.3; padding-left: 20px;">
+                              <li><strong><?= $players_extra ?> spelers</strong> spelen <strong><?= $extra_mins ?>m</strong> (<?= $base_blocks + 1 ?> blokjes)</li>
+                              <li><strong><?= $players_base ?> spelers</strong> spelen <strong><?= $base_mins ?>m</strong> (<?= $base_blocks ?> blokjes)</li>
+                          </ul>
+                          
+                          <?= $lastMatchHtml ?>
+                          <?= $gkRatioHtml ?>
+                          
+                          <p class="mb-2 mt-3 fw-bold" style="font-size: 0.8rem;"><i class="fa-solid fa-robot text-success me-1"></i> FairShift heeft dit exact als volgt ingedeeld:</p>
+                          <?php 
+                          $is_first = true;
+                          foreach ($aiMinsGroups as $mins => $names): 
+                              $color = $is_first ? "text-success" : "text-danger";
+                              $icon = $is_first ? "fa-arrow-up" : "fa-arrow-down";
+                              $is_first = false;
+                          ?>
+                          <div class="p-2 bg-white rounded border mb-2">
+                              <p class="mb-1 fw-bold <?= $color ?>" style="font-size: 0.8rem;"><i class="fa-solid <?= $icon ?> me-1"></i><?= $mins ?> minuten</p>
+                              <p class="mb-0 text-muted" style="font-size: 0.75rem;">Toegewezen aan: <?= implode(', ', $names) ?></p>
+                          </div>
+                          <?php endforeach; ?>
+                          
+                          <?php else: ?>
+                          <div class="alert alert-success p-2 mb-3" style="font-size: 0.8rem;">
+                              <strong>Perfecte wiskunde!</strong> Alle <?= $numFieldPlayers ?> veldspelers spelen exact <strong><?= $base_mins ?>m</strong> (<?= $base_blocks ?> blokjes).
+                          </div>
+                          <?= $lastMatchHtml ?>
+                          <?= $gkRatioHtml ?>
+                          <?php endif; ?>
                       </div>
                   </div>
               </div>

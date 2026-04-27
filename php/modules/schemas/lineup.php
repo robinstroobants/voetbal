@@ -162,11 +162,7 @@
       
       <?php if (!empty($top_selected_options)): ?>
           <h4 class="text-center d-print-none mt-5 mb-2"><i class="fa-solid fa-wand-magic-sparkles"></i> Actuele Gegenereerde Opties</h4>
-          <?php if (isset($_GET['dynamic']) && $_GET['dynamic'] == 1 && $gk_count === 0): ?>
-              <div class="alert alert-info d-print-none text-center shadow-sm">
-                  <i class="fa-solid fa-rotate me-2"></i><strong>Roterende Doelman geactiveerd:</strong> Er is geen doelman geselecteerd, de rol wordt wiskundig eerlijk geroteerd over de veldspelers (op basis van wedstrijd, periode en seizoen).
-              </div>
-          <?php endif; ?>
+
           <?php if (isset($dynamic_analysis)): 
               // Check active period
               $stmtPeriod = $pdo->prepare("SELECT id, name FROM team_periods WHERE team_id = ? AND ? BETWEEN start_date AND end_date");
@@ -331,27 +327,6 @@
                   </div>
                   <div class="collapse show" id="fairshiftCollapse">
                       <div class="card-body bg-light text-dark p-2">
-                          <div class="d-flex flex-wrap gap-2 mb-2">
-                              <?php if ($activePeriod): ?>
-                              <div class="d-flex align-items-center p-1 px-2 bg-white rounded border flex-grow-1">
-                                  <span class="small fw-bold text-muted me-auto" style="font-size: 0.75rem;"><i class="fa-solid fa-calendar-alt me-1"></i><?= htmlspecialchars($activePeriod['name']) ?></span>
-                                  <div class="form-check form-switch mb-0 ms-2">
-                                      <input class="form-check-input" style="transform: scale(0.8);" type="checkbox" id="togglePeriodFairshift" value="1" <?= $use_period ? 'checked' : '' ?> onchange="window.location.href='?generate=1&dynamic=1&use_period=' + (this.checked ? '1' : '0')">
-                                      <label class="form-check-label small fw-bold" style="font-size: 0.75rem;" for="togglePeriodFairshift">Toon periode</label>
-                                  </div>
-                              </div>
-                              <?php endif; ?>
-                              
-                              <?php
-                              $min_pos_req = (int)($matchData['game']['min_pos'] ?? 0);
-                              if ($min_pos_req > 0):
-                              ?>
-                              <div class="d-flex align-items-center p-1 px-2 bg-white rounded border border-warning">
-                                  <span class="small fw-bold text-dark" style="font-size: 0.75rem;"><i class="fa-solid fa-triangle-exclamation text-warning me-1"></i>Min. <?= $min_pos_req ?> pos/speler</span>
-                              </div>
-                              <?php endif; ?>
-                          </div>
-                          
                           <div class="row g-2">
                               <!-- Linker kolom: Wiskunde & Huidige match -->
                               <div class="col-md-6">
@@ -365,6 +340,34 @@
                                       <?php else: ?>
                                       <p class="mb-0 text-success fw-bold" style="font-size: 0.75rem;"><i class="fa-solid fa-check-circle me-1"></i>Alle spelers spelen exact <?= $base_mins ?>m.</p>
                                       <?php endif; ?>
+                                  </div>
+                                  
+                                  <div class="d-flex flex-column gap-1 mb-2">
+                                      <?php if ($activePeriod): ?>
+                                      <div class="d-flex align-items-center p-1 px-2 bg-white rounded border">
+                                          <div class="form-check form-switch mb-0 w-100 d-flex justify-content-between align-items-center">
+                                              <label class="form-check-label small fw-bold text-dark mb-0" style="font-size: 0.75rem;" for="togglePeriodFairshift">Gebruik periode-stats i.p.v. seizoen?</label>
+                                              <input class="form-check-input ms-2" style="transform: scale(0.8); margin-top:0;" type="checkbox" id="togglePeriodFairshift" value="1" <?= $use_period ? 'checked' : '' ?> onchange="window.location.href='?generate=1&dynamic=1&use_period=' + (this.checked ? '1' : '0')">
+                                          </div>
+                                      </div>
+                                      <?php endif; ?>
+                                      
+                                      <div class="d-flex flex-wrap gap-1">
+                                          <?php if (isset($_GET['dynamic']) && $_GET['dynamic'] == 1 && $gk_count === 0): ?>
+                                          <div class="d-flex align-items-center p-1 px-2 bg-white rounded border flex-grow-1">
+                                              <span class="small text-muted" style="font-size: 0.75rem;"><i class="fa-solid fa-rotate text-info me-1"></i>Doelman roteert</span>
+                                          </div>
+                                          <?php endif; ?>
+
+                                          <?php
+                                          $min_pos_req = (int)($matchData['game']['min_pos'] ?? 0);
+                                          if ($min_pos_req > 0):
+                                          ?>
+                                          <div class="d-flex align-items-center p-1 px-2 bg-white rounded border flex-grow-1">
+                                              <span class="small text-muted" style="font-size: 0.75rem;"><i class="fa-solid fa-people-arrows text-warning me-1"></i>Min. <?= $min_pos_req ?> pos/speler</span>
+                                          </div>
+                                          <?php endif; ?>
+                                      </div>
                                   </div>
                                   
                                   <?php if ($players_extra > 0): ?>

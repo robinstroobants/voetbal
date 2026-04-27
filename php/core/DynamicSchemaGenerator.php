@@ -247,9 +247,10 @@ class DynamicSchemaGenerator {
             // Assign positions greedily based on player scores to maximize rating
             $available_positions = $fieldPositions;
             
-            // PASS 1: Houd spelers op hun huidige positie indien mogelijk
+            // PASS 1: Houd spelers op hun huidige positie indien mogelijk, tenzij het een nieuwe wedstrijd is
             $unassigned_indexes = [];
-            $prev_lineup = ($shift_idx > 0) ? $schema_parts[$shift_idx - 1]['lineup'] : [];
+            $is_same_game = ($shift_idx > 0 && $schema_parts[$shift_idx - 1]['game_counter'] === $game_idx);
+            $prev_lineup = $is_same_game ? $schema_parts[$shift_idx - 1]['lineup'] : [];
             
             foreach ($selected_indexes as $idx) {
                 $kept_pos = false;
@@ -314,10 +315,10 @@ class DynamicSchemaGenerator {
             unset($fp);
 
             // Generate subs logic
-            if ($shift_idx > 0) {
-                $prev_lineup = $schema_parts[$shift_idx - 1]['lineup'];
+            if ($is_same_game) {
+                $prev_lineup_subs = $schema_parts[$shift_idx - 1]['lineup'];
                 $shift_data['subs'] = ['in' => [], 'out' => []];
-                foreach ($prev_lineup as $pos => $speler_oud) {
+                foreach ($prev_lineup_subs as $pos => $speler_oud) {
                     if (isset($shift_data['lineup'][$pos])) {
                         $speler_nieuw = $shift_data['lineup'][$pos];
                         if ($speler_oud !== $speler_nieuw) {

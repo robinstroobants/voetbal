@@ -359,14 +359,7 @@
                                   </div>
                                   
                                   <div class="d-flex flex-column gap-1 mb-2">
-                                      <?php if ($activePeriod): ?>
-                                      <div class="d-flex align-items-center p-1 px-2 bg-white rounded border">
-                                          <div class="form-check form-switch mb-0 w-100 d-flex justify-content-between align-items-center">
-                                              <label class="form-check-label small fw-bold text-dark mb-0" style="font-size: 0.75rem;" for="togglePeriodFairshift">Gebruik periode-stats i.p.v. seizoen?</label>
-                                              <input class="form-check-input ms-2" style="transform: scale(0.8); margin-top:0;" type="checkbox" id="togglePeriodFairshift" value="1" <?= $use_period ? 'checked' : '' ?> onchange="window.location.href='?generate=1&dynamic=1&use_period=' + (this.checked ? '1' : '0')">
-                                          </div>
-                                      </div>
-                                      <?php endif; ?>
+
                                       
                                       <div class="d-flex flex-wrap gap-1">
                                           <?php if (isset($_GET['dynamic']) && $_GET['dynamic'] == 1 && $gk_count === 0): ?>
@@ -408,6 +401,14 @@
                               
                               <!-- Rechter kolom: Historiek en Vorige Wedstrijden -->
                               <div class="col-md-6">
+                                  <?php if ($activePeriod): ?>
+                                  <div class="d-flex align-items-center p-1 px-2 bg-white rounded border mb-2">
+                                      <div class="form-check form-switch mb-0 w-100 d-flex justify-content-between align-items-center">
+                                          <label class="form-check-label small fw-bold text-dark mb-0" style="font-size: 0.75rem;" for="togglePeriodFairshift">Gebruik periode-stats i.p.v. seizoen?</label>
+                                          <input class="form-check-input ms-2" style="transform: scale(0.8); margin-top:0;" type="checkbox" id="togglePeriodFairshift" value="1" <?= $use_period ? 'checked' : '' ?> onchange="window.location.href='?generate=1&dynamic=1&use_period=' + (this.checked ? '1' : '0')">
+                                      </div>
+                                  </div>
+                                  <?php endif; ?>
                                   <?= $gkRatioHtml ?>
                               </div>
                           </div>

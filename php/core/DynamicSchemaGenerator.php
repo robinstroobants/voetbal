@@ -138,6 +138,8 @@ class DynamicSchemaGenerator {
                 'pct_season_gk' => $pct_season_gk,
                 'name' => $name,
                 'times_gk' => 0,
+                'times_benched' => 0,
+                'times_field' => 0,
                 'random' => mt_rand()
             ];
             $idx_counter++;
@@ -155,15 +157,23 @@ class DynamicSchemaGenerator {
             // Determine GK for this game part if rotating
             if ($rotating_gks && !isset($game_gks[$game_idx])) {
                 uasort($field_players, function($a, $b) use ($use_period) {
+                    // 0. Absolute voorwaarde: Iedereen evenveel keren in doel per WEDSTRIJD
                     if ($a['times_gk'] !== $b['times_gk']) {
-                        return $a['times_gk'] <=> $b['times_gk']; // Minste keren GK eerst deze match
+                        return $a['times_gk'] <=> $b['times_gk'];
                     }
+                    // 1. Minste totale speelminuten vandaag
+                    if (abs($a['mins_game'] - $b['mins_game']) > 0.01) {
+                        return $a['mins_game'] <=> $b['mins_game'];
+                    }
+                    // 2. Minste keren GK deze periode
                     if ($use_period && abs($a['pct_period_gk'] - $b['pct_period_gk']) > 0.001) {
-                        return $a['pct_period_gk'] <=> $b['pct_period_gk']; // Minste keren GK deze periode
+                        return $a['pct_period_gk'] <=> $b['pct_period_gk'];
                     }
+                    // 3. Minste keren GK dit seizoen
                     if (abs($a['pct_season_gk'] - $b['pct_season_gk']) > 0.001) {
-                        return $a['pct_season_gk'] <=> $b['pct_season_gk']; // Minste keren GK dit seizoen
+                        return $a['pct_season_gk'] <=> $b['pct_season_gk'];
                     }
+                    // 4. Alfabetisch
                     return strcmp($a['name'], $b['name']);
                 });
                 
@@ -172,13 +182,10 @@ class DynamicSchemaGenerator {
                 $field_players[$chosen_gk_idx]['times_gk']++;
             }
             
-            $part_count = $game_duration_min / $sub_duration_min_parsed;
-            $current_game_counter = floor($shift_idx / $part_count) + 1;
-            
             if ($rotating_gks) {
                 $current_gk_idx = $game_gks[$game_idx];
             } else {
-                $current_gk_idx = ($current_game_counter - 1) % $fixed_gk_count;
+                $current_gk_idx = ($game_idx - 1) % $fixed_gk_count;
             }
 
             // Sort exactly according to user rules for the FIELD positions
@@ -200,6 +207,16 @@ class DynamicSchemaGenerator {
                     return $a['pct_season'] <=> $b['pct_season'];
                 }
                 
+                // 3.5. Meeste keren op de bank (tie-breaker tegenover GKs)
+                if ($a['times_benched'] !== $b['times_benched']) {
+                    return $b['times_benched'] <=> $a['times_benched']; // Meer benched = hogere prioriteit om te spelen
+                }
+                
+                // 3.6 Minste keren veldspeler
+                if ($a['times_field'] !== $b['times_field']) {
+                    return $a['times_field'] <=> $b['times_field'];
+                }
+                
                 // 4. Naam alfabetisch
                 return strcmp($a['name'], $b['name']);
             });
@@ -218,7 +235,7 @@ class DynamicSchemaGenerator {
             $shift_data = [
                 'duration' => $dur_min * 60, // seconds
                 'start' => $current_start,
-                'game_counter' => $current_game_counter,
+                'game_counter' => $game_idx,
                 'lineup' => [],
                 'bench' => []
             ];
@@ -284,10 +301,14 @@ class DynamicSchemaGenerator {
 
             // Add remaining to bench and update minutes
             foreach ($field_players as $idx => &$fp) {
-                if (in_array($idx, $selected_indexes) || $idx === $current_gk_idx) {
+                if (in_array($idx, $shift_data['lineup'])) {
+                    $fp['mins_game'] += $dur_min;
+                    $fp['times_field']++;
+                } else if ($idx === $current_gk_idx) {
                     $fp['mins_game'] += $dur_min;
                 } else {
                     $shift_data['bench'][] = $idx;
+                    $fp['times_benched']++;
                 }
             }
             unset($fp);

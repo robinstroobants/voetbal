@@ -172,6 +172,12 @@
           <?php endif; ?>
           <?php if (isset($dynamic_analysis)): 
               // --- Bereken wiskundige theorie net zoals in schema_builder ---
+              $playPositions = [1, 2, 4, 5, 7, 9, 10, 11];
+              if (strpos($search_format, '5v5') !== false) {
+                  $playPositions = [1, 2, 4, 5, 9];
+              }
+              $fieldPositions = array_filter($playPositions, fn($p) => $p != 1);
+
               $numFieldPlayers = $dynamic_analysis['field_players'];
               $numFieldPositions = ($gk_count > 0) ? (count($fieldPositions)) : (count($fieldPositions) + 1);
               if ($gk_count === 0) $numFieldPositions = count($fieldPositions); // Rotating GK takes 1 position.
@@ -201,7 +207,7 @@
                         AND g.game_date < ?
                       ORDER BY g.game_date DESC, g.id DESC
                   ";
-                  $paramsLastGame = array_merge($squad_ids, [$_SESSION['team_id'], $game['game_date']]);
+                  $paramsLastGame = array_merge($squad_ids, [$_SESSION['team_id'], $matchData['game']['game_date']]);
                   $stmtLast = $pdo->prepare($queryLastGame);
                   $stmtLast->execute($paramsLastGame);
                   

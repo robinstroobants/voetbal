@@ -15,7 +15,7 @@ class DynamicSchemaGenerator {
         $this->playerScores = $playerScores;
     }
 
-    public function generate($squad, $gk_arr, $format, $pattern_key, $use_period = false, $min_pos_req = 0) {
+    public function generate($squad, $gk_arr, $format, $pattern_key, $use_period = false, $min_pos_req = 0, $compensate_last_match = true) {
         // 1. Determine match settings based on format
         $gk_count = count($gk_arr);
         $aantal = count($squad);
@@ -106,6 +106,28 @@ class DynamicSchemaGenerator {
         }
 
         $seasonStatsData = $this->matchManager->getSeasonStatsForSelection($this->teamId, $this->gameDate, $squad);
+        
+        $lastMatchMins = [];
+        if ($compensate_last_match && !empty($squad)) {
+            $stmtLastMatch = $this->pdo->prepare("
+                SELECT p.player_id, p.seconds_played 
+                FROM game_playtime_logs p
+                JOIN games g ON p.game_id = g.id
+                WHERE p.player_id IN ($placeholders) 
+                  AND g.team_id = ? 
+                  AND g.game_date < ?
+                  AND g.id = (
+                      SELECT id FROM games 
+                      WHERE team_id = ? AND game_date < ? 
+                      ORDER BY game_date DESC LIMIT 1
+                  )
+            ");
+            $params = array_merge($squad, [$this->teamId, $this->gameDate, $this->teamId, $this->gameDate]);
+            $stmtLastMatch->execute($params);
+            while ($row = $stmtLastMatch->fetch(PDO::FETCH_ASSOC)) {
+                $lastMatchMins[$row['player_id']] = (int)$row['seconds_played'] / 60;
+            }
+        }
 
         $ordered_squad = [];
         foreach ($gk_arr as $i => $gk_pid) {
@@ -132,6 +154,7 @@ class DynamicSchemaGenerator {
                 'idx' => $idx_counter,
                 'pid' => $pid,
                 'mins_game' => 0,
+                'last_match_mins' => $lastMatchMins[$pid] ?? 0,
                 'pct_period' => $pct_period,
                 'pct_season' => $pct_season,
                 'pct_period_gk' => $pct_period_gk,
@@ -166,6 +189,12 @@ class DynamicSchemaGenerator {
                     if (abs($a['mins_game'] - $b['mins_game']) > 0.01) {
                         return $a['mins_game'] <=> $b['mins_game'];
                     }
+                    // 1.5 Compenseer speeltijd vorige match (indien toggle ON)
+                    if ($compensate_last_match) {
+                        if (abs($a['last_match_mins'] - $b['last_match_mins']) > 0.01) {
+                            return $a['last_match_mins'] <=> $b['last_match_mins'];
+                        }
+                    }
                     // 2. Minste keren GK deze periode
                     if ($use_period && abs($a['pct_period_gk'] - $b['pct_period_gk']) > 0.001) {
                         return $a['pct_period_gk'] <=> $b['pct_period_gk'];
@@ -194,6 +223,13 @@ class DynamicSchemaGenerator {
                 // 1. Minste speelminuten deze wedstrijd
                 if (abs($a['mins_game'] - $b['mins_game']) > 0.01) {
                     return $a['mins_game'] <=> $b['mins_game'];
+                }
+                
+                // 1.5 Compenseer speeltijd vorige match (indien toggle ON)
+                if ($compensate_last_match) {
+                    if (abs($a['last_match_mins'] - $b['last_match_mins']) > 0.01) {
+                        return $a['last_match_mins'] <=> $b['last_match_mins'];
+                    }
                 }
                 
                 // 2. Minste speelminuten deze periode (indien met periodes gedefinieerd EN de coach heeft die toggle aangevinkt)

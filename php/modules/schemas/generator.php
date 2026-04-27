@@ -174,8 +174,9 @@
               $dynGen = new DynamicSchemaGenerator($pdo, $_SESSION['team_id'], $matchData['game']['game_date'], $matchManager, $player_scores);
               $pattern_key = $_GET['pattern'] ?? 'half';
               $use_period = isset($_GET['use_period']) && $_GET['use_period'] == 1;
+              $compensate = !isset($_GET['compensate']) || $_GET['compensate'] == 1; // Default ON
               $min_pos_req = (int)($matchData['game']['min_pos'] ?? 0);
-              $dynResult = $dynGen->generate($sel, $gk_arr, $format, $pattern_key, $use_period, $min_pos_req);
+              $dynResult = $dynGen->generate($sel, $gk_arr, $format, $pattern_key, $use_period, $min_pos_req, $compensate);
               
               if ($dynResult) {
                   $dynamic_schema_parts = $dynResult['schema_parts'];

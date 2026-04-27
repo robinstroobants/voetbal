@@ -172,34 +172,11 @@ require_once dirname(__DIR__, 2) . '/header.php';
                     <p class="card-text text-muted mb-4">Genereer een volledig nieuw schema "on the fly" gebaseerd op parameters, zónder de database-theorieën te gebruiken.</p>
                     
                     <div class="mt-auto">
-                        <?php if ($activePeriod): ?>
-                        <div class="form-check form-switch mb-3 text-start d-inline-block">
-                            <input class="form-check-input" type="checkbox" id="togglePeriod" value="1" checked>
-                            <label class="form-check-label small" for="togglePeriod">
-                                Focus op huidige periode (<?= htmlspecialchars($activePeriod['name']) ?>)
-                            </label>
-                        </div>
-                        <?php endif; ?>
-                        <a href="#" onclick="generateDynamic(event)" class="btn btn-success w-100 fw-bold">Genereer met FairShift</a>
+                        <a href="/games/<?= $gameId ?>/lineup?generate=1&dynamic=1" class="btn btn-success w-100 fw-bold">Genereer met FairShift</a>
                     </div>
                 </div>
             </div>
         </div>
-
-        <script>
-        function generateDynamic(e) {
-            e.preventDefault();
-            let url = "/games/<?= $gameId ?>/lineup?generate=1&dynamic=1";
-            <?php if ($activePeriod): ?>
-            if (document.getElementById('togglePeriod').checked) {
-                url += "&use_period=1";
-            } else {
-                url += "&use_period=0";
-            }
-            <?php endif; ?>
-            window.location.href = url;
-        }
-        </script>
 
         <div class="col-md-4 d-none">
             <div class="card h-100 shadow-sm border-0 hover-shadow transition-all">

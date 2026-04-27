@@ -110,3 +110,5 @@
 
 login google beter inpassen in layout, stap maar af van die landscape login
 link op dashboard naar nieuwe wedstrijd toont wedstrijdoverzicht ipv popup nieuwe wedstrijd...
+default wedstrijd moment thuiswedstrijden
+- na aanmaken wedstrijd (indien geen duplicate) direct naar selectie pagina

@@ -171,6 +171,12 @@
               </div>
           <?php endif; ?>
           <?php if (isset($dynamic_analysis)): 
+              // Check active period
+              $stmtPeriod = $pdo->prepare("SELECT id, name FROM team_periods WHERE team_id = ? AND ? BETWEEN start_date AND end_date");
+              $stmtPeriod->execute([$_SESSION['team_id'], $matchData['game']['game_date']]);
+              $activePeriod = $stmtPeriod->fetch(PDO::FETCH_ASSOC);
+              $use_period = isset($_GET['use_period']) && $_GET['use_period'] == 1;
+
               // --- Bereken wiskundige theorie net zoals in schema_builder ---
               $playPositions = [1, 2, 4, 5, 7, 9, 10, 11];
               if (strpos($search_format, '5v5') !== false) {
@@ -313,6 +319,16 @@
                   </div>
                   <div class="collapse show" id="fairshiftCollapse">
                       <div class="card-body bg-light text-dark p-3">
+                          <?php if ($activePeriod): ?>
+                          <div class="d-flex justify-content-between align-items-center mb-3 p-2 bg-white rounded border">
+                              <span class="small fw-bold text-muted"><i class="fa-solid fa-calendar-alt me-1"></i>Periode: <?= htmlspecialchars($activePeriod['name']) ?></span>
+                              <div class="form-check form-switch mb-0">
+                                  <input class="form-check-input" type="checkbox" id="togglePeriodFairshift" value="1" <?= $use_period ? 'checked' : '' ?> onchange="window.location.href='?generate=1&dynamic=1&use_period=' + (this.checked ? '1' : '0')">
+                                  <label class="form-check-label small fw-bold" for="togglePeriodFairshift">Focus statistieken op periode</label>
+                              </div>
+                          </div>
+                          <?php endif; ?>
+                          
                           <p class="mb-2" style="font-size: 0.8rem; line-height: 1.3;">Met <?= $numFieldPlayers ?> actieve spelers voor <?= $numFieldPositions ?> posities resulteert dit in:</p>
                           
                           <?php if ($players_extra > 0): ?>

@@ -165,9 +165,25 @@
 
           <?php if (isset($dynamic_analysis)): 
               // Check active period
-              $stmtPeriod = $pdo->prepare("SELECT id, name FROM team_periods WHERE team_id = ? AND ? BETWEEN start_date AND end_date");
+              $stmtPeriod = $pdo->prepare("SELECT id, name, start_date, end_date FROM team_periods WHERE team_id = ? AND ? BETWEEN start_date AND end_date");
               $stmtPeriod->execute([$_SESSION['team_id'], $matchData['game']['game_date']]);
               $activePeriod = $stmtPeriod->fetch(PDO::FETCH_ASSOC);
+              $use_period = isset($_GET['use_period']) && $_GET['use_period'] == 1;
+              
+              // Season dates
+              $stmtSeasonStart = $pdo->prepare("SELECT MIN(game_date) FROM games WHERE team_id = ? AND game_date <= ?");
+              $stmtSeasonStart->execute([$_SESSION['team_id'], $matchData['game']['game_date']]);
+              $seasonStartDate = $stmtSeasonStart->fetchColumn();
+              
+              $statsBasisHtml = '<div class="p-2 bg-white rounded border mb-2 text-muted" style="font-size: 0.75rem;">';
+              $statsBasisHtml .= '<i class="fa-solid fa-database me-1"></i><strong>Statistieken basis:</strong> ';
+              if ($use_period && $activePeriod) {
+                  $statsBasisHtml .= htmlspecialchars(date('d/m/Y', strtotime($activePeriod['start_date']))) . ' t.e.m. ' . htmlspecialchars(date('d/m/Y', strtotime($activePeriod['end_date'])));
+              } else {
+                  $startStr = ($seasonStartDate) ? date('d/m/Y', strtotime($seasonStartDate)) : '?';
+                  $statsBasisHtml .= htmlspecialchars($startStr) . ' t.e.m. ' . htmlspecialchars(date('d/m/Y', strtotime($matchData['game']['game_date'])));
+              }
+              $statsBasisHtml .= '</div>';
               $use_period = isset($_GET['use_period']) && $_GET['use_period'] == 1;
 
               // --- Bereken wiskundige theorie net zoals in schema_builder ---
@@ -385,11 +401,13 @@
                                   </div>
                                   <?php endforeach; ?>
                                   <?php endif; ?>
+                                  
+                                  <?= $lastMatchHtml ?>
+                                  <?= $statsBasisHtml ?>
                               </div>
                               
                               <!-- Rechter kolom: Historiek en Vorige Wedstrijden -->
                               <div class="col-md-6">
-                                  <?= $lastMatchHtml ?>
                                   <?= $gkRatioHtml ?>
                               </div>
                           </div>

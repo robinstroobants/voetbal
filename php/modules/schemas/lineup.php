@@ -277,12 +277,17 @@
               $gkRatioHtml = '';
               if ($gk_count === 0) {
                   $use_period = isset($_GET['use_period']) && $_GET['use_period'] == 1;
-                  $statLabel = $use_period ? 'Periode %' : 'Seizoen %';
                   
                   $gkRatioHtml = '<div class="p-2 bg-white rounded border mb-2">';
-                  $gkRatioHtml .= '<p class="mb-1 fw-bold text-dark" style="font-size: 0.8rem;"><i class="fa-solid fa-hands-holding-circle text-warning me-1"></i>Historiek: Speelminuten Veld vs Doelman (' . ($use_period ? 'Huidige Periode' : 'Gehele Seizoen') . ')</p>';
-                  $gkRatioHtml .= '<table class="table table-sm table-borderless mb-0" style="font-size: 0.75rem;">';
-                  $gkRatioHtml .= '<tr><th class="py-0 text-muted">Speler</th><th class="py-0 text-muted">Veld (' . $statLabel . ')</th><th class="py-0 text-muted">Doelman (' . $statLabel . ')</th></tr>';
+                  $gkRatioHtml .= '<p class="mb-1 fw-bold text-dark" style="font-size: 0.8rem;"><i class="fa-solid fa-hands-holding-circle text-warning me-1"></i>Historiek: Speelminuten Veld vs Doelman</p>';
+                  $gkRatioHtml .= '<div class="table-responsive"><table class="table table-sm table-borderless mb-0 text-nowrap" style="font-size: 0.75rem;">';
+                  
+                  if ($use_period) {
+                      $gkRatioHtml .= '<tr><th class="py-0 text-muted border-end" colspan="1"></th><th class="py-0 text-muted text-center border-end" colspan="2">Periode</th><th class="py-0 text-muted text-center" colspan="2">Seizoen</th></tr>';
+                      $gkRatioHtml .= '<tr><th class="py-0 text-muted border-end">Speler</th><th class="py-0 text-muted">Veld</th><th class="py-0 text-muted border-end">Doel</th><th class="py-0 text-muted">Veld</th><th class="py-0 text-muted">Doel</th></tr>';
+                  } else {
+                      $gkRatioHtml .= '<tr><th class="py-0 text-muted border-end">Speler</th><th class="py-0 text-muted">Veld (Seizoen)</th><th class="py-0 text-muted">Doel (Seizoen)</th></tr>';
+                  }
                   
                   // Sort by GK% ascending to show who stands the least in goal first
                   $gkSortedStats = $dynamic_analysis['player_stats'];
@@ -295,11 +300,19 @@
                   foreach ($gkSortedStats as $stat) {
                       if ($stat['is_gk']) continue;
                       $name = htmlspecialchars(getPlayerName($stat['pid']));
-                      $pctField = round((float)($use_period ? ($stat['pct_period'] ?? 0) : ($stat['pct_season'] ?? 0)) * 100);
-                      $pctGk = round((float)($use_period ? ($stat['pct_period_gk'] ?? 0) : ($stat['pct_season_gk'] ?? 0)) * 100);
-                      $gkRatioHtml .= "<tr><td class='py-0'><strong>$name</strong></td><td class='py-0'>{$pctField}%</td><td class='py-0'>{$pctGk}%</td></tr>";
+                      
+                      $pctSeasonField = number_format((float)($stat['pct_season'] ?? 0) * 100, 2) . '%';
+                      $pctSeasonGk = number_format((float)($stat['pct_season_gk'] ?? 0) * 100, 2) . '%';
+                      
+                      if ($use_period) {
+                          $pctPeriodField = number_format((float)($stat['pct_period'] ?? 0) * 100, 2) . '%';
+                          $pctPeriodGk = number_format((float)($stat['pct_period_gk'] ?? 0) * 100, 2) . '%';
+                          $gkRatioHtml .= "<tr><td class='py-0 border-end'><strong>$name</strong></td><td class='py-0'>{$pctPeriodField}</td><td class='py-0 border-end'>{$pctPeriodGk}</td><td class='py-0'>{$pctSeasonField}</td><td class='py-0'>{$pctSeasonGk}</td></tr>";
+                      } else {
+                          $gkRatioHtml .= "<tr><td class='py-0 border-end'><strong>$name</strong></td><td class='py-0'>{$pctSeasonField}</td><td class='py-0'>{$pctSeasonGk}</td></tr>";
+                      }
                   }
-                  $gkRatioHtml .= '</table></div>';
+                  $gkRatioHtml .= '</table></div></div>';
               }
               
               // Group AI results by mins_game
@@ -318,28 +331,44 @@
                       <i class="fa-solid fa-chevron-down ms-auto"></i>
                   </div>
                   <div class="collapse show" id="fairshiftCollapse">
-                      <div class="card-body bg-light text-dark p-3">
-                          <?php if ($activePeriod): ?>
-                          <div class="d-flex justify-content-between align-items-center mb-3 p-2 bg-white rounded border">
-                              <span class="small fw-bold text-muted"><i class="fa-solid fa-calendar-alt me-1"></i>Periode: <?= htmlspecialchars($activePeriod['name']) ?></span>
-                              <div class="form-check form-switch mb-0">
-                                  <input class="form-check-input" type="checkbox" id="togglePeriodFairshift" value="1" <?= $use_period ? 'checked' : '' ?> onchange="window.location.href='?generate=1&dynamic=1&use_period=' + (this.checked ? '1' : '0')">
-                                  <label class="form-check-label small fw-bold" for="togglePeriodFairshift">Focus statistieken op periode</label>
+                      <div class="card-body bg-light text-dark p-2">
+                          <div class="d-flex flex-wrap gap-2 mb-2">
+                              <?php if ($activePeriod): ?>
+                              <div class="d-flex align-items-center p-1 px-2 bg-white rounded border flex-grow-1">
+                                  <span class="small fw-bold text-muted me-auto" style="font-size: 0.75rem;"><i class="fa-solid fa-calendar-alt me-1"></i><?= htmlspecialchars($activePeriod['name']) ?></span>
+                                  <div class="form-check form-switch mb-0 ms-2">
+                                      <input class="form-check-input" style="transform: scale(0.8);" type="checkbox" id="togglePeriodFairshift" value="1" <?= $use_period ? 'checked' : '' ?> onchange="window.location.href='?generate=1&dynamic=1&use_period=' + (this.checked ? '1' : '0')">
+                                      <label class="form-check-label small fw-bold" style="font-size: 0.75rem;" for="togglePeriodFairshift">Toon periode</label>
+                                  </div>
                               </div>
+                              <?php endif; ?>
+                              
+                              <?php
+                              $min_pos_req = (int)($matchData['game']['min_pos'] ?? 0);
+                              if ($min_pos_req > 0):
+                              ?>
+                              <div class="d-flex align-items-center p-1 px-2 bg-white rounded border border-warning">
+                                  <span class="small fw-bold text-dark" style="font-size: 0.75rem;"><i class="fa-solid fa-triangle-exclamation text-warning me-1"></i>Min. <?= $min_pos_req ?> pos/speler</span>
+                              </div>
+                              <?php endif; ?>
                           </div>
-                          <?php endif; ?>
                           
-                          <p class="mb-2" style="font-size: 0.8rem; line-height: 1.3;">Met <?= $numFieldPlayers ?> actieve spelers voor <?= $numFieldPositions ?> posities resulteert dit in:</p>
-                          
-                          <?php if ($players_extra > 0): ?>
-                          <ul class="mb-3" style="font-size: 0.8rem; line-height: 1.3; padding-left: 20px;">
-                              <li><strong><?= $players_extra ?> spelers</strong> spelen <strong><?= $extra_mins ?>m</strong> (<?= $base_blocks + 1 ?> blokjes)</li>
-                              <li><strong><?= $players_base ?> spelers</strong> spelen <strong><?= $base_mins ?>m</strong> (<?= $base_blocks ?> blokjes)</li>
-                          </ul>
+                          <div class="mb-2 p-1 px-2 bg-white rounded border">
+                              <p class="mb-1" style="font-size: 0.75rem; line-height: 1.2;"><i class="fa-solid fa-calculator text-muted me-1"></i><strong>Wiskunde</strong> (<?= $numFieldPlayers ?> spelers, <?= $numFieldPositions ?> posities):</p>
+                              <?php if ($players_extra > 0): ?>
+                              <ul class="mb-0 text-dark" style="font-size: 0.75rem; line-height: 1.2; padding-left: 20px;">
+                                  <li><strong><?= $players_extra ?> spelers</strong>: <?= $extra_mins ?>m (<?= $base_blocks + 1 ?>x)</li>
+                                  <li><strong><?= $players_base ?> spelers</strong>: <?= $base_mins ?>m (<?= $base_blocks ?>x)</li>
+                              </ul>
+                              <?php else: ?>
+                              <p class="mb-0 text-success fw-bold" style="font-size: 0.75rem;"><i class="fa-solid fa-check-circle me-1"></i>Alle spelers spelen exact <?= $base_mins ?>m.</p>
+                              <?php endif; ?>
+                          </div>
                           
                           <?= $lastMatchHtml ?>
                           <?= $gkRatioHtml ?>
                           
+                          <?php if ($players_extra > 0): ?>
                           <p class="mb-2 mt-3 fw-bold" style="font-size: 0.8rem;"><i class="fa-solid fa-robot text-success me-1"></i> FairShift heeft dit exact als volgt ingedeeld:</p>
                           <?php 
                           $is_first = true;
@@ -353,13 +382,6 @@
                               <p class="mb-0 text-muted" style="font-size: 0.75rem;">Toegewezen aan: <?= implode(', ', $names) ?></p>
                           </div>
                           <?php endforeach; ?>
-                          
-                          <?php else: ?>
-                          <div class="alert alert-success p-2 mb-3" style="font-size: 0.8rem;">
-                              <strong>Perfecte wiskunde!</strong> Alle <?= $numFieldPlayers ?> spelers spelen exact <strong><?= $base_mins ?>m</strong> (<?= $base_blocks ?> blokjes).
-                          </div>
-                          <?= $lastMatchHtml ?>
-                          <?= $gkRatioHtml ?>
                           <?php endif; ?>
                       </div>
                   </div>
@@ -727,6 +749,18 @@
                           echo "</li>";
                         }
                         echo "</ul>";
+                        
+                        // Bepaal wie er op het veld blijft staan
+                        $blijven_staan = [];
+                        foreach ($game["lineup"] as $pos => $pid) {
+                            // Als speler niet in de 'in' array van wissels zit, stond hij er vorige shift ook al
+                            if (!in_array($pid, $game["subs"]["in"])) {
+                                $blijven_staan[] = "<strong>" . getPlayerName($pid) . "</strong>";
+                            }
+                        }
+                        if (count($blijven_staan) > 0) {
+                            echo "<div class='small text-muted mt-1'><i class='fa-solid fa-anchor me-1'></i>Blijven staan: " . implode(', ', $blijven_staan) . "</div>";
+                        }
                       
                         if (array_key_exists($game_idx+1,$lineup->events) && array_key_exists("subs",$lineup->events[$game_idx+1])){
                           $next_bench = $lineup->events[$game_idx+1]["subs"]["out"];

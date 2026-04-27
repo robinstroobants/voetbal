@@ -140,6 +140,7 @@ class DynamicSchemaGenerator {
                 'times_gk' => 0,
                 'times_benched' => 0,
                 'times_field' => 0,
+                'played_positions' => [],
                 'random' => mt_rand()
             ];
             $idx_counter++;
@@ -173,8 +174,8 @@ class DynamicSchemaGenerator {
                     if (abs($a['pct_season_gk'] - $b['pct_season_gk']) > 0.001) {
                         return $a['pct_season_gk'] <=> $b['pct_season_gk'];
                     }
-                    // 4. Alfabetisch
-                    return strcmp($a['name'], $b['name']);
+                    // 4. Random variatie (ipv alfabetisch)
+                    return $a['random'] <=> $b['random'];
                 });
                 
                 $chosen_gk_idx = array_key_first($field_players);
@@ -217,8 +218,8 @@ class DynamicSchemaGenerator {
                     return $a['times_field'] <=> $b['times_field'];
                 }
                 
-                // 4. Naam alfabetisch
-                return strcmp($a['name'], $b['name']);
+                // 4. Random variatie (ipv alfabetisch)
+                return $a['random'] <=> $b['random'];
             });
 
             // Exclude current GK from field positions
@@ -278,7 +279,15 @@ class DynamicSchemaGenerator {
                 $best_pos_key = -1;
                 
                 foreach ($available_positions as $k => $pos) {
-                    $score = $this->playerScores[$pid][$pos] ?? 0;
+                    $score = $this->playerScores[$pid][$pos] ?? 5; // Default score
+                    // Add small random noise to prevent identical scores keeping players fixed
+                    $score += ($field_players[$idx]['random'] % 10) / 100;
+                    
+                    // Encourage variety: penalize positions already played in this match
+                    if (isset($field_players[$idx]['played_positions'][$pos])) {
+                        $score -= 2.0; // Significant penalty
+                    }
+                    
                     if ($score > $best_score) {
                         $best_score = $score;
                         $best_pos = $pos;
@@ -300,11 +309,16 @@ class DynamicSchemaGenerator {
             
             ksort($shift_data['lineup']);
 
-            // Add remaining to bench and update minutes
+            // Add remaining to bench and update minutes and played positions
             foreach ($field_players as $idx => &$fp) {
                 if (in_array($idx, $shift_data['lineup'])) {
                     $fp['mins_game'] += $dur_min;
                     $fp['times_field']++;
+                    // Track position played
+                    $pos_played = array_search($idx, $shift_data['lineup']);
+                    if ($pos_played !== false) {
+                        $fp['played_positions'][$pos_played] = true;
+                    }
                 } else if ($idx === $current_gk_idx) {
                     $fp['mins_game'] += $dur_min;
                 } else {

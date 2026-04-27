@@ -110,10 +110,12 @@
 
 
 - Fairshift houdt nu geen rekening met de team setting min x posities... 
-- er is ook nul variatie in de opstellingen die worden gegenereerd...., is dat omdat er geen enkele  mogelijk is met eerlijke params? verander de laaste regel (sort op naam naar een random sort)
-login google beter inpassen in layout, stap maar af van die landscape login
-link op dashboard naar nieuwe wedstrijd toont wedstrijdoverzicht ipv popup nieuwe wedstrijd...
+- er is ook nul variatie in de opstellingen die worden gegenereerd...., is dat omdat er geen enkele  mogelijk is met eerlijke params? verander de laaste regel (sort op naam naar een random sort) en kijk of dat een verschil maakt.
+- in pregame analysis toon percentages op Fairshift tot 2 decimalen. Toon periode percentage ook.
+- login google beter inpassen in layout, stap maar af van die landscape login
+- link op dashboard naar nieuwe wedstrijd toont wedstrijdoverzicht ipv popup nieuwe wedstrijd...
 default wedstrijd moment thuiswedstrijden
 - na aanmaken wedstrijd (indien geen duplicate) direct naar selectie pagina
 - feedback systeem bouwen
 - ouders events laten ingeven
+- Fairshift / lineup. als je een wisselschema van 5v5 hebt met twee blijven staan is het misschien logischer om die twee in het bold te zetten in plaats van de wisselspelers??

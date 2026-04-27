@@ -85,10 +85,10 @@ class DynamicSchemaGenerator {
         $fieldPositions = array_values(array_filter($playPositions, fn($p) => $p != 1));
         
         $rotating_gks = ($gk_count === 0);
-        $fixed_gk_idx = ($gk_count > 0) ? 0 : null; // Lock the first GK to index 0 if any
+        $fixed_gk_count = $gk_count;
         
         $num_shifts = count($blocks);
-        $num_field_players = $aantal - ($fixed_gk_idx !== null ? 1 : 0);
+        $num_field_players = $aantal - $fixed_gk_count;
         $num_pos = count($fieldPositions);
         
         if ($num_field_players <= 0 || $num_pos > $num_field_players) {
@@ -108,15 +108,15 @@ class DynamicSchemaGenerator {
         $seasonStatsData = $this->matchManager->getSeasonStatsForSelection($this->teamId, $this->gameDate, $squad);
 
         $ordered_squad = [];
-        if ($fixed_gk_idx !== null) {
-            $ordered_squad[0] = reset($gk_arr);
+        foreach ($gk_arr as $i => $gk_pid) {
+            $ordered_squad[$i] = $gk_pid;
         }
 
         $field_players = [];
-        $idx_counter = ($fixed_gk_idx !== null) ? 1 : 0;
+        $idx_counter = $fixed_gk_count;
         
         foreach ($squad as $pid) {
-            if ($fixed_gk_idx !== null && $pid == $ordered_squad[0]) continue;
+            if (in_array($pid, $gk_arr)) continue;
             
             $ordered_squad[$idx_counter] = $pid;
             $st = $seasonStatsData[$pid] ?? ['played' => 0, 'available' => 0, 'period_played' => 0, 'period_available' => 0, 'gk' => 0, 'period_gk' => 0];
@@ -164,7 +164,7 @@ class DynamicSchemaGenerator {
                     if (abs($a['pct_season_gk'] - $b['pct_season_gk']) > 0.001) {
                         return $a['pct_season_gk'] <=> $b['pct_season_gk']; // Minste keren GK dit seizoen
                     }
-                    return $a['random'] <=> $b['random']; // Plain old random bij gelijke stand!
+                    return strcmp($a['name'], $b['name']);
                 });
                 
                 $chosen_gk_idx = array_key_first($field_players);
@@ -172,7 +172,14 @@ class DynamicSchemaGenerator {
                 $field_players[$chosen_gk_idx]['times_gk']++;
             }
             
-            $current_gk_idx = $rotating_gks ? $game_gks[$game_idx] : $fixed_gk_idx;
+            $part_count = $game_duration_min / $sub_duration_min_parsed;
+            $current_game_counter = floor($shift_idx / $part_count) + 1;
+            
+            if ($rotating_gks) {
+                $current_gk_idx = $game_gks[$game_idx];
+            } else {
+                $current_gk_idx = ($current_game_counter - 1) % $fixed_gk_count;
+            }
 
             // Sort exactly according to user rules for the FIELD positions
             uasort($field_players, function($a, $b) use ($use_period) {
@@ -211,7 +218,7 @@ class DynamicSchemaGenerator {
             $shift_data = [
                 'duration' => $dur_min * 60, // seconds
                 'start' => $current_start,
-                'game_counter' => floor($shift_idx / 2) + 1,
+                'game_counter' => $current_game_counter,
                 'lineup' => [],
                 'bench' => []
             ];
@@ -314,7 +321,7 @@ class DynamicSchemaGenerator {
         $analysis = [
             'squad_size' => count($squad),
             'field_players' => count($field_players),
-            'fixed_gks' => $fixed_count,
+            'fixed_gks' => $fixed_gk_count,
             'format' => $search_format,
             'shifts' => $num_shifts,
             'shift_duration' => $dur_min,
@@ -328,17 +335,25 @@ class DynamicSchemaGenerator {
             $analysis['player_stats'][] = [
                 'pid' => $fp['pid'],
                 'mins_game' => $fp['mins_game'],
-                'mins_season' => $fp['mins_season'],
+                'mins_season' => $fp['mins_season'] ?? 0,
+                'pct_season' => $fp['pct_season'] ?? 0,
+                'pct_season_gk' => $fp['pct_season_gk'] ?? 0,
+                'times_gk' => $fp['times_gk'] ?? 0,
                 'is_gk' => false
             ];
         }
-        foreach ($fixed_gks as $idx => $pid) {
+        foreach ($gk_arr as $idx => $pid) {
             // Estimate GK mins (divided equally if multiple)
-            $gk_mins = $fixed_count > 0 ? ($num_shifts * $dur_min) / $fixed_count : 0;
+            $gk_mins = $fixed_gk_count > 0 ? ($num_shifts * $dur_min) / $fixed_gk_count : 0;
+            $st = $seasonStatsData[$pid] ?? ['played' => 0, 'available' => 0];
+            $pct_season = ($st['available'] > 0) ? ($st['played'] / $st['available']) : 0;
             $analysis['player_stats'][] = [
                 'pid' => $pid,
                 'mins_game' => $gk_mins,
-                'mins_season' => $seasonStatsData[$pid] ?? 0,
+                'mins_season' => 0,
+                'pct_season' => $pct_season,
+                'pct_season_gk' => 1.0,
+                'times_gk' => $num_shifts / max(1, $fixed_gk_count),
                 'is_gk' => true
             ];
         }

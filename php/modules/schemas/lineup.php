@@ -186,8 +186,14 @@
                               <thead class="table-light">
                                   <tr>
                                       <th>Speler</th>
-                                      <th>Vandaag</th>
+                                      <th>Vandaag Veld</th>
+                                      <?php if ($gk_count === 0): ?>
+                                      <th>Vandaag GK</th>
+                                      <?php endif; ?>
                                       <th>Seizoensbalans vooraf</th>
+                                      <?php if ($gk_count === 0): ?>
+                                      <th>GK Balans vooraf</th>
+                                      <?php endif; ?>
                                       <th>Diagnose (Waarom?)</th>
                                   </tr>
                               </thead>
@@ -198,6 +204,7 @@
                                   foreach($dynamic_analysis['player_stats'] as $stat): 
                                       $name = getPlayerName($stat['pid']);
                                       $diff = $stat['mins_game'] - $dynamic_analysis['target_avg_mins'];
+                                      $gk_diff = isset($stat['times_gk']) ? $stat['times_gk'] : 0;
                                       if ($stat['is_gk']) {
                                           $reason = "<span class='badge bg-warning text-dark'>Vaste Doelman</span> Speelt normaal gezien alles of roteert onderling.";
                                       } else {
@@ -213,7 +220,13 @@
                                   <tr>
                                       <td class="text-start fw-bold"><?= htmlspecialchars($name) ?></td>
                                       <td><?= $stat['mins_game'] ?> min</td>
-                                      <td><?= $stat['mins_season'] ?> min</td>
+                                      <?php if ($gk_count === 0): ?>
+                                      <td><?= $stat['is_gk'] ? $stat['mins_game'] : ($gk_diff * $dynamic_analysis['shift_duration']) ?> min</td>
+                                      <?php endif; ?>
+                                      <td><?= round($stat['pct_season'] * 100, 1) ?>%</td>
+                                      <?php if ($gk_count === 0): ?>
+                                      <td><?= round(($stat['pct_season_gk'] ?? 0) * 100, 1) ?>%</td>
+                                      <?php endif; ?>
                                       <td class="text-start"><?= $reason ?></td>
                                   </tr>
                                   <?php endforeach; ?>

@@ -13,6 +13,11 @@ if (!$game) {
     exit;
 }
 
+// Check active period
+$stmtPeriod = $pdo->prepare("SELECT id, name FROM team_periods WHERE team_id = ? AND ? BETWEEN start_date AND end_date");
+$stmtPeriod->execute([$_SESSION['team_id'], $game['game_date']]);
+$activePeriod = $stmtPeriod->fetch(PDO::FETCH_ASSOC);
+
 // Check of er al een definitieve is
 $stmtCheck = $pdo->prepare("SELECT id FROM game_lineups WHERE game_id = ? AND is_final = 1");
 $stmtCheck->execute([$gameId]);
@@ -159,16 +164,42 @@ require_once dirname(__DIR__, 2) . '/header.php';
 
         <div class="col-md-4">
             <div class="card h-100 shadow-sm border-0 hover-shadow transition-all" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);">
-                <div class="card-body text-center p-4">
+                <div class="card-body text-center p-4 d-flex flex-column">
                     <div class="display-4 text-success mb-3">
                         <i class="fa-solid fa-bolt"></i>
                     </div>
                     <h5 class="card-title fw-bold text-dark">Dynamisch AI (Beta)</h5>
                     <p class="card-text text-muted mb-4">Genereer een volledig nieuw schema "on the fly" gebaseerd op parameters, zónder de database-theorieën te gebruiken.</p>
-                    <a href="/games/<?= $gameId ?>/lineup?generate=1&dynamic=1" class="btn btn-success w-100 fw-bold">Dynamisch Genereren</a>
+                    
+                    <div class="mt-auto">
+                        <?php if ($activePeriod): ?>
+                        <div class="form-check form-switch mb-3 text-start d-inline-block">
+                            <input class="form-check-input" type="checkbox" id="togglePeriod" value="1" checked>
+                            <label class="form-check-label small" for="togglePeriod">
+                                Focus op huidige periode (<?= htmlspecialchars($activePeriod['name']) ?>)
+                            </label>
+                        </div>
+                        <?php endif; ?>
+                        <a href="#" onclick="generateDynamic(event)" class="btn btn-success w-100 fw-bold">Dynamisch Genereren</a>
+                    </div>
                 </div>
             </div>
         </div>
+
+        <script>
+        function generateDynamic(e) {
+            e.preventDefault();
+            let url = "/games/<?= $gameId ?>/lineup?generate=1&dynamic=1";
+            <?php if ($activePeriod): ?>
+            if (document.getElementById('togglePeriod').checked) {
+                url += "&use_period=1";
+            } else {
+                url += "&use_period=0";
+            }
+            <?php endif; ?>
+            window.location.href = url;
+        }
+        </script>
 
         <div class="col-md-4 d-none">
             <div class="card h-100 shadow-sm border-0 hover-shadow transition-all">

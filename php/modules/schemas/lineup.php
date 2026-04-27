@@ -180,7 +180,6 @@
 
               $numFieldPlayers = $dynamic_analysis['field_players'];
               $numFieldPositions = ($gk_count > 0) ? (count($fieldPositions)) : (count($fieldPositions) + 1);
-              if ($gk_count === 0) $numFieldPositions = count($fieldPositions); // Rotating GK takes 1 position.
               
               $totalBlocks = $dynamic_analysis['shifts'];
               $block_dur = $dynamic_analysis['shift_duration'];
@@ -314,7 +313,7 @@
                   </div>
                   <div class="collapse show" id="fairshiftCollapse">
                       <div class="card-body bg-light text-dark p-3">
-                          <p class="mb-2" style="font-size: 0.8rem; line-height: 1.3;">Met <?= $numFieldPlayers ?> veldspelers voor <?= $numFieldPositions ?> posities resulteert dit in:</p>
+                          <p class="mb-2" style="font-size: 0.8rem; line-height: 1.3;">Met <?= $numFieldPlayers ?> actieve spelers voor <?= $numFieldPositions ?> posities resulteert dit in:</p>
                           
                           <?php if ($players_extra > 0): ?>
                           <ul class="mb-3" style="font-size: 0.8rem; line-height: 1.3; padding-left: 20px;">
@@ -341,7 +340,7 @@
                           
                           <?php else: ?>
                           <div class="alert alert-success p-2 mb-3" style="font-size: 0.8rem;">
-                              <strong>Perfecte wiskunde!</strong> Alle <?= $numFieldPlayers ?> veldspelers spelen exact <strong><?= $base_mins ?>m</strong> (<?= $base_blocks ?> blokjes).
+                              <strong>Perfecte wiskunde!</strong> Alle <?= $numFieldPlayers ?> spelers spelen exact <strong><?= $base_mins ?>m</strong> (<?= $base_blocks ?> blokjes).
                           </div>
                           <?= $lastMatchHtml ?>
                           <?= $gkRatioHtml ?>

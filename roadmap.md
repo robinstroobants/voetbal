@@ -106,3 +106,7 @@
 - in de schema builder staan er in de buttons ook min percentage en bank .... dat mag je weglaten
 - user feedback verzamelen.... als de gebruikers bugs tegenkomen zou ik hen dat graag laten melden, liefst met zoveel mogelijk info waar en wat
 - https://lineup.webbit.be/cron_cleanup.php
+
+
+login google beter inpassen in layout, stap maar af van die landscape login
+link op dashboard naar nieuwe wedstrijd toont wedstrijdoverzicht ipv popup nieuwe wedstrijd...

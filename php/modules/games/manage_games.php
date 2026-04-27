@@ -210,8 +210,8 @@ $available_formats = [];
 
 foreach ($available_formats_all as $fmt) {
     $fmt_level = getFormatLevel($fmt);
-    // Criterium: Alleen hetzelfde niveau OF maximaal exact 1 niveau hoger 
-    if ($fmt_level == $team_level || $fmt_level == $team_level + 1) {
+    // Criterium: Exact 1 niveau lager, hetzelfde niveau OF maximaal 1 niveau hoger 
+    if ($fmt_level == $team_level - 1 || $fmt_level == $team_level || $fmt_level == $team_level + 1) {
         $available_formats[] = $fmt;
     }
 }

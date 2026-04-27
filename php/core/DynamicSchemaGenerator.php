@@ -116,16 +116,14 @@ class DynamicSchemaGenerator {
                 WHERE p.player_id IN ($placeholders) 
                   AND g.team_id = ? 
                   AND g.game_date < ?
-                  AND g.id = (
-                      SELECT id FROM games 
-                      WHERE team_id = ? AND game_date < ? 
-                      ORDER BY game_date DESC LIMIT 1
-                  )
+                ORDER BY g.game_date DESC, g.id DESC
             ");
-            $params = array_merge($squad, [$this->teamId, $this->gameDate, $this->teamId, $this->gameDate]);
+            $params = array_merge($squad, [$this->teamId, $this->gameDate]);
             $stmtLastMatch->execute($params);
             while ($row = $stmtLastMatch->fetch(PDO::FETCH_ASSOC)) {
-                $lastMatchMins[$row['player_id']] = (int)$row['seconds_played'] / 60;
+                if (!isset($lastMatchMins[$row['player_id']])) {
+                    $lastMatchMins[$row['player_id']] = (int)$row['seconds_played'] / 60;
+                }
             }
         }
 

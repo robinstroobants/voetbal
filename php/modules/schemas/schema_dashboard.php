@@ -168,7 +168,7 @@ require_once dirname(__DIR__, 2) . '/header.php';
                     <div class="display-4 text-success mb-3">
                         <i class="fa-solid fa-bolt"></i>
                     </div>
-                    <h5 class="card-title fw-bold text-dark">Dynamisch AI (Beta)</h5>
+                    <h5 class="card-title fw-bold text-dark">FairShift AI</h5>
                     <p class="card-text text-muted mb-4">Genereer een volledig nieuw schema "on the fly" gebaseerd op parameters, zónder de database-theorieën te gebruiken.</p>
                     
                     <div class="mt-auto">
@@ -180,7 +180,7 @@ require_once dirname(__DIR__, 2) . '/header.php';
                             </label>
                         </div>
                         <?php endif; ?>
-                        <a href="#" onclick="generateDynamic(event)" class="btn btn-success w-100 fw-bold">Dynamisch Genereren</a>
+                        <a href="#" onclick="generateDynamic(event)" class="btn btn-success w-100 fw-bold">Genereer met FairShift</a>
                     </div>
                 </div>
             </div>

@@ -173,7 +173,7 @@
           <?php if (isset($dynamic_analysis)): ?>
               <div class="card mb-4 shadow-sm border-info d-print-none">
                   <div class="card-header bg-info text-white">
-                      <i class="fa-solid fa-calculator me-1"></i> <strong>AI Schema Diagnose</strong>
+                      <i class="fa-solid fa-calculator me-1"></i> <strong>FairShift Diagnose</strong>
                   </div>
                   <div class="card-body pb-0 text-sm">
                       <p class="card-text mb-3">
@@ -273,7 +273,7 @@
               ?>
                   <li class="nav-item d-print-none" role="presentation">
                       <button class="btn btn-sm btn-outline-success ms-3 mt-1" onclick='savePreselection(this, <?= json_encode((int)$gameId) ?>, <?= json_encode($selected['ws_id'] ?? 0) ?>, <?= json_encode(implode(',', array_keys($lineup->playerindex))) ?>, <?= json_encode((float)($t_opt['rating'] ?? 0)) ?>, <?= json_encode($namen_tonen_str) ?>, <?= $dynamic_json_str ?>)'>
-                          <i class="fa-solid fa-floppy-disk"></i> Bewaar Dynamisch Schema in Voorselecties
+                          <i class="fa-solid fa-floppy-disk"></i> Bewaar FairShift Schema in Voorselecties
                       </button>
                       <button onclick="window.print()" class="btn btn-outline-danger btn-sm ms-2 mt-1">
                           <i class="fa-solid fa-file-pdf me-1"></i> Opslaan als PDF

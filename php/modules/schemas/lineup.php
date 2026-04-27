@@ -170,6 +170,59 @@
                   <i class="fa-solid fa-rotate me-2"></i><strong>Roterende Doelman geactiveerd:</strong> Er is geen doelman geselecteerd, de rol wordt wiskundig eerlijk geroteerd over de veldspelers (op basis van wedstrijd, periode en seizoen).
               </div>
           <?php endif; ?>
+          <?php if (isset($dynamic_analysis)): ?>
+              <div class="card mb-4 shadow-sm border-info d-print-none">
+                  <div class="card-header bg-info text-white">
+                      <i class="fa-solid fa-calculator me-1"></i> <strong>AI Schema Diagnose</strong>
+                  </div>
+                  <div class="card-body pb-0 text-sm">
+                      <p class="card-text mb-3">
+                          Dit systeem verdeelt het speelvolume (<?= $dynamic_analysis['shifts'] ?> helftjes x <?= $dynamic_analysis['shift_duration'] ?> min) wiskundig eerlijk over de actueel aanwezige spelers (<?= $dynamic_analysis['squad_size'] ?> spelers).
+                          De richtlijn voor vandaag is <strong><?= $dynamic_analysis['target_avg_mins'] ?> minuten speelrecht</strong> per veldspeler.
+                          Spelers met minder seizoensminuten kregen pro-actief de kans om dit in te halen, terwijl veel-spelers vandaag meer rust krijgen om de totale seizoensbalans te herstellen.
+                      </p>
+                      <div class="table-responsive">
+                          <table class="table table-sm table-bordered text-center align-middle">
+                              <thead class="table-light">
+                                  <tr>
+                                      <th>Speler</th>
+                                      <th>Vandaag</th>
+                                      <th>Seizoensbalans vooraf</th>
+                                      <th>Diagnose (Waarom?)</th>
+                                  </tr>
+                              </thead>
+                              <tbody>
+                                  <?php 
+                                  // Sort by minutes played today
+                                  usort($dynamic_analysis['player_stats'], fn($a, $b) => $b['mins_game'] <=> $a['mins_game']);
+                                  foreach($dynamic_analysis['player_stats'] as $stat): 
+                                      $name = getPlayerName($stat['pid']);
+                                      $diff = $stat['mins_game'] - $dynamic_analysis['target_avg_mins'];
+                                      if ($stat['is_gk']) {
+                                          $reason = "<span class='badge bg-warning text-dark'>Vaste Doelman</span> Speelt normaal gezien alles of roteert onderling.";
+                                      } else {
+                                          if ($diff > 0) {
+                                              $reason = "<span class='text-success'><i class='fa-solid fa-arrow-trend-up'></i> Haalt achterstand van het seizoen in (+{$diff}m)</span>";
+                                          } else if ($diff < 0) {
+                                              $reason = "<span class='text-danger'><i class='fa-solid fa-arrow-trend-down'></i> Compenseert teveel speelminuten dit seizoen (" . $diff . "m)</span>";
+                                          } else {
+                                              $reason = "<span class='text-muted'><i class='fa-solid fa-scale-balanced'></i> In balans met de theorie</span>";
+                                          }
+                                      }
+                                  ?>
+                                  <tr>
+                                      <td class="text-start fw-bold"><?= htmlspecialchars($name) ?></td>
+                                      <td><?= $stat['mins_game'] ?> min</td>
+                                      <td><?= $stat['mins_season'] ?> min</td>
+                                      <td class="text-start"><?= $reason ?></td>
+                                  </tr>
+                                  <?php endforeach; ?>
+                              </tbody>
+                          </table>
+                      </div>
+                  </div>
+              </div>
+          <?php endif; ?>
       <?php endif; ?>
 
       <?php if (!empty($top_selected_options)): ?> 

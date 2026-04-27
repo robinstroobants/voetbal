@@ -179,6 +179,7 @@
               if ($dynResult) {
                   $dynamic_schema_parts = $dynResult['schema_parts'];
                   $sel = $dynResult['ordered_squad']; // Override player sequence!
+                  $dynamic_analysis = $dynResult['analysis'];
                   $shuffle_type = "coach"; // Force direct execution of this 1 exact permutation
                   $te_gebruiken_schema = 'DYNAMIC';
               }

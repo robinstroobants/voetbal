@@ -211,6 +211,7 @@ class DynamicSchemaGenerator {
             $shift_data = [
                 'duration' => $dur_min * 60, // seconds
                 'start' => $current_start,
+                'game_counter' => floor($shift_idx / 2) + 1,
                 'lineup' => [],
                 'bench' => []
             ];
@@ -310,11 +311,44 @@ class DynamicSchemaGenerator {
             }
         }
 
-        // Return perfectly indexed schema + the ordered squad mapping
+        $analysis = [
+            'squad_size' => count($squad),
+            'field_players' => count($field_players),
+            'fixed_gks' => $fixed_count,
+            'format' => $search_format,
+            'shifts' => $num_shifts,
+            'shift_duration' => $dur_min,
+            'total_match_mins' => $num_shifts * $dur_min,
+            'target_avg_mins' => count($field_players) > 0 ? round((($num_shifts * $dur_min) * $num_pos) / count($field_players), 1) : 0,
+            'player_stats' => []
+        ];
+        
+        // Populate player stats for analysis
+        foreach ($field_players as $idx => $fp) {
+            $analysis['player_stats'][] = [
+                'pid' => $fp['pid'],
+                'mins_game' => $fp['mins_game'],
+                'mins_season' => $fp['mins_season'],
+                'is_gk' => false
+            ];
+        }
+        foreach ($fixed_gks as $idx => $pid) {
+            // Estimate GK mins (divided equally if multiple)
+            $gk_mins = $fixed_count > 0 ? ($num_shifts * $dur_min) / $fixed_count : 0;
+            $analysis['player_stats'][] = [
+                'pid' => $pid,
+                'mins_game' => $gk_mins,
+                'mins_season' => $seasonStatsData[$pid] ?? 0,
+                'is_gk' => true
+            ];
+        }
+
+        // Return perfectly indexed schema + the ordered squad mapping + analysis
         ksort($ordered_squad);
         return [
             'schema_parts' => $schema_parts,
-            'ordered_squad' => array_values($ordered_squad)
+            'ordered_squad' => array_values($ordered_squad),
+            'analysis' => $analysis
         ];
     }
 }

@@ -105,9 +105,6 @@
           <a href="/games/<?= $gameId ?>/builder" class="btn btn-warning btn-sm ms-2 fw-bold text-dark">
               <i class="fa-solid fa-hammer me-1"></i> Bouw Zelf
           </a>
-          <button onclick="window.print()" class="btn btn-outline-danger btn-sm ms-2">
-              <i class="fa-solid fa-file-pdf me-1"></i> Opslaan als PDF
-          </button>
       </div>
       <?php endif; ?>
       
@@ -283,10 +280,9 @@
                   $gkRatioHtml .= '<div class="table-responsive"><table class="table table-sm table-borderless mb-0 text-nowrap" style="font-size: 0.75rem;">';
                   
                   if ($use_period) {
-                      $gkRatioHtml .= '<tr><th class="py-0 text-muted border-end" colspan="1"></th><th class="py-0 text-muted text-center border-end" colspan="2">Periode</th><th class="py-0 text-muted text-center" colspan="2">Seizoen</th></tr>';
-                      $gkRatioHtml .= '<tr><th class="py-0 text-muted border-end">Speler</th><th class="py-0 text-muted">Veld</th><th class="py-0 text-muted border-end">Doel</th><th class="py-0 text-muted">Veld</th><th class="py-0 text-muted">Doel</th></tr>';
+                      $gkRatioHtml .= '<tr><th class="py-0 text-muted border-end">Speler</th><th class="py-0 text-muted">Periode</th><th class="py-0 text-muted">Seizoen</th></tr>';
                   } else {
-                      $gkRatioHtml .= '<tr><th class="py-0 text-muted border-end">Speler</th><th class="py-0 text-muted">Veld (Seizoen)</th><th class="py-0 text-muted">Doel (Seizoen)</th></tr>';
+                      $gkRatioHtml .= '<tr><th class="py-0 text-muted border-end">Speler</th><th class="py-0 text-muted">Seizoen</th></tr>';
                   }
                   
                   // Sort by GK% ascending to show who stands the least in goal first
@@ -303,13 +299,16 @@
                       
                       $pctSeasonField = number_format((float)($stat['pct_season'] ?? 0) * 100, 2) . '%';
                       $pctSeasonGk = number_format((float)($stat['pct_season_gk'] ?? 0) * 100, 2) . '%';
+                      $seasonHtml = "{$pctSeasonField} <span class='text-muted' style='font-size:0.65rem; cursor:help;' title='Doelman: {$pctSeasonGk}'>({$pctSeasonGk})</span>";
                       
                       if ($use_period) {
                           $pctPeriodField = number_format((float)($stat['pct_period'] ?? 0) * 100, 2) . '%';
                           $pctPeriodGk = number_format((float)($stat['pct_period_gk'] ?? 0) * 100, 2) . '%';
-                          $gkRatioHtml .= "<tr><td class='py-0 border-end'><strong>$name</strong></td><td class='py-0'>{$pctPeriodField}</td><td class='py-0 border-end'>{$pctPeriodGk}</td><td class='py-0'>{$pctSeasonField}</td><td class='py-0'>{$pctSeasonGk}</td></tr>";
+                          $periodHtml = "{$pctPeriodField} <span class='text-muted' style='font-size:0.65rem; cursor:help;' title='Doelman: {$pctPeriodGk}'>({$pctPeriodGk})</span>";
+                          
+                          $gkRatioHtml .= "<tr><td class='py-0 border-end'><strong>$name</strong></td><td class='py-0'>{$periodHtml}</td><td class='py-0'>{$seasonHtml}</td></tr>";
                       } else {
-                          $gkRatioHtml .= "<tr><td class='py-0 border-end'><strong>$name</strong></td><td class='py-0'>{$pctSeasonField}</td><td class='py-0'>{$pctSeasonGk}</td></tr>";
+                          $gkRatioHtml .= "<tr><td class='py-0 border-end'><strong>$name</strong></td><td class='py-0'>{$seasonHtml}</td></tr>";
                       }
                   }
                   $gkRatioHtml .= '</table></div></div>';
@@ -353,36 +352,44 @@
                               <?php endif; ?>
                           </div>
                           
-                          <div class="mb-2 p-1 px-2 bg-white rounded border">
-                              <p class="mb-1" style="font-size: 0.75rem; line-height: 1.2;"><i class="fa-solid fa-calculator text-muted me-1"></i><strong>Wiskunde</strong> (<?= $numFieldPlayers ?> spelers, <?= $numFieldPositions ?> posities):</p>
-                              <?php if ($players_extra > 0): ?>
-                              <ul class="mb-0 text-dark" style="font-size: 0.75rem; line-height: 1.2; padding-left: 20px;">
-                                  <li><strong><?= $players_extra ?> spelers</strong>: <?= $extra_mins ?>m (<?= $base_blocks + 1 ?>x)</li>
-                                  <li><strong><?= $players_base ?> spelers</strong>: <?= $base_mins ?>m (<?= $base_blocks ?>x)</li>
-                              </ul>
-                              <?php else: ?>
-                              <p class="mb-0 text-success fw-bold" style="font-size: 0.75rem;"><i class="fa-solid fa-check-circle me-1"></i>Alle spelers spelen exact <?= $base_mins ?>m.</p>
-                              <?php endif; ?>
+                          <div class="row g-2">
+                              <!-- Linker kolom: Wiskunde & Huidige match -->
+                              <div class="col-md-6">
+                                  <div class="mb-2 p-1 px-2 bg-white rounded border">
+                                      <p class="mb-1" style="font-size: 0.75rem; line-height: 1.2;"><i class="fa-solid fa-calculator text-muted me-1"></i><strong>Wiskunde</strong> (<?= $numFieldPlayers ?> spelers, <?= $numFieldPositions ?> posities):</p>
+                                      <?php if ($players_extra > 0): ?>
+                                      <ul class="mb-0 text-dark" style="font-size: 0.75rem; line-height: 1.2; padding-left: 20px;">
+                                          <li><strong><?= $players_extra ?> spelers</strong>: <?= $extra_mins ?>m (<?= $base_blocks + 1 ?>x)</li>
+                                          <li><strong><?= $players_base ?> spelers</strong>: <?= $base_mins ?>m (<?= $base_blocks ?>x)</li>
+                                      </ul>
+                                      <?php else: ?>
+                                      <p class="mb-0 text-success fw-bold" style="font-size: 0.75rem;"><i class="fa-solid fa-check-circle me-1"></i>Alle spelers spelen exact <?= $base_mins ?>m.</p>
+                                      <?php endif; ?>
+                                  </div>
+                                  
+                                  <?php if ($players_extra > 0): ?>
+                                  <p class="mb-2 mt-2 fw-bold" style="font-size: 0.8rem;"><i class="fa-solid fa-robot text-success me-1"></i> FairShift Indeling:</p>
+                                  <?php 
+                                  $is_first = true;
+                                  foreach ($aiMinsGroups as $mins => $names): 
+                                      $color = $is_first ? "text-success" : "text-danger";
+                                      $icon = $is_first ? "fa-arrow-up" : "fa-arrow-down";
+                                      $is_first = false;
+                                  ?>
+                                  <div class="p-2 bg-white rounded border mb-2">
+                                      <p class="mb-1 fw-bold <?= $color ?>" style="font-size: 0.8rem;"><i class="fa-solid <?= $icon ?> me-1"></i><?= $mins ?> minuten</p>
+                                      <p class="mb-0 text-muted" style="font-size: 0.75rem;">Toegewezen aan: <?= implode(', ', $names) ?></p>
+                                  </div>
+                                  <?php endforeach; ?>
+                                  <?php endif; ?>
+                              </div>
+                              
+                              <!-- Rechter kolom: Historiek en Vorige Wedstrijden -->
+                              <div class="col-md-6">
+                                  <?= $lastMatchHtml ?>
+                                  <?= $gkRatioHtml ?>
+                              </div>
                           </div>
-                          
-                          <?= $lastMatchHtml ?>
-                          <?= $gkRatioHtml ?>
-                          
-                          <?php if ($players_extra > 0): ?>
-                          <p class="mb-2 mt-3 fw-bold" style="font-size: 0.8rem;"><i class="fa-solid fa-robot text-success me-1"></i> FairShift heeft dit exact als volgt ingedeeld:</p>
-                          <?php 
-                          $is_first = true;
-                          foreach ($aiMinsGroups as $mins => $names): 
-                              $color = $is_first ? "text-success" : "text-danger";
-                              $icon = $is_first ? "fa-arrow-up" : "fa-arrow-down";
-                              $is_first = false;
-                          ?>
-                          <div class="p-2 bg-white rounded border mb-2">
-                              <p class="mb-1 fw-bold <?= $color ?>" style="font-size: 0.8rem;"><i class="fa-solid <?= $icon ?> me-1"></i><?= $mins ?> minuten</p>
-                              <p class="mb-0 text-muted" style="font-size: 0.75rem;">Toegewezen aan: <?= implode(', ', $names) ?></p>
-                          </div>
-                          <?php endforeach; ?>
-                          <?php endif; ?>
                       </div>
                   </div>
               </div>
@@ -425,9 +432,6 @@
                   <li class="nav-item d-print-none" role="presentation">
                       <button class="btn btn-sm btn-outline-success ms-3 mt-1" onclick='savePreselection(this, <?= json_encode((int)$gameId) ?>, <?= json_encode($selected['ws_id'] ?? 0) ?>, <?= json_encode(implode(',', array_keys($lineup->playerindex))) ?>, <?= json_encode((float)($t_opt['rating'] ?? 0)) ?>, <?= json_encode($namen_tonen_str) ?>, <?= $dynamic_json_str ?>)'>
                           <i class="fa-solid fa-floppy-disk"></i> Bewaar FairShift Schema in Voorselecties
-                      </button>
-                      <button onclick="window.print()" class="btn btn-outline-danger btn-sm ms-2 mt-1">
-                          <i class="fa-solid fa-file-pdf me-1"></i> Opslaan als PDF
                       </button>
                   </li>
               <?php else: 

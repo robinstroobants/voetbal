@@ -249,7 +249,7 @@ class DynamicSchemaGenerator {
             
             // PASS 1: Houd spelers op hun huidige positie indien mogelijk, tenzij het een nieuwe wedstrijd is
             $unassigned_indexes = [];
-            $is_same_game = ($shift_idx > 0 && $schema_parts[$shift_idx - 1]['game_counter'] === $game_idx);
+            $is_same_game = ($shift_idx > 0 && $current_game_min > 0);
             $prev_lineup = $is_same_game ? $schema_parts[$shift_idx - 1]['lineup'] : [];
             
             foreach ($selected_indexes as $idx) {

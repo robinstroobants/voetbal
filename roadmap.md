@@ -108,7 +108,12 @@
 - https://lineup.webbit.be/cron_cleanup.php
 
 
+
+- Fairshift houdt nu geen rekening met de team setting min x posities... 
+- er is ook nul variatie in de opstellingen die worden gegenereerd...., is dat omdat er geen enkele  mogelijk is met eerlijke params? verander de laaste regel (sort op naam naar een random sort)
 login google beter inpassen in layout, stap maar af van die landscape login
 link op dashboard naar nieuwe wedstrijd toont wedstrijdoverzicht ipv popup nieuwe wedstrijd...
 default wedstrijd moment thuiswedstrijden
 - na aanmaken wedstrijd (indien geen duplicate) direct naar selectie pagina
+- feedback systeem bouwen
+- ouders events laten ingeven

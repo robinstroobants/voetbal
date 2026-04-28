@@ -42,7 +42,11 @@ header("Expires: 0"); // Proxies blockeren
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
 
+      <?php if (isset($_SESSION['user_id'])): ?>
+      gtag('config', 'G-25S9DSJM7N', { 'user_id': '<?= htmlspecialchars($_SESSION["user_id"]) ?>' });
+      <?php else: ?>
       gtag('config', 'G-25S9DSJM7N');
+      <?php endif; ?>
     </script>
     <?php endif; ?>
 </head>
@@ -110,6 +114,8 @@ header("Expires: 0"); // Proxies blockeren
                             <li><a class="dropdown-item" href="/admin/schemas"><i class="fa-solid fa-sitemap text-primary me-2"></i>Schema Beheer</a></li>
                             <li><a class="dropdown-item" href="/admin/inspect_schema"><i class="fa-solid fa-stethoscope text-info me-2"></i>Schema Diagnose</a></li>
                             <li><a class="dropdown-item" href="/admin/performance"><i class="fa-solid fa-gauge-high text-warning me-2"></i>Performance</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="/admin/feedback"><i class="fa-solid fa-bug text-danger me-2"></i>Feedback & Bugs</a></li>
                         </ul>
                     </li>
                     <?php endif; ?>

@@ -43,9 +43,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($uid === $_SESSION['user_id']) {
                 $error = "❌ Fout: Je kan jezelf niet verwijderen.";
             } else {
+                $pdo->prepare("DELETE FROM usage_logs WHERE user_id = ?")->execute([$uid]);
                 $pdo->prepare("DELETE FROM user_teams WHERE user_id = ?")->execute([$uid]);
-                $pdo->prepare("DELETE FROM users WHERE id = ?")->execute([$uid]);
-                $success = "✅ Gebruiker definitief verwijderd uit het systeem.";
+                try {
+                    $pdo->prepare("DELETE FROM users WHERE id = ?")->execute([$uid]);
+                    $success = "✅ Gebruiker (en gekoppelde weesdata) definitief verwijderd uit het systeem.";
+                } catch (PDOException $e) {
+                    if ($e->getCode() == 23000) {
+                        $error = "❌ Fout: Deze gebruiker is de hoofdeigenaar van een bestaand Team. Wis eerst het Team in het SaaS Dashboard.";
+                    } else {
+                        $error = "❌ Database Fout bij verwijderen: " . $e->getMessage();
+                    }
+                }
             }
         }
     } elseif ($action === 'resend_activation') {

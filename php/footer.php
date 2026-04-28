@@ -89,5 +89,111 @@
             const popoverList = [...popoverTriggerList].map(popoverTriggerEl => new bootstrap.Popover(popoverTriggerEl, { sanitize: false }));
         });
     </script>
+
+    <?php if (isset($_SESSION['user_id']) && !defined('PUBLIC_SHARE_MODE')): ?>
+    <!-- Feedback Floating Button -->
+    <button class="btn btn-warning rounded-circle shadow-lg position-fixed d-print-none" 
+            style="bottom: 20px; right: 20px; width: 60px; height: 60px; z-index: 1050; border: 3px solid white;"
+            data-bs-toggle="modal" data-bs-target="#feedbackModal" title="Meld een Bug of Geef Feedback">
+        <i class="fa-solid fa-bug fs-4 text-dark"></i>
+    </button>
+
+    <!-- Feedback Modal -->
+    <div class="modal fade" id="feedbackModal" tabindex="-1" aria-labelledby="feedbackModalLabel" aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content border-0 shadow-lg">
+          <div class="modal-header bg-warning text-dark border-0">
+            <h5 class="modal-title fw-bold" id="feedbackModalLabel"><i class="fa-solid fa-bug me-2"></i>Feedback & Bugs</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <p class="small text-muted mb-3">
+              Kom je een probleem tegen of heb je een goed idee? Laat het weten! Wij krijgen automatisch de nodige technische details meegestuurd zodat we dit snel kunnen oplossen.
+            </p>
+            <div class="mb-3">
+                <label class="form-label fw-bold small">Wat wil je melden?</label>
+                <select class="form-select" id="feedbackType">
+                    <option value="Bug">Bug / Foutmelding</option>
+                    <option value="Idee">Idee / Suggestie</option>
+                    <option value="Vraag">Vraag</option>
+                </select>
+            </div>
+            <div class="mb-3">
+                <label class="form-label fw-bold small">Beschrijving</label>
+                <textarea class="form-control" id="feedbackDescription" rows="4" placeholder="Wat was je aan het doen? Wat ging er mis? Wees zo specifiek mogelijk..."></textarea>
+            </div>
+            <div class="alert alert-light border small text-muted mb-0">
+                <i class="fa-solid fa-info-circle me-1"></i> Er wordt automatisch technische info meegestuurd (URL: <span class="text-truncate d-inline-block align-bottom" style="max-width: 150px;" id="feedbackUrlPreview"></span>).
+            </div>
+          </div>
+          <div class="modal-footer bg-light border-0">
+            <button type="button" class="btn btn-secondary text-dark bg-white border" data-bs-dismiss="modal">Annuleren</button>
+            <button type="button" class="btn btn-warning fw-bold" id="btnSubmitFeedback" onclick="submitFeedback()">
+                <i class="fa-solid fa-paper-plane me-2"></i>Versturen
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const urlPreview = document.getElementById('feedbackUrlPreview');
+            if (urlPreview) urlPreview.innerText = window.location.pathname;
+        });
+
+        function submitFeedback() {
+            const btn = document.getElementById('btnSubmitFeedback');
+            const type = document.getElementById('feedbackType').value;
+            const description = document.getElementById('feedbackDescription').value;
+            
+            if (!description.trim()) {
+                alert('Vul aub een beschrijving in.');
+                return;
+            }
+            
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-2"></i>Verzenden...';
+            
+            const payload = {
+                type: type,
+                description: description,
+                url: window.location.href,
+                userAgent: navigator.userAgent
+            };
+            
+            fetch('/api/submit_feedback', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify(payload)
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    document.getElementById('feedbackDescription').value = '';
+                    const modalEl = document.getElementById('feedbackModal');
+                    const modal = bootstrap.Modal.getInstance(modalEl);
+                    modal.hide();
+                    
+                    alert('Bedankt voor je feedback! We gaan ermee aan de slag.');
+                } else {
+                    alert('Er ging iets mis bij het verzenden: ' + (data.message || 'Onbekende fout.'));
+                }
+            })
+            .catch(err => {
+                alert('Netwerk fout bij het verzenden.');
+                console.error(err);
+            })
+            .finally(() => {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="fa-solid fa-paper-plane me-2"></i>Versturen';
+            });
+        }
+    </script>
+    <?php endif; ?>
+
 </body>
 </html>

@@ -178,6 +178,11 @@ if (isset($routes[$path])) {
         require_once __DIR__ . '/api/api_save_schema.php';
         $route_matched = true;
     }
+    elseif ($path === '/api/submit_feedback' || $path === '/api/api_submit_feedback.php') {
+        enforce_auth();
+        require_once __DIR__ . '/api/api_submit_feedback.php';
+        $route_matched = true;
+    }
 }
 
 // 4. Fallback voor native requests (.php, scripts, API)

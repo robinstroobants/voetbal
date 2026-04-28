@@ -4,6 +4,7 @@ require_once dirname(__DIR__, 2) . '/core/getconn.php';
 // Verwerk acties: Toevoegen, Bewerken, Verwijderen
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
+    $redirectUrl = '/games';
     if ($action === 'delete' && isset($_POST['game_id'])) {
         $check = $pdo->prepare("SELECT id FROM games WHERE id = :id AND team_id = :team_id");
         $check->execute(['id' => $_POST['game_id'], 'team_id' => $_SESSION['team_id']]);
@@ -77,11 +78,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                    SELECT ?, player_id, 2, is_goalkeeper FROM game_selections WHERE game_id = ?")
                         ->execute([$newGameId, $sourceGameId]);
                 }
+                $redirectUrl = "/games/{$newGameId}/schema";
+            } else {
+                $redirectUrl = "/games/{$newGameId}/selection";
             }
         }
     }
     // Voorkom form resubmission bij refresh
-    header("Location: /games");
+    header("Location: " . $redirectUrl);
     exit;
 }
 

@@ -116,20 +116,13 @@ try {
         }
         exit;
     } else {
-        // Nieuwe gebruiker: registreer als pending (wachtlijst)
-        // Dummy paswoord genereren aangezien ze via google komen
-        $dummy_password = bin2hex(random_bytes(16));
-        $hash = password_hash($dummy_password, PASSWORD_BCRYPT);
-        
-        $stmt = $pdo->prepare("INSERT INTO users (email, first_name, last_name, password_hash, is_verified, account_status) VALUES (?, ?, ?, ?, 1, 'pending')");
-        $stmt->execute([$email, $firstName, $lastName, $hash]);
-        
-        // Notify admin
-        $admin_subject = "Nieuwe (Google) wachtlijst aanmelding: " . $firstName . " " . $lastName;
-        $admin_msg = "Er is een nieuwe registratie op Lineup via Google Login.\nNaam: " . $firstName . " " . $lastName . "\nEmail: " . $email . "\n\nDeze gebruiker staat op de wachtlijst en wacht op goedkeuring in het admin dashboard.";
-        Mailer::send('robin@webbit.be', $admin_subject, $admin_msg);
-
-        header("Location: /login?error=" . urlencode("Je account is aangemaakt en je e-mailadres is geverifieerd via Google! Je staat momenteel op de wachtlijst tot een beheerder je toelaat."));
+        // Stop auto-registratie! Sla gegevens op en stuur naar registratieformulier.
+        $_SESSION['google_signup'] = [
+            'email' => $email,
+            'first_name' => $firstName,
+            'last_name' => $lastName
+        ];
+        header("Location: /register?msg=google_onboard");
         exit;
     }
 

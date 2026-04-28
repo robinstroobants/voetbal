@@ -10,9 +10,20 @@ if (isset($_SESSION['user_id'])) {
 require_once dirname(__DIR__, 2) . '/core/getconn.php';
 
 $error = '';
+$msg_success = '';
 $invite_token = $_GET['invite_token'] ?? $_POST['invite_token'] ?? '';
 $invited_team_id = null;
 $prefill_email = '';
+$prefill_name = '';
+
+if (isset($_GET['msg']) && $_GET['msg'] === 'google_onboard') {
+    $msg_success = "Je Google account is gekoppeld! Vul nog snel even je teamgegevens aan om de registratie te voltooien.";
+}
+
+if (isset($_SESSION['google_signup'])) {
+    $prefill_email = $_SESSION['google_signup']['email'];
+    $prefill_name = trim($_SESSION['google_signup']['first_name'] . ' ' . $_SESSION['google_signup']['last_name']);
+}
 
 if ($invite_token) {
     $stmtInv = $pdo->prepare("SELECT team_id, email FROM team_invitations WHERE token = ? AND expires_at > NOW()");
@@ -130,6 +141,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error) {
 
 
                     // Redirect naar login pagina met melding in plaats van direct in te loggen
+                    unset($_SESSION['google_signup']);
                     header("Location: /login?msg=registered");
                     exit;
 
@@ -379,6 +391,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error) {
             <div class="error"><?= htmlspecialchars($error) ?></div>
         <?php endif; ?>
 
+        <?php if ($msg_success): ?>
+            <div class="success" style="background: #ebf5df; border: 1px solid #d4e8c1; color: #3b7b1e; padding: 12px; border-radius: 10px; font-size: 0.9rem; margin-bottom: 24px; text-align: center;">
+                <i class="fa-solid fa-circle-check me-1"></i> <?= htmlspecialchars($msg_success) ?>
+            </div>
+        <?php endif; ?>
+
         <div class="login-layout">
             <div class="login-social">
                 <button type="button" class="btn-social" onclick="window.location.href='/google_auth';">
@@ -463,11 +481,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error) {
                     <?php endif; ?>
                     
                     <div class="form-group">
-                        <input type="text" name="name" placeholder="Je volledige naam" required autofocus>
+                        <input type="text" name="name" placeholder="Je volledige naam" value="<?= htmlspecialchars($prefill_name) ?>" required <?= empty($prefill_name) ? 'autofocus' : '' ?>>
                     </div>
 
                     <div class="form-group">
-                        <?php if ($invite_token && $prefill_email): ?>
+                        <?php if ($prefill_email): ?>
                             <input type="email" name="email" value="<?= htmlspecialchars($prefill_email) ?>" readonly style="background-color: #f5f5f7; color: var(--apple-text-muted);">
                         <?php else: ?>
                             <input type="email" name="email" placeholder="E-mailadres" required>

@@ -78,6 +78,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         echo json_encode(['status' => 'success', 'events' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
         exit;
     }
+
+    if ($action === 'update_event_status') {
+        if (!isset($_SESSION['user_id'])) {
+            echo json_encode(['status' => 'error', 'message' => 'Not authorized']);
+            exit;
+        }
+        $eventId = (int)($data['event_id'] ?? 0);
+        $gameId = (int)($data['game_id'] ?? 0);
+        $statusAction = $data['status_action'] ?? '';
+        
+        if ($statusAction === 'confirm') {
+            $stmt = $pdo->prepare("UPDATE game_events SET is_confirmed = 1 WHERE id = ? AND game_id = ?");
+            $stmt->execute([$eventId, $gameId]);
+        } elseif ($statusAction === 'reject') {
+            $stmt = $pdo->prepare("UPDATE game_events SET is_deleted = 1 WHERE id = ? AND game_id = ?");
+            $stmt->execute([$eventId, $gameId]);
+        }
+        
+        echo json_encode(['status' => 'success']);
+        exit;
+    }
+
+    if ($action === 'confirm_all_events') {
+        if (!isset($_SESSION['user_id'])) {
+            echo json_encode(['status' => 'error', 'message' => 'Not authorized']);
+            exit;
+        }
+        $gameId = (int)($data['game_id'] ?? 0);
+        $stmt = $pdo->prepare("UPDATE game_events SET is_confirmed = 1 WHERE game_id = ? AND is_deleted = 0 AND is_confirmed = 0");
+        $stmt->execute([$gameId]);
+        
+        echo json_encode(['status' => 'success']);
+        exit;
+    }
 }
 
 http_response_code(405);

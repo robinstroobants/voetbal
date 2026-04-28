@@ -467,6 +467,15 @@
                   <?php endif; ?>
               <?php endif; ?>
           <?php endif; ?>
+          
+          <?php if (!defined('PUBLIC_SHARE_MODE')): ?>
+          <li class="nav-item d-print-none" role="presentation">
+              <button class="nav-link" id="tab-events-btn" data-title="Wedstrijdverslag" data-bs-toggle="tab" data-bs-target="#tab-events" type="button" role="tab">
+                  <i class="fa-solid fa-list-check text-primary me-1"></i> Wedstrijdverslag 
+                  <span class="badge bg-danger rounded-pill d-none ms-1" id="badge-unconfirmed-events"></span>
+              </button>
+          </li>
+          <?php endif; ?>
       </ul>
       <?php endif; // End !empty($top_selected_options) ?>
       
@@ -1088,6 +1097,13 @@
       
           </div> <!-- End tab-pane -->
       <?php endforeach; ?>
+      
+      <?php if (!defined('PUBLIC_SHARE_MODE')): ?>
+      <div class="tab-pane fade" id="tab-events" role="tabpanel">
+          <?php require_once __DIR__ . '/events_dashboard.php'; ?>
+      </div>
+      <?php endif; ?>
+      
       </div> <!-- End tab-content -->
       <?php endif; ?>
       

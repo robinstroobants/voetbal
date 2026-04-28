@@ -150,7 +150,7 @@ body {
 </div>
 
 <!-- Modal: Wie ben jij? -->
-<div class="modal fade" id="parentIdentityModal" tabindex="-1" data-bs-backdrop="static" aria-hidden="true">
+<div class="modal fade" id="parentIdentityModal" tabindex="-1" data-bs-backdrop="static" aria-hidden="true" data-bs-focus="false">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content border-0 shadow-lg">
       <div class="modal-header bg-primary text-white border-0">
@@ -172,7 +172,7 @@ body {
 </div>
 
 <!-- Modal: Event Finetuner & Speler -->
-<div class="modal fade" id="eventActionModal" tabindex="-1" aria-hidden="true">
+<div class="modal fade" id="eventActionModal" tabindex="-1" aria-hidden="true" data-bs-focus="false">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content border-0 shadow-lg">
       <div class="modal-header bg-warning text-dark border-0">
@@ -249,6 +249,10 @@ body {
 </div>
 
 <script>
+    if ('scrollRestoration' in history) {
+        history.scrollRestoration = 'manual';
+    }
+    
     const matchStarted = <?= $matchStarted ? 'true' : 'false' ?>;
     let activeBlockEventTimeMs = <?= $activeBlockEventTimeMs ?>;
     let currentShiftIndex = <?= $currentShiftIndex ?>;
@@ -261,6 +265,8 @@ body {
     let clockInterval = null;
 
     document.addEventListener('DOMContentLoaded', function() {
+        window.scrollTo(0,0);
+        
         const storedEmail = localStorage.getItem('parent_email');
         const skipIdentityFlag = localStorage.getItem('skip_identity');
         

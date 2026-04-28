@@ -740,7 +740,31 @@ document.addEventListener("DOMContentLoaded", function() {
         tournamentLabelsContainer.appendChild(labelsRow);
     };
     
-    isTournamentCheckbox.addEventListener('change', window.updateTournamentLabels);
+    window.tournamentManuallyToggled = false;
+    isTournamentCheckbox.addEventListener('change', function() {
+        window.tournamentManuallyToggled = true;
+        window.updateTournamentLabels();
+    });
+    
+    const opponentInput = document.getElementById('modal_opponent');
+    if (opponentInput) {
+        opponentInput.addEventListener('input', function() {
+            if (!window.tournamentManuallyToggled) {
+                let val = this.value.toLowerCase();
+                if (val.includes('tornooi') || val.includes('toernooi') || val.includes('cup')) {
+                    if (!isTournamentCheckbox.checked) {
+                        isTournamentCheckbox.checked = true;
+                        window.updateTournamentLabels();
+                    }
+                } else {
+                    if (isTournamentCheckbox.checked) {
+                        isTournamentCheckbox.checked = false;
+                        window.updateTournamentLabels();
+                    }
+                }
+            }
+        });
+    }
 
     // Listeners and defaults...
 
@@ -788,6 +812,7 @@ function openGameModal(game = null, isDuplicate = false) {
     document.getElementById('gameForm').reset();
     document.getElementById('modal_game_id').value = '';
     document.getElementById('modal_source_game_id').value = '';
+    window.tournamentManuallyToggled = false;
     
     if (game && !isDuplicate) {
         document.getElementById('gameModalLabel').innerText = 'Wedstrijd Bewerken';

@@ -73,6 +73,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $inQ = implode(',', array_fill(0, count($gameIds), '?'));
             $pdo->prepare("DELETE FROM game_lineups WHERE game_id IN ($inQ)")->execute($gameIds);
             $pdo->prepare("DELETE FROM game_selections WHERE game_id IN ($inQ)")->execute($gameIds);
+            $pdo->prepare("DELETE FROM game_playtime_logs WHERE game_id IN ($inQ)")->execute($gameIds);
+            $pdo->prepare("DELETE FROM game_shift_logs WHERE game_id IN ($inQ)")->execute($gameIds);
         }
         $pdo->prepare("DELETE FROM games WHERE team_id = ?")->execute([$team_id]);
 
@@ -83,6 +85,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $inQ = implode(',', array_fill(0, count($playerIds), '?'));
             $pdo->prepare("DELETE FROM player_scores WHERE player_id IN ($inQ)")->execute($playerIds);
             $pdo->prepare("DELETE FROM gk_scores WHERE player_id IN ($inQ)")->execute($playerIds);
+            $pdo->prepare("DELETE FROM player_team_ranking WHERE player_id IN ($inQ)")->execute($playerIds);
+            $pdo->prepare("DELETE FROM position_rankings WHERE player_id IN ($inQ)")->execute($playerIds);
         }
         $pdo->prepare("DELETE FROM players WHERE team_id = ?")->execute([$team_id]);
 
@@ -91,7 +95,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $pdo->prepare("DELETE FROM user_teams WHERE team_id = ?")->execute([$team_id]);
         
         // Zorg dat neven-tabellen ook verwijderd worden
-        $pdo->prepare("DELETE FROM score_rules WHERE team_id = ?")->execute([$team_id]);
         $pdo->prepare("DELETE FROM team_periods WHERE team_id = ?")->execute([$team_id]);
         $pdo->prepare("DELETE FROM usage_logs WHERE team_id = ?")->execute([$team_id]);
 

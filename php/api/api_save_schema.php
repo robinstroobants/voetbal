@@ -214,8 +214,8 @@ if ($duplicate_id !== null && !$overwrite) {
     $gameObj->setRunQuality();
     $calculated_score = $gameObj->rating;
     
-    $stmtInsert = $pdo->prepare("INSERT INTO game_lineups (game_id, schema_id, player_order, score, is_final) VALUES (?, ?, ?, ?, 0)");
-    $stmtInsert->execute([$gameId, $duplicate_id, $volgorde, $calculated_score]);
+    $stmtInsert = $pdo->prepare("INSERT INTO game_lineups (game_id, schema_id, player_order, score, is_final, generator_tool) VALUES (?, ?, ?, ?, 0, ?)");
+    $stmtInsert->execute([$gameId, $duplicate_id, $volgorde, $calculated_score, 'Lineup Lab']);
     $lineup_id = $pdo->lastInsertId();
     
     echo json_encode(['success' => true, 'new_id' => $duplicate_id, 'is_duplicate' => true, 'lineup_id' => $lineup_id]);
@@ -296,8 +296,8 @@ $gameObj->setTimePlayed(count($gameObj->events)-1);
 $gameObj->setRunQuality();
 $calculated_score = $gameObj->rating;
 
-$stmtInsert = $pdo->prepare("INSERT INTO game_lineups (game_id, schema_id, player_order, score, is_final) VALUES (?, ?, ?, ?, 0)");
-$stmtInsert->execute([$gameId, $new_id, $volgorde, $calculated_score]);
+$stmtInsert = $pdo->prepare("INSERT INTO game_lineups (game_id, schema_id, player_order, score, is_final, generator_tool) VALUES (?, ?, ?, ?, 0, ?)");
+$stmtInsert->execute([$gameId, $new_id, $volgorde, $calculated_score, 'Lineup Lab']);
 $lineup_id = $pdo->lastInsertId();
 
 echo json_encode(['success' => true, 'new_id' => $new_id, 'is_duplicate' => false, 'lineup_id' => $lineup_id, 'is_overwrite' => $overwrite]);

@@ -25,7 +25,7 @@ $has_final = $stmtCheck->fetchColumn();
 
 // Fetch bestaande voorselecties (niet-definitief)
 $stmtPreviews = $pdo->prepare("
-    SELECT gl.id, gl.score, gl.created_at, gl.schema_id, gl.player_order, l.is_original, l.player_count, l.schema_data
+    SELECT gl.id, gl.score, gl.created_at, gl.schema_id, gl.player_order, l.is_original, l.player_count, l.schema_data, gl.generator_tool
     FROM game_lineups gl
     JOIN lineups l ON gl.schema_id = l.id
     WHERE gl.game_id = ? AND gl.is_final = 0 
@@ -56,7 +56,7 @@ foreach($previews as &$p) {
                     if (isset($pids[$generic_id])) {
                         $pid = $pids[$generic_id];
                         $playerMinutes[$pid] += $dur;
-                        if ($pos != 1) { // pos 1 is GK, skip for field positions count
+                        if ($pos != 1 && strtolower((string)$pos) !== 'bench') { // pos 1 is GK, skip for field positions count
                             $playerPositions[$pid][$pos] = true;
                         }
                     }
@@ -98,9 +98,20 @@ foreach($previews as &$p) {
         $p['min_pos_badge'] = '<span class="badge bg-danger" title="Geen of weinig variatie!"><i class="fa-solid fa-xmark me-1"></i>Geen min. posities</span>';
     }
     
-    // Check if it's purely original or modified
-    $p['type'] = $p['is_original'] == 1 ? 'AI Gegenereerd' : 'Manueel';
-    $p['type_icon'] = $p['is_original'] == 1 ? 'fa-wand-magic-sparkles text-primary' : 'fa-hammer text-warning';
+    // Check if it's purely original or modified, and which tool generated it
+    if (!empty($p['generator_tool'])) {
+        $p['type'] = $p['generator_tool'];
+        if (strpos($p['type'], 'Lineup Lab') !== false) {
+            $p['type_icon'] = 'fa-flask text-warning';
+        } elseif (strpos($p['type'], 'EqualPlay') !== false) {
+            $p['type_icon'] = 'fa-bolt text-success';
+        } else {
+            $p['type_icon'] = 'fa-wand-magic-sparkles text-primary';
+        }
+    } else {
+        $p['type'] = $p['is_original'] == 1 ? 'AI Gegenereerd' : 'Lineup Lab';
+        $p['type_icon'] = $p['is_original'] == 1 ? 'fa-wand-magic-sparkles text-primary' : 'fa-flask text-warning';
+    }
 }
 unset($p); // Critical to prevent PHP reference overwrite bug!
 
@@ -161,6 +172,18 @@ require_once dirname(__DIR__, 2) . '/header.php';
             </div>
         </div>
         <?php endif; ?>
+        <div class="col-md-4">
+            <div class="card h-100 shadow-sm border-0 hover-shadow transition-all">
+                <div class="card-body text-center p-4 d-flex flex-column">
+                    <div class="display-4 text-warning mb-3">
+                        <i class="fa-solid fa-flask"></i>
+                    </div>
+                    <h5 class="card-title fw-bold">Lineup Lab</h5>
+                    <p class="card-text text-muted mb-4" style="min-height: 120px;">Neem de touwtjes in handen en <strong>bouw handmatig je ideale tactiek</strong> op het interactieve canvas. Laat je tijdens het schuiven ondersteunen door live datagestuurde assistentie, wiskundige checks en rotatie-advies.</p>
+                    <a href="/games/<?= $gameId ?>/builder" class="btn btn-warning text-dark w-100 fw-bold mt-auto">Open Lineup Lab</a>
+                </div>
+            </div>
+        </div>
 
         <div class="col-md-4">
             <div class="card h-100 shadow-sm border-0 hover-shadow transition-all">
@@ -175,18 +198,6 @@ require_once dirname(__DIR__, 2) . '/header.php';
             </div>
         </div>
 
-        <div class="col-md-4">
-            <div class="card h-100 shadow-sm border-0 hover-shadow transition-all">
-                <div class="card-body text-center p-4 d-flex flex-column">
-                    <div class="display-4 text-warning mb-3">
-                        <i class="fa-solid fa-flask"></i>
-                    </div>
-                    <h5 class="card-title fw-bold">Lineup Lab</h5>
-                    <p class="card-text text-muted mb-4" style="min-height: 120px;">Neem de touwtjes in handen en <strong>bouw handmatig je ideale tactiek</strong> op het interactieve canvas. Laat je tijdens het schuiven ondersteunen door live datagestuurde assistentie, wiskundige checks en rotatie-advies.</p>
-                    <a href="/games/<?= $gameId ?>/builder" class="btn btn-warning text-dark w-100 fw-bold mt-auto">Open Lineup Lab</a>
-                </div>
-            </div>
-        </div>
 
         <div class="col-md-4">
             <div class="card h-100 shadow-sm border-0 hover-shadow transition-all" style="background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);">

@@ -79,9 +79,11 @@ try {
              exit;
         }
 
+        $generator_tool = $_POST['generator_tool'] ?? null;
+
         // Add to game_lineups
-        $stmt = $pdo->prepare("INSERT INTO game_lineups (game_id, schema_id, player_order, score, is_final) VALUES (?, ?, ?, ?, 0)");
-        $stmt->execute([$game_id, $schema_id, $player_order, $score]);
+        $stmt = $pdo->prepare("INSERT INTO game_lineups (game_id, schema_id, player_order, score, is_final, generator_tool) VALUES (?, ?, ?, ?, 0, ?)");
+        $stmt->execute([$game_id, $schema_id, $player_order, $score, $generator_tool]);
         
         $new_id = $pdo->lastInsertId();
 

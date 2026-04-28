@@ -613,7 +613,7 @@ require_once dirname(__DIR__, 2) . '/header.php';
               <!-- Tornooi Labels -->
               <div class="mb-3">
                   <div class="form-check form-switch p-0 d-flex justify-content-between align-items-center bg-light border p-2 rounded">
-                      <label class="form-check-label text-dark fw-bold ms-2" for="modal_is_tournament"><i class="fa-solid fa-trophy text-warning me-2"></i>Dit is een tornooi (Geef elke wedstrijd een eigen naam)</label>
+                      <label class="form-check-label text-dark fw-bold ms-2" for="modal_is_tournament"><i class="fa-solid fa-trophy text-warning me-2"></i>Dit is een tornooi</label>
                       <input class="form-check-input ms-2 mt-0 mb-0" type="checkbox" id="modal_is_tournament" style="transform: scale(1.2);">
                   </div>
                   <div id="modal_tournament_labels" class="mt-2 p-3 bg-light border rounded" style="display: none;">

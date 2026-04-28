@@ -183,6 +183,11 @@ if (isset($routes[$path])) {
         require_once __DIR__ . '/api/api_submit_feedback.php';
         $route_matched = true;
     }
+    elseif ($path === '/api/game_events' || $path === '/api/api_game_events.php') {
+        // Geen enforce_auth() want ouders moeten hier bij kunnen!
+        require_once __DIR__ . '/api/api_game_events.php';
+        $route_matched = true;
+    }
 }
 
 // 4. Fallback voor native requests (.php, scripts, API)

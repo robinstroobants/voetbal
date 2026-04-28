@@ -59,6 +59,17 @@
       }
   }
   ?>
+  
+  <?php if (isset($_GET['generate']) && $_GET['generate'] == 1): ?>
+  <script>
+  if (typeof gtag === 'function') {
+      gtag('event', 'schema_generated', { 
+          'format': '<?= htmlspecialchars($search_format) ?>',
+          'type': '<?= (isset($_GET["dynamic"]) && $_GET["dynamic"] == 1) ? "EqualPlay AI" : "ProLineup AI" ?>'
+      });
+  }
+  </script>
+  <?php endif; ?>
     
   <main>
     <div class="container">
@@ -367,7 +378,7 @@
           <?php endif; ?>
       <?php endif; ?>
 
-      <?php if (!empty($top_selected_options)): ?> 
+      <?php if (!empty($top_selected_options) && !defined('PUBLIC_SHARE_MODE')): ?> 
       <ul class="nav nav-tabs mt-4 mb-3 d-print-none justify-content-center" id="lineupTabs" role="tablist">
           <?php foreach ($top_selected_options as $t_idx => $t_opt): 
                   $t_lineup = $t_opt['team'];
@@ -419,6 +430,7 @@
                       $can_unlock = true; // Fallback if somehow locked_lineup is null here
                   }
               ?>
+                  <?php if (!defined('PUBLIC_SHARE_MODE')): ?>
                   <li class="nav-item d-print-none" role="presentation">
                       <?php if ($can_unlock): ?>
                       <button class="btn btn-warning ms-3 btn-sm mt-1" onclick="unlockLineups(<?= $gameId ?>)">
@@ -452,6 +464,7 @@
                           </ul>
                       </div>
                   </li>
+                  <?php endif; ?>
               <?php endif; ?>
           <?php endif; ?>
       </ul>
@@ -475,9 +488,11 @@
       <div class="tab-pane fade <?= $tab_idx == 0 ? 'show active d-print-block' : 'd-print-none' ?>" id="tab-pane-<?= $tab_idx ?>" role="tabpanel" tabindex="0">
       
       <div class="d-print-none text-center mb-4 mt-3">
+          <?php if (!defined('PUBLIC_SHARE_MODE')): ?>
           <button type="button" class="btn btn-sm btn-outline-info shadow-sm fw-bold" onclick="document.getElementById('posities-<?= $tab_idx ?>').scrollIntoView({behavior: 'smooth'})">
               <i class="fa-solid fa-clock-rotate-left me-1"></i> Bekijk Positieverdeling
           </button>
+          <?php endif; ?>
           
           <?php if (!defined('PUBLIC_SHARE_MODE') && !$locked_lineup): ?>
               <?php if ($shuffle_type !== 'coach'): 
@@ -876,6 +891,7 @@
         ?>
       
         </div>
+        <?php if (!defined('PUBLIC_SHARE_MODE')): ?>
         <div class="timetable row mt-4 do_not_break pt-4 <?php echo !$show_position_stats ? 'new-print-page' : ''; ?>" id="posities-<?= $tab_idx ?>">
           <div class="col-12 d-print-none text-end mb-2">
               <a href="javascript:void(0)" onclick="window.scrollTo({top: 0, behavior: 'smooth'})" class="text-decoration-none small text-muted"><i class="fa-solid fa-arrow-up"></i> Terug naar schema</a>
@@ -1066,7 +1082,7 @@
       </div>
     
     <?php } ?>
-     
+    <?php endif; ?>
      
 
       
@@ -1188,6 +1204,9 @@
             var mainBtn = document.getElementById('btnShareLink');
             
             if (data.success) {
+                if (typeof gtag === 'function') {
+                    gtag('event', 'share_link_generated', { 'duration_hours': hours });
+                }
                 navigator.clipboard.writeText(data.link).then(() => {
                     if (mainBtn) {
                         mainBtn.innerHTML = '<i class="fa-solid fa-check me-1"></i> Link Gekopieerd!';
@@ -1224,6 +1243,9 @@
         fetch('/api/api_save_lineup.php', { method: 'POST', body: fd })
         .then(r => r.json())
         .then(data => {
+            if (typeof gtag === 'function') {
+                gtag('event', 'lineup_finalized');
+            }
             window.location.href = '/games/' + gameId + '/lineup';
         });
     }
@@ -1310,6 +1332,10 @@ if (!isset($should_log_usage) || !$should_log_usage) {
     }
 }
 ?>
+
+<?php if (defined('PUBLIC_SHARE_MODE')): ?>
+    <?php require_once __DIR__ . '/parents_ui.php'; ?>
+<?php endif; ?>
 
 <?php require_once dirname(__DIR__, 2) . '/footer.php'; ?>
 

@@ -78,7 +78,7 @@
 * **Sessie & Activiteit:** Toon in het tenant overzicht welke gebruikers online zijn en wanneer hun laatste activiteit was.
 * **Conversie Tracking:** Meet hoeveel invites er gestuurd en geaccepteerd worden, en of hier (betaalde) accounts uit voortvloeien (eventueel belonen met credits).
 * **Externe Tooling:** Onderzoek of deze performance monitoring deels met gratis Google Workspace/One tools kan, in plaats van alles in de app te bouwen.
-* **Google Analytics:** Basis GA integratie toevoegen.
+
 
 ---
 
@@ -96,29 +96,23 @@
 
 ## 💡 7. Braindump & Future Modules
 *Context voor Antigravity: Ideeën voor de lange termijn. Nog niet in scope voor actieve ontwikkeling.*
-* **suggestie wisselspelers in schema builder** als er een tweede blokje wordt pre-filled (samen met de wisselspelers) dan moet de coach nu opzij gaan kijken wie er onderaan staat in de stats (muv de doelman) en dan is het idealiter die speler die moet rusten. is er een manier dat we dat als tip kunnen geven in de buurt van dat blokje dat we aan het wijzigen zijn? Kan die informatie ook gedeeld worden in een introtekst ergens? ook mag de Aanbevolen volgorde op basis van speelminuten onder de pool gezet worden ipv er boven.
+
 
 * **Reverse Engineer Schema (Legacy):** De mogelijkheid om via een interface (bijv. door selecties in volgorde te slepen of speelminuten in te geven) oude legacy schema id's te achterhalen (zoals id '777' van de match tegen Wellen).
 * **Legacy Database Tabellen:** Een extra tabel bouwen voor oude schema-logica, met `format`, `legacy_key`, en `new_key`.
 * **Gast-Coach Systeem:** Manier bedenken om een tijdelijke coach aan te duiden (voor statistieken), zonder dat dit vloekt met een eventueel coach-limiet in het betaalmodel (aangezien er per 'team' betaald wordt).
 * **Extra Rol - Afgevaardigde:** Een nieuwe rol die wel opstellingen kan draaien, maar de achterliggende score matrix van de spelers niet kan zien.
 
-- in de schema builder staan er in de buttons ook min percentage en bank .... dat mag je weglaten
-- user feedback verzamelen.... als de gebruikers bugs tegenkomen zou ik hen dat graag laten melden, liefst met zoveel mogelijk info waar en wat
+
+
+
+
 - https://lineup.webbit.be/cron_cleanup.php
 
 
 
-- link op dashboard naar nieuwe wedstrijd toont wedstrijdoverzicht ipv popup nieuwe wedstrijd...
-default wedstrijd moment thuiswedstrijden
-- na aanmaken wedstrijd (indien geen duplicate) direct naar selectie pagina
+- default wedstrijd moment thuiswedstrijden
+
 - feedback systeem bouwen
 - ouders events laten ingeven
 
-
-
-- op http://localhost:8085/games/120/lineup?generate=1&dynamic=1&use_period=1 staat 
-Wiskunde (7 spelers, 5 posities):
-5 spelers: 45m (6x)
-2 spelers: 37.5m (5x)
-waarvoor staan die 6x en 5x..?

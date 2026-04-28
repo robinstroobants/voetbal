@@ -116,7 +116,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $check = $pdo->prepare("SELECT COUNT(*) FROM user_teams WHERE user_id = ?");
         $check->execute([$uid]);
         if ($check->fetchColumn() == 0) {
-            $pdo->prepare("DELETE FROM users WHERE id = ?")->execute([$uid]);
+            $checkTeams = $pdo->prepare("SELECT COUNT(*) FROM teams WHERE user_id = ?");
+            $checkTeams->execute([$uid]);
+            if ($checkTeams->fetchColumn() == 0) {
+                $pdo->prepare("DELETE FROM users WHERE id = ?")->execute([$uid]);
+            }
         }
         $success = "✅ Gebruiker ontkoppeld (en definitief gewist indien geen andere teams).";
     } elseif ($action === 'invite_coach') {

@@ -212,6 +212,11 @@ if (!$route_matched) {
 
 // 5. Laatste reddingsboei: 404
 if (!$route_matched) {
+    if (preg_match('#^/(favicon\.ico|apple-touch-icon.*\.png)$#i', $path)) {
+        http_response_code(204);
+        exit;
+    }
+    
     error_log("ROUTER 404: " . $_SERVER['REQUEST_METHOD'] . " " . $uri . " (path: " . $path . ")");
     http_response_code(404);
     echo "<h1 style='text-align:center; margin-top: 50px; font-family: sans-serif;'>404 Pagina Niet Gevonden</h1>";

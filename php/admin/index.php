@@ -89,13 +89,50 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $pdo->prepare("DELETE FROM coaches WHERE team_id = ?")->execute([$team_id]);
         $pdo->prepare("DELETE FROM team_invitations WHERE team_id = ?")->execute([$team_id]);
         $pdo->prepare("DELETE FROM user_teams WHERE team_id = ?")->execute([$team_id]);
+        
+        // Zorg dat neven-tabellen ook verwijderd worden
+        $pdo->prepare("DELETE FROM score_rules WHERE team_id = ?")->execute([$team_id]);
+        $pdo->prepare("DELETE FROM team_periods WHERE team_id = ?")->execute([$team_id]);
+        $pdo->prepare("DELETE FROM usage_logs WHERE team_id = ?")->execute([$team_id]);
+
+        // Verwerk lineups (wisselschema's) slim: Verwijder ze, tenzij andere teams ze al gebruiken (kopieerden)
+        $stmtL = $pdo->prepare("SELECT id FROM lineups WHERE team_id = ?");
+        $stmtL->execute([$team_id]);
+        $team_lineups = $stmtL->fetchAll(PDO::FETCH_COLUMN);
+
+        if ($team_lineups) {
+            foreach($team_lineups as $l_id) {
+                $stmtCheckL = $pdo->prepare("
+                    SELECT g.team_id 
+                    FROM game_lineups gl 
+                    JOIN games g ON gl.game_id = g.id 
+                    WHERE gl.schema_id = ? AND g.team_id != ? 
+                    LIMIT 1
+                ");
+                $stmtCheckL->execute([$l_id, $team_id]);
+                $other_team = $stmtCheckL->fetchColumn();
+
+                if ($other_team) {
+                    $pdo->prepare("UPDATE lineups SET team_id = ? WHERE id = ?")->execute([$other_team, $l_id]);
+                } else {
+                    $pdo->prepare("DELETE FROM lineups WHERE id = ?")->execute([$l_id]);
+                }
+            }
+        }
+
         $pdo->prepare("DELETE FROM teams WHERE id = ?")->execute([$team_id]);
 
+        // Controleer of de users (coaches) nog aan andere teams hangen. Zo niet, gooi de user helemaal weg.
         foreach($affected_users as $uid) {
             $check = $pdo->prepare("SELECT COUNT(*) FROM user_teams WHERE user_id = ?");
             $check->execute([$uid]);
             if ($check->fetchColumn() == 0) {
-                $pdo->prepare("DELETE FROM users WHERE id = ?")->execute([$uid]);
+                $checkTeams = $pdo->prepare("SELECT COUNT(*) FROM teams WHERE user_id = ?");
+                $checkTeams->execute([$uid]);
+                if ($checkTeams->fetchColumn() == 0) {
+                    $pdo->prepare("DELETE FROM usage_logs WHERE user_id = ?")->execute([$uid]);
+                    $pdo->prepare("DELETE FROM users WHERE id = ?")->execute([$uid]);
+                }
             }
         }
         $success = "✅ Tenant omgeving volledig geliquideerd.";

@@ -379,7 +379,7 @@ require_once __DIR__ . '/header.php';
                 <h4 class="fw-bold text-dark mb-0">Welkom terug, Coach! <i class="fa-solid fa-hand-wave text-warning" style="font-size: 0.9em;"></i></h4>
                 <p class="text-muted mb-0 mt-1 d-none d-md-block">Jouw dashboard voor team <?= htmlspecialchars($_SESSION['team_name'] ?? '') ?></p>
             </div>
-            <a href="/games" class="btn btn-primary shadow-sm fw-bold rounded-pill px-4">
+            <a href="/games?new=1" class="btn btn-primary shadow-sm fw-bold rounded-pill px-4">
                 <i class="fa-solid fa-plus me-1"></i> Wedstrijd Plannen
             </a>
         </div>
@@ -512,7 +512,7 @@ require_once __DIR__ . '/header.php';
                         <i class="fa-regular fa-calendar-xmark text-muted mb-3" style="font-size: 3rem;"></i>
                         <h4 class="fw-bold text-dark mb-1">Geen Aankomende Wedstrijden</h4>
                         <p class="text-muted">Er staan momenteel geen wedstrijden op de planning voor je team.</p>
-                        <a href="/games" class="btn btn-primary rounded-pill mt-2">
+                        <a href="/games?new=1" class="btn btn-primary rounded-pill mt-2">
                             <i class="fa-solid fa-plus me-1"></i> Nu Eentje Toevoegen
                         </a>
                     </div>

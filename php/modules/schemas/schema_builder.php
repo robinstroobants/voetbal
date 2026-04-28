@@ -619,7 +619,7 @@ require_once dirname(__DIR__, 2) . '/header.php';
 <div class="container mt-4 mb-5 pb-5">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h2 class="mb-0"><i class="fa-solid fa-hammer text-warning me-2"></i> Builder</h2>
+            <h2 class="mb-0"><i class="fa-solid fa-hammer text-warning me-2"></i> Pro Lineup</h2>
         </div>
         <div>
             <a href="/games/<?= $gameId ?>/schema" class="btn btn-outline-secondary me-2"><i class="fa-solid fa-arrow-left"></i> Terug</a>

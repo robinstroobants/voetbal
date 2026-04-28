@@ -243,7 +243,7 @@ require_once dirname(__DIR__, 2) . '/header.php';
         <h2>Wedstrijd Beheer</h2>
         <?php if ($onboarding_complete): ?>
             <div>
-                <?php if (Permissions::hasPermission(Permissions::PERM_USE_THEORY_WIZARD)): ?>
+                <?php if (!empty($_SESSION['is_beta_user']) && Permissions::hasPermission(Permissions::PERM_USE_THEORY_WIZARD)): ?>
                 <a href="/schemas/wizard" class="btn btn-outline-warning shadow-sm me-2 fw-bold text-dark">
                     <i class="fa-solid fa-flask me-2"></i>Schema Ontwerpen
                 </a>
@@ -828,5 +828,14 @@ document.addEventListener("DOMContentLoaded", function() {
 });
 <?php endif; endif; ?>
 </script>
+<?php if (isset($_GET['new']) && $_GET['new'] == '1'): ?>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    setTimeout(function() {
+        openGameModal();
+    }, 100);
+});
+</script>
+<?php endif; ?>
 
 <?php require_once dirname(__DIR__, 2) . '/footer.php'; ?>

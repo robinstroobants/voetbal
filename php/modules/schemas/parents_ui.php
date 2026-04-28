@@ -48,6 +48,17 @@ if ($gameRow && !empty($gameRow['block_labels']) && $gameRow['block_labels'] !==
 $shifts_data = [];
 $totalBlocksCount = 1;
 $cumulative_min = 0;
+$game_start_mins = []; // Voor tornooien om de tijd per wedstrijd (game_counter) bij te houden
+
+$event_to_game = [];
+if (isset($lineup) && isset($lineup->game_parts)) {
+    foreach ($lineup->game_parts as $g_counter => $g_parts) {
+        foreach ($g_parts as $g_idx) {
+            $event_to_game[$g_idx] = $g_counter;
+        }
+    }
+}
+
 if (isset($lineup) && isset($lineup->events)) {
     foreach($lineup->events as $idx => $ev) {
         $duration_seconds = (float)($ev['duration'] ?? 0);
@@ -58,17 +69,25 @@ if (isset($lineup) && isset($lineup->events)) {
             $pitch_with_pos[] = ['id' => $pid, 'pos' => $pos];
         }
         
+        $current_game_counter = $event_to_game[$idx] ?? 1;
+        if ($isTournament) {
+            if (!isset($game_start_mins[$current_game_counter])) {
+                $game_start_mins[$current_game_counter] = 0;
+            }
+            $start_minute = $game_start_mins[$current_game_counter];
+            $game_start_mins[$current_game_counter] += $duration_minutes;
+        } else {
+            $start_minute = $cumulative_min;
+            $cumulative_min += $duration_minutes;
+        }
+        
         $shifts_data[] = [
             'index' => $idx + 1,
             'duration' => $duration_minutes,
-            'start_minute' => $isTournament ? 0 : $cumulative_min,
+            'start_minute' => $start_minute,
             'bench' => array_values($ev['bench'] ?? []),
             'pitch' => $pitch_with_pos
         ];
-        
-        if (!$isTournament) {
-            $cumulative_min += $duration_minutes;
-        }
     }
     $totalBlocksCount = count($shifts_data);
 } else {

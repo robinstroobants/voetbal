@@ -136,6 +136,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['legacy_id'])) {
     exit;
 }
 
+// Verwijder specifieke voorselectie
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_lineup_id'])) {
+    $deleteId = (int)$_POST['delete_lineup_id'];
+    $stmtCheck = $pdo->prepare("SELECT id FROM game_lineups WHERE id = ? AND game_id = ? AND is_final = 0");
+    $stmtCheck->execute([$deleteId, $gameId]);
+    if ($stmtCheck->fetchColumn()) {
+        $pdo->prepare("DELETE FROM game_lineups WHERE id = ?")->execute([$deleteId]);
+        header("Location: /games/$gameId/schema?msg=deleted");
+        exit;
+    }
+}
+
 $page_title = 'Opstellingen: ' . htmlspecialchars($game['opponent']);
 require_once dirname(__DIR__, 2) . '/header.php';
 ?>
@@ -155,6 +167,11 @@ require_once dirname(__DIR__, 2) . '/header.php';
 
     <?php if (isset($_GET['msg']) && $_GET['msg'] === 'legacy_loaded'): ?>
         <div class="alert alert-success"><i class="fa-solid fa-check"></i> Legacy schema commando ontvangen (nog te implementeren).</div>
+    <?php elseif (isset($_GET['msg']) && $_GET['msg'] === 'deleted'): ?>
+        <div class="alert alert-success alert-dismissible fade show">
+            <i class="fa-solid fa-check"></i> Voorselectie succesvol verwijderd.
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
     <?php endif; ?>
 
     <div class="row g-4">
@@ -279,7 +296,10 @@ require_once dirname(__DIR__, 2) . '/header.php';
                         
                         <div class="d-flex gap-2">
                             <a href="/games/<?= $gameId ?>/lineup?preview=<?= $p['id'] ?>" class="btn btn-sm btn-outline-primary w-100 fw-bold">Bekijk Preview</a>
-                            <a href="/games/<?= $gameId ?>/lineup?preview=<?= $p['id'] ?>&print=1" class="btn btn-sm btn-outline-danger fw-bold px-3" title="Print / Opslaan als PDF"><i class="fa-solid fa-file-pdf"></i></a>
+                            <form method="post" class="d-inline" onsubmit="return confirm('Weet je zeker dat je deze voorselectie wilt verwijderen?');">
+                                <input type="hidden" name="delete_lineup_id" value="<?= $p['id'] ?>">
+                                <button type="submit" class="btn btn-sm btn-outline-secondary fw-bold px-3" title="Verwijder Voorselectie"><i class="fa-solid fa-trash"></i></button>
+                            </form>
                         </div>
                     </div>
                 </div>

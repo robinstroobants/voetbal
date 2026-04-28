@@ -277,7 +277,10 @@ require_once dirname(__DIR__, 2) . '/header.php';
                             <?php endforeach; ?>
                         </div>
                         
-                        <a href="/games/<?= $gameId ?>/lineup?preview=<?= $p['id'] ?>" class="btn btn-sm btn-outline-primary w-100 fw-bold">Bekijk Preview</a>
+                        <div class="d-flex gap-2">
+                            <a href="/games/<?= $gameId ?>/lineup?preview=<?= $p['id'] ?>" class="btn btn-sm btn-outline-primary w-100 fw-bold">Bekijk Preview</a>
+                            <a href="/games/<?= $gameId ?>/lineup?preview=<?= $p['id'] ?>&print=1" class="btn btn-sm btn-outline-danger fw-bold px-3" title="Print / Opslaan als PDF"><i class="fa-solid fa-file-pdf"></i></a>
+                        </div>
                     </div>
                 </div>
             </div>

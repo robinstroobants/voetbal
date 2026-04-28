@@ -32,6 +32,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $coachId = !empty($_POST['coach_id']) ? (int)$_POST['coach_id'] : null;
         $isHome = isset($_POST['is_home']) ? (int)$_POST['is_home'] : 1;
         
+        $blockLabels = null;
+        if (isset($_POST['block_labels']) && is_array($_POST['block_labels'])) {
+            $labels = array_map('trim', $_POST['block_labels']);
+            if (count(array_filter($labels)) > 0) {
+                $blockLabels = json_encode($labels);
+            }
+        }
+        
         if ($gameId) {
             // Controleer of layout/format of coach veranderd is ten opzichte van current
             $stmtCheck = $pdo->prepare("SELECT format, coach_id FROM games WHERE id = ?");
@@ -45,8 +53,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $pdo->prepare("DELETE FROM game_lineups WHERE game_id = ?")->execute([$gameId]);
             }
 
-            $stmt = $pdo->prepare("UPDATE games SET opponent = :opp, is_home = :is_home, game_date = :gd, format = :fmt, min_pos = :mpos, coach_id = :cid WHERE id = :id");
-            $stmt->execute(['opp' => $opponent, 'is_home' => $isHome, 'gd' => $gameDate, 'fmt' => $format, 'mpos' => $minPos, 'cid' => $coachId, 'id' => $gameId]);
+            $stmt = $pdo->prepare("UPDATE games SET opponent = :opp, is_home = :is_home, game_date = :gd, format = :fmt, min_pos = :mpos, coach_id = :cid, block_labels = :bl WHERE id = :id");
+            $stmt->execute(['opp' => $opponent, 'is_home' => $isHome, 'gd' => $gameDate, 'fmt' => $format, 'mpos' => $minPos, 'cid' => $coachId, 'bl' => $blockLabels, 'id' => $gameId]);
             
             // Als de coach gewijzigd is, werk dan ook de logs bij (voor historische correctie)
             if ($oldCoachId != $coachId) {
@@ -54,8 +62,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmtLogs->execute(['cid' => $coachId, 'id' => $gameId]);
             }
         } else {
-            $stmt = $pdo->prepare("INSERT INTO games (team_id, opponent, is_home, game_date, format, min_pos, coach_id) VALUES (:team_id, :opp, :is_home, :gd, :fmt, :mpos, :cid)");
-            $stmt->execute(['team_id' => $_SESSION['team_id'], 'opp' => $opponent, 'is_home' => $isHome, 'gd' => $gameDate, 'fmt' => $format, 'mpos' => $minPos, 'cid' => $coachId]);
+            $stmt = $pdo->prepare("INSERT INTO games (team_id, opponent, is_home, game_date, format, min_pos, coach_id, block_labels) VALUES (:team_id, :opp, :is_home, :gd, :fmt, :mpos, :cid, :bl)");
+            $stmt->execute(['team_id' => $_SESSION['team_id'], 'opp' => $opponent, 'is_home' => $isHome, 'gd' => $gameDate, 'fmt' => $format, 'mpos' => $minPos, 'cid' => $coachId, 'bl' => $blockLabels]);
             $newGameId = $pdo->lastInsertId();
 
             // Duplicatie verwerken indien gevraagd
@@ -601,6 +609,17 @@ require_once dirname(__DIR__, 2) . '/header.php';
                       </select>
                   </div>
               </div>
+              
+              <!-- Tornooi Labels -->
+              <div class="mb-3">
+                  <div class="form-check form-switch p-0 d-flex justify-content-between align-items-center bg-light border p-2 rounded">
+                      <label class="form-check-label text-dark fw-bold ms-2" for="modal_is_tournament"><i class="fa-solid fa-trophy text-warning me-2"></i>Dit is een tornooi (Geef elke wedstrijd een eigen naam)</label>
+                      <input class="form-check-input ms-2 mt-0 mb-0" type="checkbox" id="modal_is_tournament" style="transform: scale(1.2);">
+                  </div>
+                  <div id="modal_tournament_labels" class="mt-2 p-3 bg-light border rounded" style="display: none;">
+                      <!-- Dynamically filled by JS -->
+                  </div>
+              </div>
           </div>
           
           <div class="modal-footer">
@@ -679,9 +698,49 @@ document.addEventListener("DOMContentLoaded", function() {
             }
             partsSelect.appendChild(option);
         });
+        
+        // Update tournament labels if active
+        if (window.updateTournamentLabels) {
+            window.updateTournamentLabels();
+        }
     };
 
     document.getElementById('modal_format').addEventListener('change', () => window.updateGameParts(null));
+    
+    // Tournament labels logic
+    window.existingTournamentLabels = null;
+    const isTournamentCheckbox = document.getElementById('modal_is_tournament');
+    const tournamentLabelsContainer = document.getElementById('modal_tournament_labels');
+    
+    window.updateTournamentLabels = function() {
+        if (!isTournamentCheckbox.checked) {
+            tournamentLabelsContainer.style.display = 'none';
+            return;
+        }
+        tournamentLabelsContainer.style.display = 'block';
+        tournamentLabelsContainer.innerHTML = '';
+        
+        const formatSelect = document.getElementById('modal_game_parts');
+        const partsStr = formatSelect.value || '4x15';
+        const numBlocks = parseInt(partsStr.split('x')[0]);
+        
+        let labelsRow = document.createElement('div');
+        labelsRow.className = 'row g-2';
+        
+        for (let i = 0; i < numBlocks; i++) {
+            let col = document.createElement('div');
+            col.className = 'col-md-6';
+            let val = (window.existingTournamentLabels && window.existingTournamentLabels[i]) ? window.existingTournamentLabels[i] : '';
+            col.innerHTML = `
+                <label class="form-label text-muted small fw-bold mb-1">Naam Wedstrijd ${i + 1}</label>
+                <input type="text" class="form-control form-control-sm" name="block_labels[${i}]" value="${val}" placeholder="Bv. Wedstrijd ${i + 1}">
+            `;
+            labelsRow.appendChild(col);
+        }
+        tournamentLabelsContainer.appendChild(labelsRow);
+    };
+    
+    isTournamentCheckbox.addEventListener('change', window.updateTournamentLabels);
 
     // Listeners and defaults...
 
@@ -756,6 +815,21 @@ function openGameModal(game = null, isDuplicate = false) {
             }
         }
         document.getElementById('modal_format').value = formatBase;
+        
+        // Tournament labels
+        if (game.block_labels && game.block_labels !== 'null' && game.block_labels !== '""') {
+            try {
+                window.existingTournamentLabels = JSON.parse(game.block_labels);
+                document.getElementById('modal_is_tournament').checked = true;
+            } catch(e) {
+                window.existingTournamentLabels = null;
+                document.getElementById('modal_is_tournament').checked = false;
+            }
+        } else {
+            window.existingTournamentLabels = null;
+            document.getElementById('modal_is_tournament').checked = false;
+        }
+        
         updateGameParts(formatParts);
     } else {
         let nextSat = new Date();
@@ -790,6 +864,21 @@ function openGameModal(game = null, isDuplicate = false) {
                 }
             }
             document.getElementById('modal_format').value = formatBase;
+            
+            // Tournament labels (copy from source game if available)
+            if (game.block_labels && game.block_labels !== 'null' && game.block_labels !== '""') {
+                try {
+                    window.existingTournamentLabels = JSON.parse(game.block_labels);
+                    document.getElementById('modal_is_tournament').checked = true;
+                } catch(e) {
+                    window.existingTournamentLabels = null;
+                    document.getElementById('modal_is_tournament').checked = false;
+                }
+            } else {
+                window.existingTournamentLabels = null;
+                document.getElementById('modal_is_tournament').checked = false;
+            }
+            
             updateGameParts(formatParts);
         } else {
             document.getElementById('gameModalLabel').innerText = 'Nieuwe Wedstrijd Plannen';
@@ -798,6 +887,9 @@ function openGameModal(game = null, isDuplicate = false) {
             document.getElementById('modal_min_pos').value = '0';
             document.getElementById('modal_coach_id').value = '<?= $_SESSION['user_id'] ?? '' ?>';
             document.getElementById('loc_home').checked = true;
+            
+            window.existingTournamentLabels = null;
+            document.getElementById('modal_is_tournament').checked = false;
             
             let defFormat = '<?= $_SESSION['default_format'] ?? '8v8' ?>';
             let defParts = '<?= $_SESSION['default_game_parts'] ?? '4x15' ?>';

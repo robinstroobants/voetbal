@@ -62,82 +62,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } elseif ($action === 'delete_team') {
         $team_id = (int)$_POST['team_id'];
         
-        $stmtU = $pdo->prepare("SELECT user_id FROM user_teams WHERE team_id = ?");
-        $stmtU->execute([$team_id]);
-        $affected_users = $stmtU->fetchAll(PDO::FETCH_COLUMN);
-
-        $games = $pdo->prepare("SELECT id FROM games WHERE team_id = ?");
-        $games->execute([$team_id]);
-        $gameIds = $games->fetchAll(PDO::FETCH_COLUMN);
-        if ($gameIds) {
-            $inQ = implode(',', array_fill(0, count($gameIds), '?'));
-            $pdo->prepare("DELETE FROM game_lineups WHERE game_id IN ($inQ)")->execute($gameIds);
-            $pdo->prepare("DELETE FROM game_selections WHERE game_id IN ($inQ)")->execute($gameIds);
-            $pdo->prepare("DELETE FROM game_playtime_logs WHERE game_id IN ($inQ)")->execute($gameIds);
-            $pdo->prepare("DELETE FROM game_shift_logs WHERE game_id IN ($inQ)")->execute($gameIds);
-        }
-        $pdo->prepare("DELETE FROM games WHERE team_id = ?")->execute([$team_id]);
-
-        $players = $pdo->prepare("SELECT id FROM players WHERE team_id = ?");
-        $players->execute([$team_id]);
-        $playerIds = $players->fetchAll(PDO::FETCH_COLUMN);
-        if ($playerIds) {
-            $inQ = implode(',', array_fill(0, count($playerIds), '?'));
-            $pdo->prepare("DELETE FROM player_scores WHERE player_id IN ($inQ)")->execute($playerIds);
-            $pdo->prepare("DELETE FROM gk_scores WHERE player_id IN ($inQ)")->execute($playerIds);
-            $pdo->prepare("DELETE FROM player_team_ranking WHERE player_id IN ($inQ)")->execute($playerIds);
-            $pdo->prepare("DELETE FROM position_rankings WHERE player_id IN ($inQ)")->execute($playerIds);
-        }
-        $pdo->prepare("DELETE FROM players WHERE team_id = ?")->execute([$team_id]);
-
-        $pdo->prepare("DELETE FROM coaches WHERE team_id = ?")->execute([$team_id]);
-        $pdo->prepare("DELETE FROM team_invitations WHERE team_id = ?")->execute([$team_id]);
-        $pdo->prepare("DELETE FROM user_teams WHERE team_id = ?")->execute([$team_id]);
+        require_once dirname(__DIR__) . '/core/Services/CleanupService.php';
+        $cleanupService = new \Core\Services\CleanupService($pdo);
+        $cleanupService->deleteTeam($team_id);
         
-        // Zorg dat neven-tabellen ook verwijderd worden
-        $pdo->prepare("DELETE FROM team_periods WHERE team_id = ?")->execute([$team_id]);
-        $pdo->prepare("DELETE FROM usage_logs WHERE team_id = ?")->execute([$team_id]);
-
-        // Verwerk lineups (wisselschema's) slim: Verwijder ze, tenzij andere teams ze al gebruiken (kopieerden)
-        $stmtL = $pdo->prepare("SELECT id FROM lineups WHERE team_id = ?");
-        $stmtL->execute([$team_id]);
-        $team_lineups = $stmtL->fetchAll(PDO::FETCH_COLUMN);
-
-        if ($team_lineups) {
-            foreach($team_lineups as $l_id) {
-                $stmtCheckL = $pdo->prepare("
-                    SELECT g.team_id 
-                    FROM game_lineups gl 
-                    JOIN games g ON gl.game_id = g.id 
-                    WHERE gl.schema_id = ? AND g.team_id != ? 
-                    LIMIT 1
-                ");
-                $stmtCheckL->execute([$l_id, $team_id]);
-                $other_team = $stmtCheckL->fetchColumn();
-
-                if ($other_team) {
-                    $pdo->prepare("UPDATE lineups SET team_id = ? WHERE id = ?")->execute([$other_team, $l_id]);
-                } else {
-                    $pdo->prepare("DELETE FROM lineups WHERE id = ?")->execute([$l_id]);
-                }
-            }
-        }
-
-        $pdo->prepare("DELETE FROM teams WHERE id = ?")->execute([$team_id]);
-
-        // Controleer of de users (coaches) nog aan andere teams hangen. Zo niet, gooi de user helemaal weg.
-        foreach($affected_users as $uid) {
-            $check = $pdo->prepare("SELECT COUNT(*) FROM user_teams WHERE user_id = ?");
-            $check->execute([$uid]);
-            if ($check->fetchColumn() == 0) {
-                $checkTeams = $pdo->prepare("SELECT COUNT(*) FROM teams WHERE user_id = ?");
-                $checkTeams->execute([$uid]);
-                if ($checkTeams->fetchColumn() == 0) {
-                    $pdo->prepare("DELETE FROM usage_logs WHERE user_id = ?")->execute([$uid]);
-                    $pdo->prepare("DELETE FROM users WHERE id = ?")->execute([$uid]);
-                }
-            }
-        }
         $success = "✅ Tenant omgeving volledig geliquideerd.";
     } elseif ($action === 'edit_user') {
         $uid = (int)$_POST['user_id'];
@@ -228,27 +156,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $success = "✅ Uitnodiging succesvol ingetrokken!";
         }
     } elseif ($action === 'cleanup_dummies') {
-        $stmtDummies = $pdo->prepare("SELECT id FROM games WHERE opponent LIKE '%DUMMY REVISOR MATCH%' AND created_at < NOW() - INTERVAL 1 HOUR");
-        $stmtDummies->execute();
-        $dummyIds = $stmtDummies->fetchAll(PDO::FETCH_COLUMN);
+        require_once dirname(__DIR__) . '/core/Services/CleanupService.php';
+        $cleanupService = new \Core\Services\CleanupService($pdo);
+        
+        $forceAll = isset($_POST['force_all']) && empty($dummyIds);
+        $includeSchemas = isset($_POST['include_schemas']);
+        
+        $deletedCount = $cleanupService->cleanupDummies($forceAll, $includeSchemas);
 
-        // Fallback: Als er uitsluitend nieuwe dummy tests zijn en de gebruiker forceert de purge (of indien er geen timestamps inzaten oorspronkelijk).
-        if (empty($dummyIds) && isset($_POST['force_all'])) {
-            $stmtDummies = $pdo->prepare("SELECT id FROM games WHERE opponent LIKE '%DUMMY REVISOR MATCH%' OR is_theory = 1");
-            $stmtDummies->execute();
-            $dummyIds = $stmtDummies->fetchAll(PDO::FETCH_COLUMN);
-        } elseif (isset($_POST['include_schemas'])) {
-            $stmtDummies = $pdo->prepare("SELECT id FROM games WHERE (opponent LIKE '%DUMMY REVISOR MATCH%' AND created_at < NOW() - INTERVAL 1 HOUR) OR is_theory = 1");
-            $stmtDummies->execute();
-            $dummyIds = $stmtDummies->fetchAll(PDO::FETCH_COLUMN);
-        }
-
-        if ($dummyIds) {
-            $inQ = implode(',', array_fill(0, count($dummyIds), '?'));
-            $pdo->prepare("DELETE FROM game_lineups WHERE game_id IN ($inQ)")->execute($dummyIds);
-            $pdo->prepare("DELETE FROM game_selections WHERE game_id IN ($inQ)")->execute($dummyIds);
-            $pdo->prepare("DELETE FROM games WHERE id IN ($inQ)")->execute($dummyIds);
-            $success = "✅ " . count($dummyIds) . " dummy test sessies/schema's succesvol opgeruimd!";
+        if ($deletedCount > 0) {
+            $success = "✅ " . $deletedCount . " dummy test sessies/schema's succesvol opgeruimd!";
         } else {
             $success = "ℹ️ Geen dummy wedstrijden gevonden om op te ruimen.";
         }
@@ -385,7 +302,7 @@ require_once __DIR__ . '/../header.php';
                         <h3 class="mb-0 fw-bold"><?= $admin_stats['waitlist_pending'] ?></h3>
                     </div>
                 </div>
-                <a href="/admin/users?q=pending" class="stretched-link"></a>
+                <a href="/admin/users?q=&filter=pending" class="stretched-link"></a>
             </div>
         </div>
         <div class="col-md-4 mb-2">

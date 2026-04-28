@@ -106,6 +106,15 @@ require_once dirname(__DIR__, 2) . '/header.php';
             <span class="badge bg-light text-dark" id="count_badge">0 geselecteerd</span>
         </div>
         
+        <div class="card-body bg-light border-bottom p-3">
+            <label class="form-label fw-bold"><i class="fa-solid fa-paste text-primary me-2"></i>Slimme Scanner (WhatsApp lijstje plakken)</label>
+            <textarea id="smart-scanner" class="form-control mb-2" rows="2" placeholder="Plak hier je lijst met namen. De scanner zal deze herkennen en automatisch aanvinken!"></textarea>
+            <div id="scanner-feedback" class="small"></div>
+            <div class="text-end mt-2">
+                <button type="button" class="btn btn-sm btn-outline-danger" onclick="clearSelection()"><i class="fa-solid fa-trash me-1"></i>Wis alle vinkjes</button>
+            </div>
+        </div>
+        
         <div class="card-body p-0">
             <div class="list-group list-group-flush">
                 <div class="list-group-item bg-light text-muted fw-bold d-flex">
@@ -183,6 +192,133 @@ document.querySelector('form').addEventListener('submit', function(e) {
         }
     }
     <?php endif; ?>
+});
+
+const allPlayers = [
+    <?php foreach($allPlayers as $player): ?>
+    { id: <?= $player['id'] ?>, firstName: <?= json_encode($player['first_name']) ?>, lastName: <?= json_encode($player['last_name']) ?>, fullName: <?= json_encode($player['first_name'] . ' ' . $player['last_name']) ?>, isGk: <?= (int)($player['is_doelman'] ?? 0) ?> },
+    <?php endforeach; ?>
+];
+
+function normalizeName(str) {
+    if (!str) return '';
+    return str.toLowerCase()
+              .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // verwijder accenten (bv. ç -> c, é -> e)
+              .trim();
+}
+
+const allPlayersNorm = allPlayers.map(p => ({
+    id: p.id,
+    first: normalizeName(p.firstName),
+    last: normalizeName(p.lastName),
+    full: normalizeName(p.fullName),
+    isGk: p.isGk
+}));
+
+function clearSelection() {
+    document.querySelectorAll('.player-checkbox').forEach(cb => cb.checked = false);
+    document.querySelectorAll('.gk-checkbox').forEach(cb => cb.checked = false);
+    updateCounts();
+    document.getElementById('smart-scanner').value = '';
+    document.getElementById('scanner-feedback').innerHTML = '';
+}
+
+document.getElementById('smart-scanner').addEventListener('input', function() {
+    let text = this.value;
+    if (!text.trim()) {
+        document.getElementById('scanner-feedback').innerHTML = '';
+        return;
+    }
+    
+    let lines = text.split(/\r?\n|,/);
+    let matchedIds = new Set();
+    let unmatched = [];
+    
+    lines.forEach(line => {
+        // Clean the line: remove ANY leading non-letter/non-number character (handles weird bullets, spaces, emojis at start)
+        let cleaned = line.replace(/^[^a-zA-ZÀ-ÿ0-9]+/, '').trim();
+        // Remove trailing emojis or common chat artifacts
+        cleaned = cleaned.replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '').trim();
+        
+        if (!cleaned) return;
+        
+        let cleanedLower = normalizeName(cleaned);
+        let bestMatch = null;
+        
+        // Exact full name match
+        bestMatch = allPlayersNorm.find(p => p.full === cleanedLower);
+        
+        // Exact first name match
+        if (!bestMatch) {
+            let possibleMatches = allPlayersNorm.filter(p => p.first === cleanedLower);
+            if (possibleMatches.length === 1) {
+                bestMatch = possibleMatches[0];
+            }
+        }
+        
+        // Partial full name match (e.g. "murat y" matches "murat yilmaz")
+        if (!bestMatch) {
+            let possibleMatches = allPlayersNorm.filter(p => p.full.startsWith(cleanedLower));
+            if (possibleMatches.length === 1) {
+                bestMatch = possibleMatches[0];
+            }
+        }
+        
+        // Partial first name match (e.g. "thib" matches "thibo")
+        if (!bestMatch) {
+            let possibleMatches = allPlayersNorm.filter(p => p.first.startsWith(cleanedLower));
+            if (possibleMatches.length === 1) {
+                bestMatch = possibleMatches[0];
+            }
+        }
+        
+        // Token based fallback: every word in input must match the start of some word in the player's full name
+        if (!bestMatch) {
+            let inputTokens = cleanedLower.split(' ').filter(t => t.length > 0);
+            let possibleMatches = allPlayersNorm.filter(p => {
+                let nameTokens = p.full.split(' ');
+                return inputTokens.every(it => nameTokens.some(nt => nt.startsWith(it)));
+            });
+            if (possibleMatches.length === 1) {
+                bestMatch = possibleMatches[0];
+            }
+        }
+        
+        // Final fallback: does the full name simply contain the input string?
+        if (!bestMatch) {
+            let possibleMatches = allPlayersNorm.filter(p => p.full.includes(cleanedLower));
+            if (possibleMatches.length === 1) {
+                bestMatch = possibleMatches[0];
+            }
+        }
+        
+        if (bestMatch) {
+            matchedIds.add(bestMatch.id);
+        } else {
+            unmatched.push(cleaned);
+        }
+    });
+    
+    // Apply checkboxes
+    matchedIds.forEach(id => {
+        let cb = document.querySelector('input.player-checkbox[value="'+id+'"]');
+        if (cb && !cb.checked) {
+            cb.checked = true;
+            // Also check the GK box if this player is a default goalkeeper
+            let pObj = allPlayersNorm.find(p => p.id == id);
+            if (pObj && pObj.isGk) {
+                let gkCb = document.querySelector('input.gk-checkbox[value="'+id+'"]');
+                if (gkCb) gkCb.checked = true;
+            }
+        }
+    });
+    updateCounts();
+    
+    let feedback = `<span class="text-success fw-bold"><i class="fa-solid fa-check"></i> ${matchedIds.size} spelers herkend en aangevinkt.</span>`;
+    if (unmatched.length > 0) {
+        feedback += `<br><span class="text-danger small"><i class="fa-solid fa-triangle-exclamation"></i> Niet herkend: <strong>${unmatched.join(', ')}</strong></span>`;
+    }
+    document.getElementById('scanner-feedback').innerHTML = feedback;
 });
 </script>
 

@@ -40,20 +40,25 @@ class GameDeletionTest extends TestCase
     {
         $pdo = $this->pdo;
         
+        // 0. Setup dummy dependencies for an empty test DB
+        $email = 'gamedel_' . uniqid() . '@test.com';
+        $pdo->prepare("INSERT INTO users (email, password_hash) VALUES (?, 'pwd')")->execute([$email]);
+        $user_id = $pdo->lastInsertId();
+
+        $pdo->prepare("INSERT INTO clubs (name) VALUES ('Test Club')")->execute();
+        $club_id = $pdo->lastInsertId();
+
+        $pdo->prepare("INSERT INTO teams (user_id, club_id, name) VALUES (?, ?, 'Test Team')")->execute([$user_id, $club_id]);
+        $team_id = $pdo->lastInsertId();
+        
+        $pdo->prepare("INSERT INTO players (team_id, first_name, last_name) VALUES (?, 'Test', 'Player')")->execute([$team_id]);
+        $playerId = $pdo->lastInsertId();
+
         // 1. Create a dummy game
-        $pdo->prepare("INSERT INTO games (team_id, opponent, game_date, format) VALUES (1, 'Test Deletion Match', CURDATE(), '8v8_4x15')")->execute();
+        $pdo->prepare("INSERT INTO games (team_id, opponent, game_date, format) VALUES (?, 'Test Deletion Match', CURDATE(), '8v8_4x15')")->execute([$team_id]);
         $gameId = $pdo->lastInsertId();
         
         // 2. Insert dummy selection to trigger Foreign Key constraint
-        // Find an existing player to fulfill player_id FK constraint
-        $stmtPlayer = $pdo->query("SELECT id FROM players LIMIT 1");
-        $playerId = $stmtPlayer->fetchColumn();
-        
-        if (!$playerId) {
-            $this->markTestSkipped('No players in database to test game deletions against.');
-            return;
-        }
-
         $pdo->prepare("INSERT INTO game_selections (game_id, player_id, status_id, is_goalkeeper) VALUES (?, ?, 2, 0)")
             ->execute([$gameId, $playerId]);
             

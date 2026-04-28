@@ -79,55 +79,7 @@
       
       <?= $generator_error_html ?? '' ?>
       
-      <?php if (!defined('PUBLIC_SHARE_MODE')): ?>
-      <div class="card mb-4 border-primary d-print-none shadow-sm" id="saved-lineups-container" style="<?= empty($saved_lineups) || $locked_lineup ? 'display:none;' : '' ?>">
-          <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
-              <div><i class="fa-solid fa-star"></i> <strong>Opgeslagen Voorselecties</strong></div>
-              <a href="/games/<?= $gameId ?>/schema" class="btn btn-sm btn-warning fw-bold text-dark shadow-sm">
-                  <i class="fa-solid fa-wand-magic-sparkles"></i> Genereer Nieuwe Opties
-              </a>
-          </div>
-          <div class="card-body p-0">
-              <table class="table table-hover mb-0">
-                  <thead class="table-light">
-                      <tr>
-                          <th>Schema</th>
-                          <th>Rating</th>
-                          <th>Volgorde</th>
-                          <th class="text-end">Acties</th>
-                      </tr>
-                  </thead>
-                  <tbody id="saved-lineups-tbody">
-                  <?php if (!empty($saved_lineups)): ?>
-                  <?php foreach ($saved_lineups as $idx => $sl): ?>
-                      <tr id="sl-row-<?= $sl['id'] ?>">
-                          <td class="align-middle"><strong>#<?= htmlspecialchars($sl['schema_id']) ?></strong></td>
-                          <td class="align-middle"><?= round($sl['score'], 2) ?>%</td>
-                          <td class="align-middle text-muted small">
-                              <?php
-                                  $p_ids = explode(',', $sl['player_order']);
-                                  $p_names = array_map('getPlayerName', $p_ids);
-                                  echo htmlspecialchars(implode(', ', $p_names));
-                              ?>
-                          </td>
-                          <td class="text-end align-middle">
-                              <a href="<?= build_url($base_url, ['wedstrijd' => $gameId, 'preview' => $sl['id']]) ?>" class="btn btn-sm btn-info text-white">
-                                  <i class="fa-solid fa-eye"></i> Bekijk
-                              </a>
-                              <button class="btn btn-sm btn-success ms-1" onclick="setFinalLineup(<?= $gameId ?>, <?= $sl['id'] ?>)">
-                                  <i class="fa-solid fa-check"></i> Maak Definitief
-                              </button>
-                              <button class="btn btn-sm btn-outline-danger ms-1" onclick="deleteLineup(<?= $gameId ?>, <?= $sl['id'] ?>)">
-                                  <i class="fa-solid fa-trash"></i>
-                              </button>
-                          </td>
-                      </tr>
-                  <?php endforeach; ?>
-                  <?php endif; ?>
-                  </tbody>
-              </table>
-          </div>
-      </div>
+      
       
       <?php if (!empty($top_selected_options)): ?>
 
@@ -504,7 +456,6 @@
           <?php endif; ?>
       </ul>
       <?php endif; // End !empty($top_selected_options) ?>
-      <?php endif; // End PUBLIC_SHARE_MODE ?>
       
       <?php if (isset($preview_lineup) && $preview_lineup && !defined('PUBLIC_SHARE_MODE')): ?>
           <div class="alert alert-info text-center d-print-none">
@@ -578,6 +529,8 @@
           $next_bench = array();
           $next_bench_keys = array();
         
+          $game_block_labels = json_decode($matchData['game']['block_labels'] ?? '[]', true) ?: [];
+        
           foreach ($lineup->game_parts as $game_counter => $game_parts){
             if ($game_counter == 40) {
              ?><hr style="margin-top: 30px" class="<?php echo $lineup->available_players > 5 ? "new-print-page":"";?>"><?php
@@ -594,7 +547,12 @@
               }
               echo "<h5>Wedstrijd $game_counter &middot; " . $game_titles[$wedstrijd][$game_counter]["title"] . " <small>(" . $game_titles[$wedstrijd][$game_counter]["info"] . ")</small></h5>";  
             } else {
-              echo "<h5>Wedstrijd $game_counter</h5>";
+              $first_event_idx = $game_parts[0];
+              if (!empty($game_block_labels[$first_event_idx])) {
+                  echo "<h5>" . htmlspecialchars($game_block_labels[$first_event_idx]) . "</h5>";
+              } else {
+                  echo "<h5>Wedstrijd $game_counter</h5>";
+              }
             }
             echo "</div>";
             foreach ($game_parts as $game_idx){
@@ -1297,6 +1255,18 @@
         });
     });
     </script>
+    
+    <?php if (isset($_GET['print']) && $_GET['print'] == 1): ?>
+    <script>
+    document.addEventListener("DOMContentLoaded", function() {
+        // Korte timeout om fonts, icoontjes en layouting toe te staan om te renderen
+        setTimeout(function() {
+            window.print();
+        }, 500);
+    });
+    </script>
+    <?php endif; ?>
+    
     </main>
 
 <?php if ($show_pt_array) { 

@@ -149,12 +149,16 @@ if (!isset($patterns[$selected_pattern_key])) {
 }
 $selected_pattern = $patterns[$selected_pattern_key];
 
+// Fetch block labels from the game record
+$game_block_labels = json_decode($matchData['game']['block_labels'] ?? '[]', true) ?: [];
+
 // Generate shift definitions with smart labels
 $shift_definitions = [];
 $game_idx = 1;
 $current_game_min = 0;
 $part_idx = 1;
 $total_minutes = 0;
+$shift_idx = 0;
 
 foreach ($selected_pattern['blocks'] as $dur) {
     if ($current_game_min == 0) {
@@ -166,6 +170,10 @@ foreach ($selected_pattern['blocks'] as $dur) {
         $label .= " (Helft $part_idx)";
     }
     
+    if (isset($game_block_labels[$shift_idx])) {
+        $label = $game_block_labels[$shift_idx];
+    }
+    
     $shift_definitions[] = [
         'duration' => $dur,
         'label' => $label,
@@ -174,6 +182,7 @@ foreach ($selected_pattern['blocks'] as $dur) {
     
     $current_game_min += $dur;
     $total_minutes += $dur;
+    $shift_idx++;
     if (abs($current_game_min - $game_duration_min) < 0.01) {
         $game_idx++;
         $current_game_min = 0;
@@ -568,7 +577,7 @@ function initBuilder() {
             initialLineup[1] = playersMap[fixedGkId].sidx;
         }
 
-        shiftData.push({ shift: shiftIdx, duration: subDurationMin*60, game_counter: gCounter, start: "00:00", lineup: initialLineup, bench: [] });
+        shiftData.push({ shift: shiftIdx, duration: subDurationMin*60, game_counter: gCounter, start: "00:00", label: def.label, lineup: initialLineup, bench: [] });
         
         let col = document.createElement('div');
         col.className = 'col-12 col-xxl-6 mb-4';
@@ -579,7 +588,11 @@ function initBuilder() {
         
         let html = `
             <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0 text-dark">${def.label} <small class="text-muted fw-normal">(${subDurationMin} min)</small></h5>
+                <div class="d-flex align-items-center w-75">
+                    <input type="text" id="label-${shiftIdx}" class="form-control form-control-sm border-0 bg-transparent fw-bold text-dark fs-5 p-0" style="min-width: 150px; box-shadow: none; outline: none; margin-top: -2px;" value="${def.label}" onchange="updateShiftLabel(${shiftIdx}, this.value)">
+                    <i class="fa-solid fa-pencil text-muted ms-2" style="font-size: 0.8rem; cursor: pointer;" onclick="document.getElementById('label-${shiftIdx}').focus()"></i>
+                    <small class="text-muted fw-normal ms-2 text-nowrap">(${subDurationMin} min)</small>
+                </div>
                 <span class="badge bg-secondary" id="counter-${i}">0 / ${playerCount}</span>
             </div>
             <div class="card-body bg-light">`;
@@ -666,6 +679,13 @@ function loadPreloadedSchema(data) {
         if (!data[i]) break;
         let sData = data[i];
         
+        // Restore custom label if present
+        if (sData.label) {
+            shiftData[i].label = sData.label;
+            let lblInput = document.getElementById('label-'+i);
+            if(lblInput) lblInput.value = sData.label;
+        }
+
         // Generate players inside their correct wrapper
         for(let pos in sData.lineup) {
             if (fixedGkId !== null && parseInt(pos) === 1) continue; 
@@ -747,6 +767,11 @@ function handleDropToPool(e, pool) {
             }
         }
     }
+}
+
+function updateShiftLabel(idx, val) {
+    shiftData[idx].label = val;
+    document.getElementById('btnSave').disabled = false;
 }
 
 function handleDrop(e, dropZone) {

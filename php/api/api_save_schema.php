@@ -38,6 +38,8 @@ if (preg_match('/_(\d+)gk_/', $format, $m)) {
     $gk_count_schema = (int)$m[1];
 }
 
+$game_labels = [];
+
 foreach ($blocks as $idx => $b_data) {
     $shift_idx = (int)$b_data['shift'];
     
@@ -50,6 +52,12 @@ foreach ($blocks as $idx => $b_data) {
             'game_counter' => (int)$b_data['game_counter'],
             'start' => $b_data['start']
         ];
+        
+        // We do NOT save the label in the schema to avoid it bleeding over.
+        // We collect it to save it directly to the games table.
+        if (!empty($b_data['label'])) {
+            $game_labels[$shift_idx] = $b_data['label'];
+        }
     }
     
     // Update lineup en bench met the dragged data
@@ -106,6 +114,12 @@ if (count($new_schema) < 2) {
     die(json_encode(['success' => false, 'error' => 'Data corruptie beveiliging: Het netwerk heeft een incompleet schema (slechts 1 helft) doorgestuurd. Actie afgebroken om the database te beschermen.']));
 }
 
+
+// 0.5. Update game labels in the games table so they don't bleed over to other schemas
+if (!empty($game_labels)) {
+    $stmtUpdateLabels = $pdo->prepare("UPDATE games SET block_labels = ? WHERE id = ?");
+    $stmtUpdateLabels->execute([json_encode($game_labels), $gameId]);
+}
 
 // Nu berekenen we de min_pos categorie in the back ground
 $min_pos = 999;

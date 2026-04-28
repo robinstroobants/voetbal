@@ -24,6 +24,38 @@ class SchemaValidationTest extends TestCase
         
         try {
             $this->pdo = new PDO($dsn, $user, $pass, $options);
+            
+            // Setup dummy schema for test DB so the validation has something to check
+            $stmtCount = $this->pdo->query("SELECT COUNT(*) FROM lineups");
+            if ($stmtCount->fetchColumn() == 0) {
+                // Ensure a dummy team exists
+                $email = 'schema_' . uniqid() . '@test.com';
+                $this->pdo->prepare("INSERT INTO users (email, password_hash) VALUES (?, 'pwd')")->execute([$email]);
+                $user_id = $this->pdo->lastInsertId();
+
+                $this->pdo->prepare("INSERT INTO clubs (name) VALUES ('Test Club')")->execute();
+                $club_id = $this->pdo->lastInsertId();
+
+                $this->pdo->prepare("INSERT INTO teams (user_id, club_id, name) VALUES (?, ?, 'Test Team')")->execute([$user_id, $club_id]);
+                $team_id = $this->pdo->lastInsertId();
+
+                $mockSchemaData = json_encode([
+                    [
+                        "duration" => 15,
+                        "lineup" => ["1" => 0, "2" => 1, "3" => 2, "4" => 3, "5" => 4],
+                        "bench" => []
+                    ],
+                    [
+                        "duration" => 15,
+                        "lineup" => ["1" => 0, "2" => 1, "3" => 2, "4" => 3, "5" => 4],
+                        "bench" => [],
+                        "subs" => ["in" => [], "out" => []]
+                    ]
+                ]);
+
+                $this->pdo->prepare("INSERT INTO lineups (team_id, game_format, player_count, schema_data) VALUES (?, '5v5_1gk_2x15', 5, ?)")
+                          ->execute([$team_id, $mockSchemaData]);
+            }
         } catch (\PDOException $e) {
             $this->markTestSkipped('Geen database connectie beschikbaar voor test: ' . $e->getMessage());
         }

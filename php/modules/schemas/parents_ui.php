@@ -35,6 +35,15 @@ foreach($gamePlayers as $p) {
     $playerMap[$p['id']] = $p['first_name'] . ' ' . $p['last_name'];
 }
 
+// Check if it's a tournament by looking at block_labels
+$stmtTour = $pdo->prepare("SELECT block_labels FROM games WHERE id = ?");
+$stmtTour->execute([$gameId]);
+$gameRow = $stmtTour->fetch(PDO::FETCH_ASSOC);
+$isTournament = false;
+if ($gameRow && !empty($gameRow['block_labels']) && $gameRow['block_labels'] !== 'null' && $gameRow['block_labels'] !== '[]') {
+    $isTournament = true;
+}
+
 // Haal de shifts (blokken) op uit het lineup object
 $shifts_data = [];
 $totalBlocksCount = 1;
@@ -52,11 +61,14 @@ if (isset($lineup) && isset($lineup->events)) {
         $shifts_data[] = [
             'index' => $idx + 1,
             'duration' => $duration_minutes,
-            'start_minute' => $cumulative_min,
+            'start_minute' => $isTournament ? 0 : $cumulative_min,
             'bench' => array_values($ev['bench'] ?? []),
             'pitch' => $pitch_with_pos
         ];
-        $cumulative_min += $duration_minutes;
+        
+        if (!$isTournament) {
+            $cumulative_min += $duration_minutes;
+        }
     }
     $totalBlocksCount = count($shifts_data);
 } else {

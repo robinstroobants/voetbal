@@ -185,18 +185,7 @@ require_once dirname(__DIR__, 2) . '/header.php';
             </div>
         </div>
 
-        <div class="col-md-4">
-            <div class="card h-100 shadow-sm border-0 hover-shadow transition-all">
-                <div class="card-body text-center p-4 d-flex flex-column">
-                    <div class="display-4 text-primary mb-3">
-                        <i class="fa-solid fa-wand-magic-sparkles"></i>
-                    </div>
-                    <h5 class="card-title fw-bold">ProLineup AI</h5>
-                    <p class="card-text text-muted mb-4" style="min-height: 120px;">Vind de <strong>sterkst mogelijke tactische opstelling</strong> op basis van honderden historische schema's en positiescores, terwijl de speelminuten uiteraard mooi in balans blijven.</p>
-                    <a href="/games/<?= $gameId ?>/lineup?generate=1" class="btn btn-primary w-100 fw-bold mt-auto">Genereer met ProLineup</a>
-                </div>
-            </div>
-        </div>
+
 
 
         <div class="col-md-4">
@@ -214,7 +203,18 @@ require_once dirname(__DIR__, 2) . '/header.php';
                 </div>
             </div>
         </div>
-
+        <div class="col-md-4">
+            <div class="card h-100 shadow-sm border-0 hover-shadow transition-all">
+                <div class="card-body text-center p-4 d-flex flex-column">
+                    <div class="display-4 text-primary mb-3">
+                        <i class="fa-solid fa-wand-magic-sparkles"></i>
+                    </div>
+                    <h5 class="card-title fw-bold">ProLineup AI</h5>
+                    <p class="card-text text-muted mb-4" style="min-height: 120px;">Vind de <strong>sterkst mogelijke tactische opstelling</strong> op basis van honderden historische schema's en positiescores, terwijl de speelminuten uiteraard mooi in balans blijven.</p>
+                    <a href="/games/<?= $gameId ?>/lineup?generate=1" class="btn btn-primary w-100 fw-bold mt-auto">Genereer met ProLineup</a>
+                </div>
+            </div>
+        </div>
         <div class="col-md-4 d-none">
             <div class="card h-100 shadow-sm border-0 hover-shadow transition-all">
                 <div class="card-body text-center p-4">

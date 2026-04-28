@@ -3,7 +3,8 @@
             // Bepaal globale rendertijd en geheugenpiek van de volledige pagina
             $global_load_ms = round((microtime(true) - $_SERVER["REQUEST_TIME_FLOAT"]) * 1000, 2);
             $mem_peak_mb = round(memory_get_peak_usage() / 1024 / 1024, 2);
-
+            $penalty_load = floor($global_load_ms / 1000) + floor($mem_peak_mb / 2);
+            
             // Haal de Git App Version tag op
             $app_version = 'v0.0.0';
             // Probeer versie uit Git te halen (Docker compatibel)
@@ -58,6 +59,9 @@
             <i class="fa-solid fa-code-branch me-1"></i> <span class="fw-bold" style="letter-spacing: 0.5px;"><?= htmlspecialchars($app_version) ?></span> 
             <span class="mx-2">&middot;</span> <i class="fa-solid fa-stopwatch me-1"></i> <?= $global_load_ms ?> ms
             <span class="mx-2">&middot;</span> <i class="fa-solid fa-memory me-1"></i> <?= $mem_peak_mb ?> MB
+            <?php if ($penalty_load > 0): ?>
+            <span class="mx-2">&middot;</span> <i class="fa-solid fa-bolt me-1 text-warning" title="Load Penalty"></i> <?= $penalty_load ?>
+            <?php endif; ?>
             
             <?php if (!empty($footer_user_info)): ?>
                 <span class="mx-2 d-none d-md-inline">&middot;</span>

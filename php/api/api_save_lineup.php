@@ -35,6 +35,16 @@ try {
                 $stmtGame = $pdo->prepare("SELECT format FROM games WHERE id = ?");
                 $stmtGame->execute([$game_id]);
                 $gameFormat = $stmtGame->fetchColumn() ?: 'unknown';
+                
+                $stmtGk = $pdo->prepare("SELECT COUNT(*) FROM game_selections WHERE game_id = ? AND is_goalkeeper = 1");
+                $stmtGk->execute([$game_id]);
+                $gk_count = (int)$stmtGk->fetchColumn();
+                if (strpos($gameFormat, 'gk') === false) {
+                    if (preg_match('/^(\d+v\d+)_(\d+x\d+)$/', $gameFormat, $matches)) {
+                        $gameFormat = $matches[1] . '_' . $gk_count . 'gk_' . $matches[2];
+                    }
+                }
+                
                 $playerCount = count(explode(',', $player_order));
 
                 $schemaData = json_decode($_POST['dynamic_json'], true);

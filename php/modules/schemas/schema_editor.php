@@ -400,11 +400,11 @@ if ($numFieldPlayers > 0 && $totalFieldBlocks > 0 && $fixedGkIdPHP !== null) {
                     </ul>
                     ' . $lastMatchHtml . '
                     <div class="p-2 bg-white rounded border mb-2">
-                        <p class="mb-1 fw-bold text-success" style="font-size: 0.8rem;"><i class="fa-solid fa-arrow-up me-1"></i>Meeste minuten (' . $extra_mins . 'm)</p>
+                        <p class="mb-1 fw-bold text-success" style="font-size: 0.8rem;"><i class="fa-solid fa-arrow-up me-1"></i> Aanbevolen (' . $extra_mins . 'm)</p>
                         <p class="mb-0 text-muted" style="font-size: 0.75rem;">Aanbevolen: ' . implode(', ', $extraNames) . '</p>
                     </div>
                     <div class="p-2 bg-white rounded border">
-                        <p class="mb-1 fw-bold text-danger" style="font-size: 0.8rem;"><i class="fa-solid fa-arrow-down me-1"></i>Minste minuten (' . $base_mins . 'm)</p>
+                        <p class="mb-1 fw-bold text-danger" style="font-size: 0.8rem;"><i class="fa-solid fa-arrow-down me-1"></i> Aanbevolen (' . $base_mins . 'm)</p>
                         <p class="mb-0 text-muted" style="font-size: 0.75rem;">Aanbevolen: ' . implode(', ', $baseNames) . '</p>
                     </div>
                 </div>

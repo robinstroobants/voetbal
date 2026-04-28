@@ -55,29 +55,42 @@ $stmtStats = $pdo->prepare("
 $stmtStats->execute([$filter_start, $filter_end, $team_id]);
 $stats = $stmtStats->fetchAll(PDO::FETCH_ASSOC);
 
-// Haal alle team matchen op in deze periode om de absolute maximale speeltijd te berekenen
-$stmtTeamGames = $pdo->prepare("
-    SELECT DISTINCT g.id, g.format
-    FROM games g
-    JOIN game_playtime_logs gpl ON g.id = gpl.game_id
-    WHERE g.team_id = ? AND g.game_date BETWEEN ? AND ?
-");
-$stmtTeamGames->execute([$team_id, $filter_start, $filter_end]);
-$team_games = $stmtTeamGames->fetchAll(PDO::FETCH_ASSOC);
+require_once dirname(__DIR__, 2) . '/models/MatchManager.php';
+require_once dirname(__DIR__, 2) . '/models/game.php';
 
-$total_team_matches = count($team_games);
-$total_team_max_seconds = 0;
-foreach ($team_games as $g) {
-    if (preg_match('/_(\d+)x(\d+)/', $g['format'], $m)) {
-        $total_team_max_seconds += (int)$m[1] * (int)$m[2] * 60;
+$matchManager = new MatchManager($pdo);
+$pt_all_games = $matchManager->getHistoricalPlaytime($team_id);
+
+$filtered_pt_games = [];
+foreach ($pt_all_games as $key => $g) {
+    $parts = explode('_', $key, 2);
+    $date_part = $parts[0] ?? '';
+    if (strlen($date_part) === 6) {
+        $yy = substr($date_part, 0, 2);
+        $mm = substr($date_part, 2, 2);
+        $dd = substr($date_part, 4, 2);
+        $game_dt = "20{$yy}-{$mm}-{$dd} 00:00:00";
+        if ($game_dt >= $filter_start && $game_dt <= $filter_end) {
+            $filtered_pt_games[$key] = $g;
+        }
     }
 }
+$pos_stats = build_playtime_stats($filtered_pt_games, []);
+
+$playPositions = [];
+foreach ($pos_stats as $pid => $stat) {
+    if (isset($stat['positions'])) {
+        foreach ($stat['positions'] as $pos => $data) {
+            if ($pos !== 'bench' && !in_array($pos, $playPositions)) {
+                $playPositions[] = $pos;
+            }
+        }
+    }
+}
+sort($playPositions);
 
 foreach ($stats as &$s) {
-    $matches_absent = $total_team_matches - $s['matches_played'];
-    $s['matches_absent'] = max(0, $matches_absent); // Zeker zijn dat het niet negatief is
-    
-    // Bereken eigen aanwezige max time (voor info popover)
+    // Bereken eigen aanwezige max time (voor info popover en percentages)
     $own_max_seconds = 0;
     if (!empty($s['played_formats'])) {
         $formats = explode(',', $s['played_formats']);
@@ -89,8 +102,14 @@ foreach ($stats as &$s) {
     }
     $s['own_max_seconds'] = $own_max_seconds;
     
-    // Gebruik de TEAM max_seconds om afwezigheden in rekening te brengen voor het percentage
-    $s['max_seconds'] = $total_team_max_seconds;
+    // Voeg positie-percentages toe
+    $s['pos_percentages'] = [];
+    $pid = $s['id'];
+    if (isset($pos_stats[$pid]['positions'])) {
+        foreach ($playPositions as $pos) {
+            $s['pos_percentages'][$pos] = $pos_stats[$pid]['positions'][$pos]['percentage'] ?? 0;
+        }
+    }
 }
 unset($s);
 
@@ -190,14 +209,16 @@ require_once dirname(__DIR__, 2) . '/header.php';
         <div class="card-header bg-white py-3">
             <h5 class="mb-0 text-primary fw-bold"><?= htmlspecialchars($filter_name) ?></h5>
         </div>
-        <div class="table-responsive">
+        <div class="w-100" style="overflow-x: visible;">
             <table class="table table-hover align-middle mb-0">
-                <thead class="table-light">
+                <thead class="table-light sticky-top" style="z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
                     <tr>
                         <th>Speler</th>
                         <th class="text-center" title="Matchen Gespeeld"><i class="fa-solid fa-hashtag text-secondary"></i> Matchen</th>
-                        <th class="text-center" title="Matchen Afwezig"><i class="fa-solid fa-user-minus text-danger"></i> Afwezig</th>
                         <th class="text-center" title="Totaal Minuten op het Veld of in Doel"><i class="fa-solid fa-stopwatch text-success"></i> Gespeeld</th>
+                        <?php foreach($playPositions as $pos): ?>
+                        <th class="text-center text-muted" style="font-size: 0.85rem;" title="Percentage gespeeld op positie <?= $pos == 1 ? 'GK' : $pos ?>"><?= $pos == 1 ? 'GK' : $pos ?></th>
+                        <?php endforeach; ?>
                         <?php if ($has_multiple_coaches): ?>
                         <th class="text-center" title="Verdeling van speeltijd per coach"><i class="fa-solid fa-chalkboard-user text-info"></i> Coach %</th>
                         <?php endif; ?>
@@ -212,18 +233,13 @@ require_once dirname(__DIR__, 2) . '/header.php';
                             <td class="text-center fw-semibold">
                                 <?= $s['matches_played'] ?>
                             </td>
-                            <td class="text-center fw-semibold text-danger">
-                                <?= $s['matches_absent'] ?>
-                            </td>
                             <td class="text-center fw-bold text-success">
                                 <?php
-                                    $perc = $s['max_seconds'] > 0 ? round(($s['total_seconds'] / $s['max_seconds']) * 100) : 0;
+                                    $perc = $s['own_max_seconds'] > 0 ? round(($s['total_seconds'] / $s['own_max_seconds']) * 100) : 0;
                                     $total_time = formatTimeStats($s['total_seconds']);
-                                    $max_time = formatTimeStats($s['max_seconds']);
                                     $bench_time = formatTimeStats($s['bank_seconds']);
                                     $gk_time = formatTimeStats($s['gk_seconds']);
                                     $own_max_time = formatTimeStats($s['own_max_seconds']);
-                                    $missed_time = formatTimeStats($s['max_seconds'] - $s['own_max_seconds']);
                                     $avg_min_match = $s['matches_played'] > 0 ? round(($s['total_seconds'] / 60) / $s['matches_played']) : 0;
 
                                     $popover_content = "
@@ -236,21 +252,13 @@ require_once dirname(__DIR__, 2) . '/header.php';
                                                 <span class='text-muted'>Tijd op de bank:</span>
                                                 <span class='fw-bold text-warning'>$bench_time</span>
                                             </div>
-                                            <div class='d-flex justify-content-between mb-1'>
-                                                <span class='text-muted'>Gemist (afwezig):</span>
-                                                <span class='fw-bold text-danger'>$missed_time</span>
-                                            </div>
                                             <div class='d-flex justify-content-between mb-2 pb-2 border-bottom'>
-                                                <span class='text-muted'>Max. team speeltijd:</span>
-                                                <span class='fw-bold'>$max_time</span>
+                                                <span class='text-muted'>Selectie max. speeltijd:</span>
+                                                <span class='fw-bold'>$own_max_time</span>
                                             </div>
                                             <div class='d-flex justify-content-between mb-1'>
-                                                <span class='text-muted'>Aantal matchen:</span>
-                                                <span class='fw-bold'>{$s['matches_played']} / {$total_team_matches}</span>
-                                            </div>
-                                            <div class='d-flex justify-content-between mb-1'>
-                                                <span class='text-muted'>Aantal keer afwezig:</span>
-                                                <span class='fw-bold text-danger'>{$s['matches_absent']}</span>
+                                                <span class='text-muted'>Aantal matchen geselecteerd:</span>
+                                                <span class='fw-bold'>{$s['matches_played']}</span>
                                             </div>
                                             <div class='d-flex justify-content-between mb-1'>
                                                 <span class='text-muted'>Als doelman:</span>
@@ -266,6 +274,7 @@ require_once dirname(__DIR__, 2) . '/header.php';
                                 <span tabindex="0" 
                                       data-bs-toggle="popover" 
                                       data-bs-placement="top" 
+                                      data-bs-html="true"
                                       data-bs-trigger="hover focus"
                                       title="<i class='fa-solid fa-circle-info text-primary me-1'></i> Playtime Details" 
                                       data-bs-content="<?= htmlspecialchars($popover_content, ENT_QUOTES, 'UTF-8') ?>"
@@ -273,6 +282,13 @@ require_once dirname(__DIR__, 2) . '/header.php';
                                     <?= $perc ?>%
                                 </span>
                             </td>
+                            <?php foreach($playPositions as $pos): 
+                                $pct = $s['pos_percentages'][$pos] ?? 0;
+                            ?>
+                            <td class="text-center" style="font-size: 0.85rem;">
+                                <?= $pct > 0 ? round($pct).'%' : '<span class="text-muted opacity-50">-</span>' ?>
+                            </td>
+                            <?php endforeach; ?>
                             <?php if ($has_multiple_coaches): ?>
                             <td class="text-center" style="font-size: 0.85rem;">
                                 <?php 
@@ -298,7 +314,7 @@ require_once dirname(__DIR__, 2) . '/header.php';
                     <?php endforeach; ?>
                     <?php if(count($stats) === 0): ?>
                         <tr>
-                            <td colspan="<?= $has_multiple_coaches ? 4 : 3 ?>" class="text-center py-4 text-muted">Geen spelers gevonden voor dit team.</td>
+                            <td colspan="<?= ($has_multiple_coaches ? 4 : 3) + count($playPositions) ?>" class="text-center py-4 text-muted">Geen spelers gevonden voor dit team.</td>
                         </tr>
                     <?php endif; ?>
                 </tbody>
@@ -309,13 +325,3 @@ require_once dirname(__DIR__, 2) . '/header.php';
 
 <?php require_once dirname(__DIR__, 2) . '/footer.php'; ?>
 
-<script>
-document.addEventListener("DOMContentLoaded", function() {
-    var popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'))
-    var popoverList = popoverTriggerList.map(function (popoverTriggerEl) {
-        return new bootstrap.Popover(popoverTriggerEl, {
-            html: true
-        })
-    })
-});
-</script>

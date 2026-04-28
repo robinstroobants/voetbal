@@ -242,10 +242,19 @@ if ($overwrite && !empty($data['original_schema_id'])) {
     $stmtIns->execute([$format, $aantal, $parentId, json_encode($new_schema), $_SESSION['team_id']]);
     $new_id = $pdo->lastInsertId();
     
-    // Log manual builder usage (only once per originalId to avoid billing 1 credit per small edit, or just bill 1 credit per save)
-    // We will log it every time they save a NEW manual version.
-    $pdo->prepare("INSERT INTO usage_logs (user_id, team_id, action_type, cost_weight) VALUES (?, ?, 'manual_builder', 1)")
-        ->execute([$_SESSION['user_id'] ?? 0, $_SESSION['team_id'] ?? 0]);
+    // Bereken dynamische load penalty voor Lineup Lab
+    $gen_time_ms = round((microtime(true) - $_SERVER["REQUEST_TIME_FLOAT"]) * 1000);
+    $penalty_seconds = floor($gen_time_ms / 1000); 
+    
+    $mem_peak_mb = memory_get_peak_usage() / 1024 / 1024;
+    $penalty_memory = floor($mem_peak_mb / 2); // +1 cost per 2 MB geheugen
+    
+    $baseCost = 5; // Lineup Lab heeft de hoogste USP base cost
+    $loadPenalty = ($penalty_seconds * 1) + $penalty_memory;
+    $finalCost = $baseCost + $loadPenalty;
+
+    $pdo->prepare("INSERT INTO usage_logs (user_id, team_id, action_type, cost_weight) VALUES (?, ?, 'lineup_lab_save', ?)")
+        ->execute([$_SESSION['user_id'] ?? 0, $_SESSION['team_id'] ?? 0, $finalCost]);
 }
 
 // Opschonen database

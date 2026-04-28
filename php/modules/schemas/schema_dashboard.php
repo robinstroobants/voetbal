@@ -38,22 +38,27 @@ $previews = $stmtPreviews->fetchAll(PDO::FETCH_ASSOC);
 $mm = new MatchManager($pdo);
 $matchData = $mm->getSelection($gameId);
 $playerInfo = $matchData['player_info'] ?? [];
+$matchGks = array_filter(array_map('trim', explode(',', $matchData['doelmannen'] ?? '')));
 
 foreach($previews as &$p) {
     $pids = explode(',', $p['player_order']);
     
-    // Parse schema data to calculate playtime
+    // Parse schema data to calculate playtime and unique positions
     $schema_data = json_decode($p['schema_data'], true);
     $playerMinutes = array_fill_keys($pids, 0);
+    $playerPositions = array_fill_keys($pids, []);
     
     if (is_array($schema_data)) {
         foreach($schema_data as $block) {
             $dur = isset($block['duration']) ? (int)$block['duration'] / 60 : 0;
             if (isset($block['lineup']) && is_array($block['lineup'])) {
-                foreach($block['lineup'] as $generic_id) {
+                foreach($block['lineup'] as $pos => $generic_id) {
                     if (isset($pids[$generic_id])) {
                         $pid = $pids[$generic_id];
                         $playerMinutes[$pid] += $dur;
+                        if ($pos != 1) { // pos 1 is GK, skip for field positions count
+                            $playerPositions[$pid][$pos] = true;
+                        }
                     }
                 }
             }
@@ -71,6 +76,27 @@ foreach($previews as &$p) {
     }
     krsort($grouped); // Sort high minutes to low
     $p['grouped_mins'] = $grouped;
+    
+    // Calculate minimum unique field positions for FIELD players
+    $min_pos = 999;
+    foreach($playerPositions as $pid => $posList) {
+        if (!empty($playerInfo[$pid]['is_goalkeeper']) || in_array((string)$pid, $matchGks)) continue; // skip GK
+        if (empty($playerMinutes[$pid])) continue; // skip fully benched players
+        
+        $count = count($posList);
+        if ($count < $min_pos) {
+            $min_pos = $count;
+        }
+    }
+    if ($min_pos === 999) $min_pos = 0; // fallback if no field players
+    
+    if ($min_pos >= 3) {
+        $p['min_pos_badge'] = '<span class="badge bg-success" title="Zeer gevarieerd!"><i class="fa-solid fa-check-double me-1"></i>Min. 3 posities</span>';
+    } elseif ($min_pos == 2) {
+        $p['min_pos_badge'] = '<span class="badge bg-warning text-dark" title="Elke speler doet minstens 2 posities"><i class="fa-solid fa-check me-1"></i>Min. 2 posities</span>';
+    } else {
+        $p['min_pos_badge'] = '<span class="badge bg-danger" title="Geen of weinig variatie!"><i class="fa-solid fa-xmark me-1"></i>Geen min. posities</span>';
+    }
     
     // Check if it's purely original or modified
     $p['type'] = $p['is_original'] == 1 ? 'AI Gegenereerd' : 'Manueel';
@@ -138,26 +164,26 @@ require_once dirname(__DIR__, 2) . '/header.php';
 
         <div class="col-md-4">
             <div class="card h-100 shadow-sm border-0 hover-shadow transition-all">
-                <div class="card-body text-center p-4">
+                <div class="card-body text-center p-4 d-flex flex-column">
                     <div class="display-4 text-primary mb-3">
                         <i class="fa-solid fa-wand-magic-sparkles"></i>
                     </div>
-                    <h5 class="card-title fw-bold">AI Genereren</h5>
-                    <p class="card-text text-muted mb-4">Laat het systeem de best mogelijke opstellingen berekenen op basis van spelersstatistieken en speelminuten.</p>
-                    <a href="/games/<?= $gameId ?>/lineup?generate=1" class="btn btn-primary w-100 fw-bold">Bereken Nu</a>
+                    <h5 class="card-title fw-bold">ProLineup AI</h5>
+                    <p class="card-text text-muted mb-4" style="min-height: 120px;">Vind de <strong>sterkst mogelijke tactische opstelling</strong> op basis van honderden historische schema's en positiescores, terwijl de speelminuten uiteraard mooi in balans blijven.</p>
+                    <a href="/games/<?= $gameId ?>/lineup?generate=1" class="btn btn-primary w-100 fw-bold mt-auto">Genereer met ProLineup</a>
                 </div>
             </div>
         </div>
 
         <div class="col-md-4">
             <div class="card h-100 shadow-sm border-0 hover-shadow transition-all">
-                <div class="card-body text-center p-4">
+                <div class="card-body text-center p-4 d-flex flex-column">
                     <div class="display-4 text-warning mb-3">
-                        <i class="fa-solid fa-hammer"></i>
+                        <i class="fa-solid fa-flask"></i>
                     </div>
-                    <h5 class="card-title fw-bold">Zelf Bouwen</h5>
-                    <p class="card-text text-muted mb-4">Gebruik de visuele drag-and-drop builder om zelf een unieke opstelling samen te stellen voor deze match.</p>
-                    <a href="/games/<?= $gameId ?>/builder" class="btn btn-warning text-dark w-100 fw-bold">Open Builder</a>
+                    <h5 class="card-title fw-bold">Lineup Lab</h5>
+                    <p class="card-text text-muted mb-4" style="min-height: 120px;">Neem de touwtjes in handen en <strong>bouw handmatig je ideale tactiek</strong> op het interactieve canvas. Laat je tijdens het schuiven ondersteunen door live datagestuurde assistentie, wiskundige checks en rotatie-advies.</p>
+                    <a href="/games/<?= $gameId ?>/builder" class="btn btn-warning text-dark w-100 fw-bold mt-auto">Open Lineup Lab</a>
                 </div>
             </div>
         </div>
@@ -168,11 +194,11 @@ require_once dirname(__DIR__, 2) . '/header.php';
                     <div class="display-4 text-success mb-3">
                         <i class="fa-solid fa-bolt"></i>
                     </div>
-                    <h5 class="card-title fw-bold text-dark">FairShift AI</h5>
-                    <p class="card-text text-muted mb-4">Genereer een volledig nieuw schema "on the fly" gebaseerd op parameters, zónder de database-theorieën te gebruiken.</p>
+                    <h5 class="card-title fw-bold text-dark">EqualPlay AI</h5>
+                    <p class="card-text text-muted mb-4" style="min-height: 120px;">Genereer een schema met de absolute focus op <strong>gelijke speeltijd voor iedereen</strong> over alle posities heen. Positiescores worden pas in tweede instantie bekeken.</p>
                     
                     <div class="mt-auto">
-                        <a href="/games/<?= $gameId ?>/lineup?generate=1&dynamic=1" class="btn btn-success w-100 fw-bold">Genereer met FairShift</a>
+                        <a href="/games/<?= $gameId ?>/lineup?generate=1&dynamic=1" class="btn btn-success w-100 fw-bold">Genereer met EqualPlay</a>
                     </div>
                 </div>
             </div>
@@ -214,6 +240,9 @@ require_once dirname(__DIR__, 2) . '/header.php';
                                 <div class="mb-1">
                                     <small class="text-muted"><i class="fa-solid <?= $p['type_icon'] ?> me-1"></i> <?= $p['type'] ?></small>
                                 </div>
+                                <div class="mb-1">
+                                    <?= $p['min_pos_badge'] ?>
+                                </div>
                                 <div>
                                     <small class="text-muted"><i class="fa-regular fa-clock me-1"></i> <?= date('d M Y - H:i', strtotime($p['created_at'])) ?></small>
                                 </div>
@@ -227,7 +256,7 @@ require_once dirname(__DIR__, 2) . '/header.php';
                         
                         <div class="bg-light p-2 rounded mt-3 mb-3 border">
                             <p class="small text-muted mb-2 border-bottom pb-1" style="font-size: 0.75rem;">
-                                <strong><i class="fa-solid fa-users me-1"></i> <?= $p['player_count'] ?> Spelers & Speelminuten:</strong>
+                                <strong><i class="fa-solid fa-hourglass-half me-1"></i> Speelminuten</strong>
                             </p>
                             <?php foreach($p['grouped_mins'] as $mins => $names): ?>
                             <div class="d-flex mb-1" style="font-size: 0.75rem;">

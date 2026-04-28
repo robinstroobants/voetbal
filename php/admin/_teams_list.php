@@ -75,6 +75,7 @@
                             <tr>
                                 <th>Naam</th>
                                 <th>E-mailadres</th>
+                                <th class="text-center" title="Verbruik (Vandaag / 7 Dagen / 30 Dagen)">Load (Vand/7d/30d)</th>
                                 <th>Laatst Actief</th>
                                 <th>Rechten Rol</th>
                                 <th class="text-center d-none d-md-table-cell">BETA Access</th>
@@ -98,6 +99,14 @@
                                     <?php endif; ?>
                                 </td>
                                 <td><?= htmlspecialchars($user['email']) ?></td>
+                                <td class="text-center align-middle">
+                                    <div class="small fw-bold text-nowrap">
+                                        <span class="text-success" title="Verbruik Vandaag"><?= (int)$user['usage_today'] ?></span> / 
+                                        <span class="text-warning" title="Verbruik Laatste 7 Dagen"><?= (int)$user['usage_7d'] ?></span> / 
+                                        <span class="text-danger" title="Verbruik Laatste 30 Dagen"><?= (int)$user['usage_30d'] ?></span>
+                                    </div>
+                                    <div class="text-muted" style="font-size: 0.7rem;" title="Totaal Verbruik">Tot: <?= (int)$user['usage_total'] ?></div>
+                                </td>
                                 <td>
                                     <?php if (!empty($user['last_activity'])): ?>
                                         <small class="text-muted"><i class="fa-solid fa-clock me-1"></i><?= date('d/m/y H:i', strtotime($user['last_activity'])) ?></small>

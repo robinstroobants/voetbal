@@ -178,7 +178,7 @@ class DynamicSchemaGenerator {
         foreach ($blocks as $shift_idx => $dur_min) {
             // Determine GK for this game part if rotating
             if ($rotating_gks && !isset($game_gks[$game_idx])) {
-                uasort($field_players, function($a, $b) use ($use_period) {
+                uasort($field_players, function($a, $b) use ($use_period, $compensate_last_match) {
                     // 0. Absolute voorwaarde: Iedereen evenveel keren in doel per WEDSTRIJD
                     if ($a['times_gk'] !== $b['times_gk']) {
                         return $a['times_gk'] <=> $b['times_gk'];
@@ -217,7 +217,7 @@ class DynamicSchemaGenerator {
             }
 
             // Sort exactly according to user rules for the FIELD positions
-            uasort($field_players, function($a, $b) use ($use_period) {
+            uasort($field_players, function($a, $b) use ($use_period, $compensate_last_match) {
                 // 1. Minste speelminuten deze wedstrijd
                 if (abs($a['mins_game'] - $b['mins_game']) > 0.01) {
                     return $a['mins_game'] <=> $b['mins_game'];
@@ -309,7 +309,7 @@ class DynamicSchemaGenerator {
             foreach ($unassigned_indexes as $idx) {
                 $pid = $field_players[$idx]['pid'];
                 $best_pos = -1;
-                $best_score = -1;
+                $best_score = -9999;
                 $best_pos_key = -1;
                 
                 foreach ($available_positions as $k => $pos) {
@@ -323,7 +323,7 @@ class DynamicSchemaGenerator {
                         if ($unique_played < $min_pos_req) {
                             $score -= 100.0; // Massive penalty to strictly enforce min_pos
                         } else {
-                            $score -= 2.0; // Soft penalty once minimum is met
+                            $score -= 5.0; // Soft penalty once minimum is met
                         }
                     }
                     

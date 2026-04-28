@@ -234,7 +234,11 @@ $teams = $stmtTeams->fetchAll(PDO::FETCH_ASSOC);
 // 2. Haal alle gebruikers op, gegroepeerd
 $users = [];
 $usersResult = $pdo->query("
-    SELECT u.*, ut.team_id as team_id 
+    SELECT u.*, ut.team_id as team_id,
+           (SELECT SUM(cost_weight) FROM usage_logs WHERE user_id = u.id AND created_at >= CURDATE()) as usage_today,
+           (SELECT SUM(cost_weight) FROM usage_logs WHERE user_id = u.id AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)) as usage_7d,
+           (SELECT SUM(cost_weight) FROM usage_logs WHERE user_id = u.id AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY)) as usage_30d,
+           (SELECT SUM(cost_weight) FROM usage_logs WHERE user_id = u.id) as usage_total
     FROM users u 
     LEFT JOIN user_teams ut ON u.id = ut.user_id 
     ORDER BY u.created_at DESC

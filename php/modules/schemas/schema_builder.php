@@ -233,6 +233,65 @@ if ($stmtPeriodsCheck->fetchColumn() > 0) {
     $hasActivePeriod = true;
 }
 
+$histPosStats = [];
+$periodPosStats = [];
+if (!empty($squad)) {
+    $placeholders = implode(',', array_fill(0, count($squad), '?'));
+    
+    // Season positional history
+    $stmtPos = $pdo->prepare("
+        SELECT p.player_id, p.position, SUM(p.duration_seconds) as pos_duration
+        FROM game_shift_logs p
+        JOIN games g ON p.game_id = g.id
+        WHERE p.player_id IN ($placeholders)
+          AND g.team_id = ?
+          AND g.game_date < ?
+          AND p.position != 'BANK'
+        GROUP BY p.player_id, p.position
+    ");
+    $paramsPos = array_merge($squad, [$teamId, $gameDate]);
+    $stmtPos->execute($paramsPos);
+    while ($row = $stmtPos->fetch(PDO::FETCH_ASSOC)) {
+        $pid = $row['player_id'];
+        $pos = $row['position'];
+        $dur = (int)$row['pos_duration'];
+        if (!isset($histPosStats[$pid])) $histPosStats[$pid] = [];
+        $histPosStats[$pid][$pos] = $dur;
+        
+        if (!isset($histPosStats[$pid]['total_field'])) $histPosStats[$pid]['total_field'] = 0;
+        $histPosStats[$pid]['total_field'] += $dur;
+    }
+    
+    // Period positional history
+    if ($hasActivePeriod) {
+        $stmtPeriodPos = $pdo->prepare("
+            SELECT p.player_id, p.position, SUM(p.duration_seconds) as pos_duration
+            FROM game_shift_logs p
+            JOIN games g ON p.game_id = g.id
+            JOIN team_periods tp ON tp.team_id = g.team_id 
+                AND ? BETWEEN tp.start_date AND tp.end_date
+            WHERE p.player_id IN ($placeholders)
+              AND g.team_id = ?
+              AND g.game_date < ?
+              AND g.game_date BETWEEN tp.start_date AND tp.end_date
+              AND p.position != 'BANK'
+            GROUP BY p.player_id, p.position
+        ");
+        $paramsPeriodPos = array_merge([$gameDate], $squad, [$teamId, $gameDate]);
+        $stmtPeriodPos->execute($paramsPeriodPos);
+        while ($row = $stmtPeriodPos->fetch(PDO::FETCH_ASSOC)) {
+            $pid = $row['player_id'];
+            $pos = $row['position'];
+            $dur = (int)$row['pos_duration'];
+            if (!isset($periodPosStats[$pid])) $periodPosStats[$pid] = [];
+            $periodPosStats[$pid][$pos] = $dur;
+            
+            if (!isset($periodPosStats[$pid]['total_field'])) $periodPosStats[$pid]['total_field'] = 0;
+            $periodPosStats[$pid]['total_field'] += $dur;
+        }
+    }
+}
+
 foreach ($squad as $idx => $pid) {
     $st = $seasonStatsData[$pid] ?? ['played' => 0, 'bank' => 0, 'gk' => 0, 'available' => 0, 'period_played' => 0, 'period_available' => 0];
     // If user confirmed GK counts as played time: we use 'played' + 'gk' for total played.
@@ -242,7 +301,9 @@ foreach ($squad as $idx => $pid) {
         'histPlayed' => $st['played'],
         'histAvailable' => $st['available'],
         'periodPlayed' => $st['period_played'] ?? 0,
-        'periodAvailable' => $st['period_available'] ?? 0
+        'periodAvailable' => $st['period_available'] ?? 0,
+        'positions' => $histPosStats[$pid] ?? [],
+        'periodPositions' => $periodPosStats[$pid] ?? []
     ];
 }
 
@@ -252,15 +313,15 @@ $playPositions = [1, 2, 4, 5, 7, 9, 10, 11];
 if (strpos($search_format, '5v5') !== false) {
     $playPositions = [1, 2, 4, 5, 9];
 }
-$fieldPositions = array_filter($playPositions, fn($p) => $p != 1);
+$fixedGkIdPHP = $gk_count === 1 ? (int)reset($gk_arr) : null;
+$fieldPositions = $fixedGkIdPHP !== null ? array_filter($playPositions, fn($p) => $p != 1) : $playPositions;
 $numFieldPositions = count($fieldPositions);
 
-$fixedGkIdPHP = $gk_count === 1 ? (int)reset($gk_arr) : null;
 $numFieldPlayers = count($squad) - ($fixedGkIdPHP !== null ? 1 : 0);
 $totalBlocks = count($shift_definitions);
 $totalFieldBlocks = $numFieldPositions * $totalBlocks;
 
-if ($numFieldPlayers > 0 && $totalFieldBlocks > 0 && $fixedGkIdPHP !== null) {
+if ($numFieldPlayers > 0 && $totalFieldBlocks > 0) {
     $block_dur = $shift_definitions[0]['duration'];
     $base_blocks = floor($totalFieldBlocks / $numFieldPlayers);
     $extra_blocks = $totalFieldBlocks % $numFieldPlayers;
@@ -378,43 +439,158 @@ if ($numFieldPlayers > 0 && $totalFieldBlocks > 0 && $fixedGkIdPHP !== null) {
         $extraNames = array_map(fn($p) => "<strong>" . $p['name'] . "</strong>", $suggestedExtra);
         $baseNames = array_map(fn($p) => "<strong>" . $p['name'] . "</strong>", $suggestedBase);
         
+        $stmtSeasonStart = $pdo->prepare("SELECT MIN(game_date) FROM games WHERE team_id = ? AND game_date <= ?");
+        $stmtSeasonStart->execute([$_SESSION['team_id'], $matchData['game']['game_date']]);
+        $seasonStartDate = $stmtSeasonStart->fetchColumn();
+
+        $statsBasisHtml = '<div class="p-2 bg-white rounded border mb-2 text-muted" style="font-size: 0.75rem;">';
+        $statsBasisHtml .= '<i class="fa-solid fa-database me-1"></i><strong>Statistieken basis:</strong> ';
+        
+        $seasonBasisStr = ($seasonStartDate) ? date('d/m/Y', strtotime($seasonStartDate)) : '?';
+        $seasonBasisStr .= ' t.e.m. ' . date('d/m/Y', strtotime($matchData['game']['game_date']));
+        
+        $periodBasisStr = '';
+        if ($hasActivePeriod) {
+            $stmtPeriod = $pdo->prepare("SELECT start_date, end_date FROM team_periods WHERE team_id = ? AND ? BETWEEN start_date AND end_date");
+            $stmtPeriod->execute([$_SESSION['team_id'], $matchData['game']['game_date']]);
+            $activePeriod = $stmtPeriod->fetch(PDO::FETCH_ASSOC);
+            if ($activePeriod) {
+                $periodBasisStr = date('d/m/Y', strtotime($activePeriod['start_date'])) . ' t.e.m. ' . date('d/m/Y', strtotime($activePeriod['end_date']));
+            }
+        }
+        
+        $statsBasisHtml .= '<span id="stats-basis-text">' . ($hasActivePeriod && $activePeriod ? htmlspecialchars($periodBasisStr) : htmlspecialchars($seasonBasisStr)) . '</span>';
+        $statsBasisHtml .= '</div>';
+        
+        $rightColHtml = '';
+        if ($hasActivePeriod) {
+            $rightColHtml .= '
+            <div class="d-flex align-items-center p-1 px-2 bg-white rounded border mb-2">
+                <div class="form-check form-switch mb-0 w-100 d-flex justify-content-between align-items-center">
+                    <label class="form-check-label small fw-bold text-dark mb-0" style="font-size: 0.75rem;" for="togglePeriodStats">Gebruik periode-stats i.p.v. seizoen?</label>
+                    <input class="form-check-input ms-2" style="transform: scale(0.8); margin-top:0;" type="checkbox" id="togglePeriodStats" checked onchange="calculateStats()">
+                </div>
+            </div>';
+        }
+        $rightColHtml .= $statsBasisHtml;
+
+        $playPositionsHeader = [1, 2, 4, 5, 7, 10, 11, 9];
+        if (strpos($format, '5v5') !== false) {
+            $playPositionsHeader = [1, 4, 7, 11, 9];
+        }
+
+        $rightColHtml .= '
+        <div class="p-2 bg-white rounded border mb-2">
+            <p class="mb-1 fw-bold text-dark" style="font-size: 0.8rem;"><i class="fa-solid fa-clock-rotate-left text-warning me-1"></i>Historiek (Speelminuten & Posities)</p>
+            <div class="table-responsive">
+                <table class="table table-sm table-borderless mb-0 text-nowrap" style="font-size: 0.75rem;">
+                    <tbody>
+                        <tr>
+                            <th class="py-0 text-muted border-end">Speler</th>
+                            <th class="py-0 text-muted text-center border-end">Match</th>';
+        if($hasActivePeriod) {
+            $rightColHtml .= '<th class="py-0 text-muted text-center border-end period-col" title="Periode Historiek + deze Match">Periode</th>';
+        }
+        $rightColHtml .= '<th class="py-0 text-muted text-center border-end" title="Seizoen Historiek + deze Match">Seizoen</th>';
+        foreach ($playPositionsHeader as $pos) {
+            $posLabel = $pos == 1 ? 'GK' : $pos;
+            $rightColHtml .= '<th class="py-0 text-muted text-center">' . $posLabel . '</th>';
+        }
+        $rightColHtml .= '
+                        </tr>
+                    </tbody>
+                    <tbody id="live-stats-tbody">
+                        <!-- JS fills this dynamically -->
+                    </tbody>
+                </table>
+            </div>
+            <div class="mt-2 text-muted px-1" style="font-size: 0.65rem; line-height: 1.2;">
+                <i class="fa-solid fa-circle-info text-primary me-1"></i><strong>Sorteervolgorde:</strong> Deze lijst is live en toont bovenaan wie de minste speelminuten heeft (en dus op het veld hoort). Spelers onderaan hebben recht op rust. Sortering gebeurt eerst op basis van de huidige match, daarna op de gekozen historiek (periode of seizoen).
+            </div>
+        </div>';
+
+        $wisselpatroonHtml = '
+        <div class="d-flex flex-wrap align-items-center gap-3 mb-3 bg-white p-2 rounded border shadow-sm">
+            <div class="d-flex align-items-center">
+                <label class="small text-muted me-2 fw-bold text-nowrap"><i class="fa-solid fa-stopwatch me-1"></i>Wisselpatroon:</label>
+                <select class="form-select form-select-sm border-0 fw-bold" style="background-color: transparent; width: auto; font-size: 0.85rem;" onchange="if(confirm(\'Als je het patroon wijzigt, wordt je huidige schema gereset. Doorgaan?\')) window.location.href=\'?game_id=' . $gameId . '&pattern=\'+this.value">';
+        foreach($patterns as $key => $pattern) {
+            $sel = $key === $selected_pattern_key ? 'selected' : '';
+            $wisselpatroonHtml .= '<option value="' . htmlspecialchars($key) . '" ' . $sel . '>' . htmlspecialchars($pattern['name']) . '</option>';
+        }
+        $wisselpatroonHtml .= '</select>
+            </div>';
+            
+        if ($selected_pattern_key !== 'no_sub') {
+            $wisselpatroonHtml .= '
+            <div class="d-none d-md-block"></div>
+            <div class="form-check form-switch mb-0 d-flex align-items-center gap-2">
+                <input class="form-check-input m-0" type="checkbox" id="copyLineupToggle" checked style="cursor: pointer;">
+                <label class="form-check-label small fw-bold text-dark mb-0" for="copyLineupToggle" style="cursor: pointer;">Opstelling enkel overnemen in zelfde wedstrijddeel</label>
+            </div>';
+        }
+        
+        $wisselpatroonHtml .= '</div>';
+
         $pregame_analysis_html = '
         <div class="card mb-3 border-info shadow-sm" style="border-width: 2px;">
             <div class="card-header bg-info text-white fw-bold d-flex align-items-center py-2" style="font-size: 0.9rem; cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#pregameCollapse" aria-expanded="true">
-                <i class="fa-solid fa-lightbulb text-warning me-2"></i> Pre-Game Analyse
+                <i class="fa-solid fa-lightbulb text-white me-2"></i> In-Game Analyse
                 <i class="fa-solid fa-chevron-down ms-auto"></i>
             </div>
             <div class="collapse show" id="pregameCollapse">
-                <div class="card-body bg-light text-dark p-3">
-                    <p class="mb-2" style="font-size: 0.8rem; line-height: 1.3;">Met ' . $numFieldPlayers . ' veldspelers voor ' . $numFieldPositions . ' posities resulteert dit in:</p>
-                    <ul class="mb-3" style="font-size: 0.8rem; line-height: 1.3; padding-left: 20px;">
-                        <li><strong>' . $players_extra . ' spelers</strong> spelen <strong>' . $extra_mins . 'm</strong> (' . ($base_blocks + 1) . ' blokjes)</li>
-                        <li><strong>' . $players_base . ' spelers</strong> spelen <strong>' . $base_mins . 'm</strong> (' . $base_blocks . ' blokjes)</li>
-                    </ul>
-                    ' . $lastMatchHtml . '
-                    <div class="p-2 bg-white rounded border mb-2">
-                        <p class="mb-1 fw-bold text-success" style="font-size: 0.8rem;"><i class="fa-solid fa-arrow-up me-1"></i>Meeste minuten (' . $extra_mins . 'm)</p>
-                        <p class="mb-0 text-muted" style="font-size: 0.75rem;">Aanbevolen: ' . implode(', ', $extraNames) . '</p>
-                    </div>
-                    <div class="p-2 bg-white rounded border">
-                        <p class="mb-1 fw-bold text-danger" style="font-size: 0.8rem;"><i class="fa-solid fa-arrow-down me-1"></i>Minste minuten (' . $base_mins . 'm)</p>
-                        <p class="mb-0 text-muted" style="font-size: 0.75rem;">Aanbevolen: ' . implode(', ', $baseNames) . '</p>
+                <div class="card-body bg-light text-dark p-2">
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <div class="mb-2 p-1 px-2 bg-white rounded border">
+                                <p class="mb-1" style="font-size: 0.75rem; line-height: 1.2;"><i class="fa-solid fa-calculator text-muted me-1"></i><strong>' . htmlspecialchars($search_format) . '</strong> <span class="text-muted mx-1">|</span> <i class="fa-solid fa-users text-secondary me-1"></i>' . $numFieldPlayers . ' veldspelers <span class="text-muted mx-1">|</span> <i class="fa-solid fa-street-view text-secondary me-1"></i>' . $numFieldPositions . ' posities' . ($fixed_gk_id === null ? ' <span class="text-muted mx-1">|</span> <span class="text-primary fw-bold"><i class="fa-solid fa-hands-bubbles ms-1"></i> Roterende Doelman</span>' : '') . ':</p>
+                                <ul class="mb-0 text-dark" style="font-size: 0.75rem; line-height: 1.2; padding-left: 20px;">
+                                    <li><strong>' . $players_extra . ' spelers</strong> spelen <strong>' . $extra_mins . 'm</strong> </li>
+                                    <li><strong>' . $players_base . ' spelers</strong> spelen <strong>' . $base_mins . 'm</strong> </li>
+                                </ul>
+                            </div>
+                            ' . $lastMatchHtml . '
+                            <div class="p-2 bg-white rounded border mb-2">
+                                <p class="mb-1 fw-bold text-success" style="font-size: 0.8rem;"><i class="fa-solid fa-arrow-up me-1"></i>Meeste minuten (' . $extra_mins . 'm)</p>
+                                <p class="mb-0 text-muted" style="font-size: 0.75rem;">Aanbevolen: ' . implode(', ', $extraNames) . '</p>
+                            </div>
+                            <div class="p-2 bg-white rounded border mb-2">
+                                <p class="mb-1 fw-bold text-danger" style="font-size: 0.8rem;"><i class="fa-solid fa-arrow-down me-1"></i>Minste minuten (' . $base_mins . 'm)</p>
+                                <p class="mb-0 text-muted" style="font-size: 0.75rem;">Aanbevolen: ' . implode(', ', $baseNames) . '</p>
+                            </div>
+                            <div id="gk-suggestion-container"></div>
+                        </div>
+                        <div class="col-md-6">
+                            ' . $rightColHtml . '
+                        </div>
                     </div>
                 </div>
             </div>
         </div>';
     } else {
+        // ... (Skipping full duplication for the Else part since it just changes the perfect math layout)
         $pregame_analysis_html = '
         <div class="card mb-3 border-success shadow-sm" style="border-width: 2px;">
             <div class="card-header bg-success text-white fw-bold d-flex align-items-center py-2" style="font-size: 0.9rem; cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#pregameCollapse" aria-expanded="true">
-                <i class="fa-solid fa-check-circle text-white me-2"></i> Pre-Game Analyse
+                <i class="fa-solid fa-check-circle text-white me-2"></i> In-Game Analyse
                 <i class="fa-solid fa-chevron-down ms-auto"></i>
             </div>
             <div class="collapse show" id="pregameCollapse">
-                <div class="card-body bg-light text-dark p-3">
-                    <p class="mb-2" style="font-size: 0.8rem; line-height: 1.3;">Met ' . $numFieldPlayers . ' veldspelers voor ' . $numFieldPositions . ' posities resulteert dit in:</p>
-                    <div class="alert alert-success p-2 mb-0" style="font-size: 0.8rem;">
-                        <strong>Perfecte wiskunde!</strong> Alle ' . $numFieldPlayers . ' veldspelers spelen exact <strong>' . $base_mins . 'm</strong> (' . $base_blocks . ' blokjes). Er hoeft geen extra onderscheid gemaakt te worden.
+                <div class="card-body bg-light text-dark p-2">
+                    <div class="row g-2">
+                        <div class="col-md-6">
+                            <div class="mb-2 p-1 px-2 bg-white rounded border">
+                                <p class="mb-1" style="font-size: 0.75rem; line-height: 1.2;"><i class="fa-solid fa-calculator text-muted me-1"></i><strong>' . htmlspecialchars($search_format) . '</strong> <span class="text-muted mx-1">|</span> <i class="fa-solid fa-users text-secondary me-1"></i>' . $numFieldPlayers . ' veldspelers <span class="text-muted mx-1">|</span> <i class="fa-solid fa-street-view text-secondary me-1"></i>' . $numFieldPositions . ' posities' . ($fixed_gk_id === null ? ' <span class="text-muted mx-1">|</span> <span class="text-primary fw-bold"><i class="fa-solid fa-hands-bubbles ms-1"></i> Roterende Doelman</span>' : '') . ':</p>
+                                <div class="alert alert-success p-2 mb-0" style="font-size: 0.8rem;">
+                                    <strong>Perfecte wiskunde!</strong> Alle ' . $numFieldPlayers . ' veldspelers spelen exact <strong>' . $base_mins . 'm</strong> (' . $base_blocks . ' blokjes).
+                                </div>
+                            </div>
+                            ' . $lastMatchHtml . '
+                            <div id="gk-suggestion-container"></div>
+                        </div>
+                        <div class="col-md-6">
+                            ' . $rightColHtml . '
+                        </div>
                     </div>
                 </div>
             </div>
@@ -426,8 +602,8 @@ $page_title = "Bouw Schema Manueel";
 require_once dirname(__DIR__, 2) . '/header.php';
 ?>
 <style>
-.pool-container { background: #f8f9fa; min-height: 400px; padding: 15px; border-radius: 8px; border: 1px solid #dee2e6; }
-.pool-player { background: #0d6efd; color: white; padding: 10px; margin-bottom: 8px; border-radius: 6px; cursor: grab; text-align: center; font-weight: bold; border: 2px solid transparent; transition: all 0.2s;}
+.pool-container { background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #dee2e6; }
+.pool-player { background: #0d6efd; color: white; padding: 6px 12px; border-radius: 6px; cursor: grab; text-align: center; font-weight: bold; border: 2px solid transparent; transition: all 0.2s; font-size: 0.9rem;}
 .pool-player.is-gk { background: #dc3545; opacity: 0.8;}
 .pool-player.on-bench-priority { background: #ffc107 !important; color: #000; border-color: #d39e00; }
 .pos-wrapper { background: #fff; border: 2px dashed #ccc; border-radius: 6px; min-height: 40px; display: flex; align-items: center; justify-content: center; position: relative; margin-bottom: 10px;}
@@ -443,77 +619,46 @@ require_once dirname(__DIR__, 2) . '/header.php';
 <div class="container mt-4 mb-5 pb-5">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
-            <h2><i class="fa-solid fa-hammer text-warning me-2"></i>Schema Builder</h2>
-            <div class="d-flex align-items-center gap-3">
-                <span class="text-muted">Wedstrijd format: <?= $search_format ?></span>
-                <div class="d-flex align-items-center bg-white border rounded px-2 py-1 shadow-sm">
-                    <label class="small text-muted me-2 fw-bold text-nowrap"><i class="fa-solid fa-stopwatch me-1"></i>Wisselpatroon:</label>
-                    <select class="form-select form-select-sm border-0 fw-bold" style="background-color: transparent; width: auto;" onchange="if(confirm('Als je het patroon wijzigt, wordt je huidige schema gereset. Doorgaan?')) window.location.href='?game_id=<?= $gameId ?>&pattern='+this.value">
-                        <?php foreach($patterns as $key => $pattern): ?>
-                            <option value="<?= htmlspecialchars($key) ?>" <?= $key === $selected_pattern_key ? 'selected' : '' ?>>
-                                <?= htmlspecialchars($pattern['name']) ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-            </div>
-            <div class="mt-2 d-flex align-items-center gap-4">
-                <div class="form-check form-switch mb-0">
-                    <input class="form-check-input" type="checkbox" id="copyLineupToggle" checked style="cursor: pointer;">
-                    <label class="form-check-label small text-muted fw-bold" for="copyLineupToggle" style="cursor: pointer; padding-top:2px;">
-                        Opstelling enkel overnemen binnen de helftjes van dezelfde wedstrijd
-                    </label>
-                </div>
-            </div>
+            <h2 class="mb-0"><i class="fa-solid fa-hammer text-warning me-2"></i> Builder</h2>
         </div>
         <div>
-            <a href="/games/<?= $gameId ?>/lineup" class="btn btn-outline-secondary me-2"><i class="fa-solid fa-arrow-left"></i> Terug</a>
+            <a href="/games/<?= $gameId ?>/schema" class="btn btn-outline-secondary me-2"><i class="fa-solid fa-arrow-left"></i> Terug</a>
             <button class="btn btn-success" onclick="saveNewSchema()" id="btnSave" disabled><i class="fa-solid fa-floppy-disk me-1"></i> Opslaan</button>
         </div>
     </div>
 
-    <div class="row">
-        <!-- Sidebar Pool -->
-        <div class="col-md-3">
+    <div class="row mb-4">
+        <!-- Top Full Width: Pre-Game Analysis -->
+        <div class="col-md-12">
             <?= $pregame_analysis_html ?>
-            
-            <div class="pool-container sticky-top" style="top: 20px;">
-                <div id="player-pool" class="d-flex flex-column gap-2">
-                    <!-- JS fills this initially -->
-                </div>
-               
-                <div class="d-flex justify-content-between align-items-center mb-2 mt-4">
-                    <h5 class="mb-0 text-dark"><i class="fa-solid fa-chart-line me-2"></i> Statistieken</h5>
-                </div>
-                <div class="table-responsive bg-white rounded shadow-sm mb-3">
-                    <table class="table table-sm table-hover mb-0" style="font-size: 0.85rem;">
-                        <thead class="table-light">
-                            <tr>
-                                <th>Speler</th>
-                                <th class="text-center">Minuten</th>
-                                <?php if($hasActivePeriod): ?>
-                                <th class="text-center period-col" title="Periode Historiek + deze Match">Periode %</th>
-                                <?php endif; ?>
-                                <th class="text-center" title="Seizoen Historiek + deze Match">Seizoen %</th>
-                            </tr>
-                        </thead>
-                        <tbody id="live-stats-tbody">
-                            <!-- JS fills this dynamically -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
         </div>
+    </div>
 
-        <!-- The Canvas -->
-        <div class="col-md-9">
+    <div class="row">
+        <!-- Main Column: The Canvas -->
+        <div class="col-md-8 col-lg-10 order-2 order-md-2">
+            <?= $wisselpatroonHtml ?>
             <div class="row" id="shifts-canvas">
                 <!-- JS generates shifts here -->
             </div>
-            
-            <h4 class="mt-4 mb-3 text-dark d-none" id="position-stats-title"><i class="fa-solid fa-stopwatch text-primary me-2"></i>Posities per speler</h4>
-            <div class="row" id="position-stats-canvas">
-                <!-- JS generates position stats here -->
+        </div>
+
+        <!-- Sidebar Column: Pool & Stats -->
+        <div class="col-md-4 col-lg-2 order-1 order-md-1 mb-4 mb-md-0">
+            <div class="sticky-top" style="top: 20px; z-index: 1000; max-height: calc(100vh - 40px); overflow-y: auto;">
+                <div class="pool-container mb-3 shadow-sm bg-white">
+                    <h5 class="mb-3 text-dark"><i class="fa-solid fa-users me-2"></i> Spelers</h5>
+                    <div id="player-pool" class="d-flex flex-column gap-2">
+                        <!-- JS fills this initially -->
+                    </div>
+                </div>
+                
+                <div id="position-stats-container" class="d-none">
+                    <h6 class="mt-3 mb-2 text-dark fw-bold border-bottom pb-1" style="font-size: 0.9rem;"><i class="fa-solid fa-stopwatch text-primary me-2"></i>Posities</h6>
+                    <div class="row mx-0" id="position-stats-canvas">
+                        <!-- JS generates position stats here -->
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -523,6 +668,7 @@ require_once dirname(__DIR__, 2) . '/header.php';
 // Data
 const shiftDefinitions = <?= json_encode($shift_definitions) ?>;
 const numShifts = <?= $number_of_shifts ?>;
+const numGames = <?= $nr_of_games ?>;
 const totalMinutes = <?= $total_minutes ?>;
 const playerCount = <?= $aantal ?>;
 const formatStr = "<?= $search_format ?>";
@@ -532,11 +678,20 @@ const gameId = <?= $gameId ?>;
 const volgordeStr = "<?= $volgorde ?>";
 const gkCount = <?= $gk_count ?>;
 const fixedGkId = <?= $gk_count === 1 ? json_encode((int)reset($gk_arr)) : 'null' ?>;
+const seasonBasisText = "<?= htmlspecialchars($seasonBasisStr) ?>";
+const periodBasisText = "<?= htmlspecialchars($periodBasisStr) ?>";
 const preloadedSchemaData = <?= $preload_shift_data ?>;
 
-let playPositions = [1, 2, 4, 5, 7, 9, 10, 11];
+const targetPlayersExtra = <?= $players_extra ?>;
+const targetExtraMins = <?= $extra_mins ?>;
+const targetPlayersBase = <?= $players_base ?>;
+const targetBaseMins = <?= $base_mins ?>;
+const suggestedExtraNames = <?= json_encode(array_values(array_map(function($p) { return $p['name']; }, $suggestedExtra))) ?>;
+const suggestedBaseNames = <?= json_encode(array_values(array_map(function($p) { return $p['name']; }, $suggestedBase))) ?>;
+
+let playPositions = [1, 2, 4, 5, 7, 10, 11, 9];
 if (formatStr.includes('5v5')) {
-    playPositions = [1, 2, 4, 5, 9];
+    playPositions = [1, 4, 7, 11, 9];
 }
 let numField = playPositions.length; 
 let maxBench = playerCount - (numField); 
@@ -581,7 +736,7 @@ function initBuilder() {
         shiftData.push({ shift: shiftIdx, duration: subDurationMin*60, game_counter: gCounter, start: "00:00", lineup: initialLineup, bench: [] });
         
         let col = document.createElement('div');
-        col.className = 'col-12 col-xxl-6 mb-4';
+        col.className = 'col-12 col-xl-6 mb-4';
 
         let block = document.createElement('div');
         block.className = 'card h-100 shift-block ' + (i > 0 ? 'locked border-secondary' : 'border-primary');
@@ -643,6 +798,7 @@ function initBuilder() {
         html += `   </div>
                  </div>
             </div>
+            <div id="suggestions-${i}"></div>
             </div>
             <div class="card-footer bg-white text-end py-2">
                 ${i > 0 ? `<button class="btn btn-sm btn-outline-danger btn-reset d-none me-2" onclick="resetBlock(${i})"><i class="fa-solid fa-arrow-left"></i> Wis & Naar Vorige</button>` : ''}
@@ -932,7 +1088,7 @@ function lockBlock(shiftIdx) {
         nextBlock.scrollIntoView({behavior: "smooth", block: "center"});
     } else {
         document.getElementById('btnSave').disabled = false;
-        alert("Alle kwartjes zijn ingevuld! Je kan je schema nu opslaan.");
+        showCompletionModal();
     }
 }
 
@@ -1045,6 +1201,17 @@ function updateCounter(shiftIdx) {
 }
 
 function calculateStats() {
+    let usePeriodStats = document.getElementById('togglePeriodStats') ? document.getElementById('togglePeriodStats').checked : false;
+    
+    // Update Stats Basis Text
+    let basisEl = document.getElementById('stats-basis-text');
+    if (basisEl) {
+        if (usePeriodStats && periodBasisText) {
+            basisEl.innerHTML = periodBasisText;
+        } else {
+            basisEl.innerHTML = seasonBasisText;
+        }
+    }
     // Reset priority
     for(let i in globalPlayerStats) {
         globalPlayerStats[i].priority = 0; globalPlayerStats[i].benchMin=0; globalPlayerStats[i].fieldMin=0;
@@ -1152,15 +1319,15 @@ function calculateStats() {
         
         if (usePeriodStats && periodAvailSec > 0) {
             let periodPct = Math.round(((parseInt(sData.periodPlayed) + (pStats.fieldMin * 60)) / periodAvailSec) * 100);
-            pctHtml = `${periodPct}% <span style="font-size:0.6rem;">(P)</span>`;
+            pctHtml = `${periodPct}%`;
         } else {
-            pctHtml = `${seasonPct}% <span style="font-size:0.6rem;">(S)</span>`;
+            pctHtml = `${seasonPct}%`;
         }
         
         let baseText = pStats.name;
         if (pStats.is_gk) baseText += " (GK)";
         
-        let infoHtml = `<span>${baseText}</span> <small class="fw-normal opacity-75">(${pStats.fieldMin}/${totalMinutes}m - ${pctHtml})</small>`;
+        let infoHtml = `<span>${baseText}</span> <small class="fw-normal opacity-75">(${pctHtml})</small>`;
         
         if (pStats.benchMin > 0) {
             item.classList.add('on-bench-priority');
@@ -1221,17 +1388,17 @@ function calculateStats() {
             matchText = "-";
         }
         
-        // Calculate Season totals
+        // Calculate Season totals (HISTORICAL ONLY)
         let hist = seasonStatsMap[st.sidx];
-        if(!hist) hist = { histPlayed: 0, histAvailable: 0, periodPlayed: 0, periodAvailable: 0 };
+        if(!hist) hist = { histPlayed: 0, histAvailable: 0, periodPlayed: 0, periodAvailable: 0, positions: {}, periodPositions: {} };
         
-        let totalSeasonPlayedSec = parseInt(hist.histPlayed) + (st.fieldMin * 60);
-        let totalSeasonAvailableSec = parseInt(hist.histAvailable) + (st.matchAvailable * 60);
+        let totalSeasonPlayedSec = parseInt(hist.histPlayed);
+        let totalSeasonAvailableSec = parseInt(hist.histAvailable);
         
-        let totalPeriodPlayedSec = parseInt(hist.periodPlayed) + (st.fieldMin * 60);
-        let totalPeriodAvailableSec = parseInt(hist.periodAvailable) + (st.matchAvailable * 60);
+        let totalPeriodPlayedSec = parseInt(hist.periodPlayed);
+        let totalPeriodAvailableSec = parseInt(hist.periodAvailable);
         
-        let seasonPercText = "0%";
+        let seasonPercText = "-";
         let seasonColor = "text-muted";
         
         if (totalSeasonAvailableSec > 0) {
@@ -1260,17 +1427,235 @@ function calculateStats() {
         let seasonHoverTitle = Math.round(totalSeasonPlayedSec / 60) + "m gespeeld / " + Math.round(totalSeasonAvailableSec / 60) + "m beschikbaar";
         let periodHoverTitle = Math.round(totalPeriodPlayedSec / 60) + "m gespeeld / " + Math.round(totalPeriodAvailableSec / 60) + "m beschikbaar";
         
+        st.matchText = matchText;
+        st.periodPercText = periodPercText;
+        st.seasonPercText = seasonPercText;
+        
         statsHtml += `
             <tr>
-                <td class="align-middle">${st.name}</td>
-                <td class="text-center align-middle ${matchColor}">${matchText} <br><small class="text-muted fw-normal">op ${st.matchAvailable}m</small></td>
-                ${ <?= $hasActivePeriod ? 'true' : 'false' ?> ? `<td class="text-center align-middle period-col ${usePeriodStats ? '' : 'd-none'} ${periodColor}" title="${periodHoverTitle}" style="cursor: help;">${periodPercText}</td>` : '' }
-                <td class="text-center align-middle ${seasonColor}" title="${seasonHoverTitle}" style="cursor: help;">${seasonPercText}</td>
-            </tr>
+                <td class="py-0 align-middle border-end"><strong>${st.name}</strong></td>
+                <td class="py-0 text-center align-middle border-end ${matchColor}">${matchText}</td>
+                ${ <?= $hasActivePeriod ? 'true' : 'false' ?> ? `<td class="py-0 text-center align-middle border-end period-col ${usePeriodStats ? '' : 'd-none'} ${periodColor}" title="${periodHoverTitle}">${periodPercText}</td>` : '' }
+                <td class="py-0 text-center align-middle border-end ${seasonColor}" title="${seasonHoverTitle}">${seasonPercText}</td>
         `;
+        
+        playPositions.forEach(pos => {
+            let posSec = 0;
+            let histFieldSec = 0;
+            if (usePeriodStats) {
+                if (hist.periodPositions && hist.periodPositions[pos]) {
+                    posSec = hist.periodPositions[pos];
+                }
+                if (hist.periodPositions && hist.periodPositions['total_field']) {
+                    histFieldSec = hist.periodPositions['total_field'];
+                }
+            } else {
+                if (hist.positions && hist.positions[pos]) {
+                    posSec = hist.positions[pos];
+                }
+                if (hist.positions && hist.positions['total_field']) {
+                    histFieldSec = hist.positions['total_field'];
+                }
+            }
+            
+            let posPct = 0;
+            if (histFieldSec > 0) {
+                posPct = (posSec / histFieldSec) * 100;
+            }
+            let posColor = "text-muted";
+            let posText = `<span class="text-muted">-</span>`;
+            if (posPct > 0) {
+                if (pos == 1) {
+                    posText = `<span class="text-warning fw-bold">${Math.round(posPct)}%</span>`;
+                } else {
+                    posText = `${Math.round(posPct)}%`;
+                }
+            }
+            statsHtml += `<td class="py-0 text-center align-middle">${posText}</td>`;
+        });
+        
+        statsHtml += `</tr>`;
     });
     
     tbody.innerHTML = statsHtml;
+    
+    // --- Update Coach Suggestions ---
+    let activeShiftIdx = -1;
+    for(let i=0; i<numShifts; i++) {
+        let block = document.getElementById('shift-' + i);
+        if (block && !block.classList.contains('locked')) {
+            activeShiftIdx = i;
+            break;
+        }
+    }
+    
+    // Clear all suggestion boxes first
+    for(let i=0; i<numShifts; i++) {
+        let suggBox = document.getElementById('suggestions-' + i);
+        if (suggBox) suggBox.innerHTML = '';
+    }
+    
+    // --- GK Suggestion Calculation ---
+    let gkCandidates = [];
+    if (fixedGkId === null) {
+        for(let i in globalPlayerStats) {
+            let hist = seasonStatsMap[i];
+            
+            let gkPeriodSec = 0;
+            let periodFieldSec = 0;
+            if (hist && hist.periodPositions && hist.periodPositions[1]) gkPeriodSec = hist.periodPositions[1];
+            if (hist && hist.periodPositions && hist.periodPositions['total_field']) periodFieldSec = hist.periodPositions['total_field'];
+            let gkPeriodPct = periodFieldSec > 0 ? (gkPeriodSec / periodFieldSec) * 100 : 0;
+            
+            let gkSeasonSec = 0;
+            let seasonFieldSec = 0;
+            if (hist && hist.positions && hist.positions[1]) gkSeasonSec = hist.positions[1];
+            if (hist && hist.positions && hist.positions['total_field']) seasonFieldSec = hist.positions['total_field'];
+            let gkSeasonPct = seasonFieldSec > 0 ? (gkSeasonSec / seasonFieldSec) * 100 : 0;
+            
+            gkCandidates.push({
+                sidx: i,
+                name: globalPlayerStats[i].name,
+                gkPeriodPct: gkPeriodPct,
+                gkSeasonPct: gkSeasonPct,
+                gkSeasonSec: gkSeasonSec,
+                periodFieldSec: periodFieldSec,
+                seasonFieldSec: seasonFieldSec
+            });
+        }
+        
+        gkCandidates.sort((a, b) => {
+            let usePeriodStats = document.getElementById('togglePeriodStats') ? document.getElementById('togglePeriodStats').checked : false;
+            if (usePeriodStats) {
+                if (Math.abs(a.gkPeriodPct - b.gkPeriodPct) > 0.001) {
+                    return a.gkPeriodPct - b.gkPeriodPct;
+                }
+                if (Math.abs(b.periodFieldSec - a.periodFieldSec) > 0.001) {
+                    return b.periodFieldSec - a.periodFieldSec;
+                }
+            }
+            if (Math.abs(a.gkSeasonPct - b.gkSeasonPct) > 0.001) {
+                return a.gkSeasonPct - b.gkSeasonPct;
+            }
+            if (Math.abs(b.seasonFieldSec - a.seasonFieldSec) > 0.001) {
+                return b.seasonFieldSec - a.seasonFieldSec;
+            }
+            return a.gkSeasonSec - b.gkSeasonSec;
+        });
+        
+        let gkSuggBox = document.getElementById('gk-suggestion-container');
+        if (gkSuggBox) {
+            let suggestedGKs = gkCandidates.slice(0, numGames).map(p => `<strong>${p.name}</strong>`).join(', ');
+            let html = `
+            <div class="p-2 bg-white rounded border border-warning mb-2 bg-warning bg-opacity-10">
+                <p class="mb-1 fw-bold text-dark" style="font-size: 0.8rem;"><i class="fa-solid fa-hands-bubbles text-warning me-1"></i>Doelman Suggesties</p>
+                <p class="mb-0 text-muted" style="font-size: 0.75rem;">Aanbevolen: ${suggestedGKs}</p>
+            </div>
+            `;
+            gkSuggBox.innerHTML = html;
+        }
+    }
+
+    if (activeShiftIdx >= 0) {
+        let block = document.getElementById('shift-' + activeShiftIdx);
+        let benchPlayers = [];
+        let fieldPlayers = [];
+        
+        block.querySelectorAll('.pos-wrapper').forEach(pw => {
+            let playerEl = pw.querySelector('.pool-player');
+            if (playerEl && !playerEl.classList.contains('is-gk')) { // Exclude fixed GKs
+                let pSidx = parseInt(playerEl.getAttribute('data-sidx'));
+                if (pw.getAttribute('data-pos') === 'bench') {
+                    benchPlayers.push(pSidx);
+                } else {
+                    fieldPlayers.push(pSidx);
+                }
+            }
+        });
+        
+        let suggestOut = [];
+        for (let i = statsArr.length - 1; i >= 0; i--) {
+            if (fieldPlayers.includes(parseInt(statsArr[i].sidx))) {
+                suggestOut.push(statsArr[i]);
+            }
+        }
+        
+        let outHtml = '';
+        if (benchPlayers.length > 0) {
+            let numSubs = benchPlayers.length;
+            let outList = suggestOut.slice(0, numSubs).map(p => {
+                let reason = `Nu: ${p.matchText}`;
+                if (p.periodPercText !== "-") reason += ` | Periode: ${p.periodPercText}`;
+                if (p.seasonPercText !== "-") reason += ` | Seizoen: ${p.seasonPercText}`;
+                return `<strong class="text-danger" title="${reason}" data-bs-toggle="tooltip" style="cursor:help; border-bottom: 1px dotted #dc3545;">${p.name}</strong>`;
+            }).join(', ');
+            outHtml = `
+            <div class="d-flex align-items-center">
+                <i class="fa-solid fa-arrow-right-from-bracket text-warning me-2 fs-6"></i>
+                <strong class="text-dark me-2">Wissel uit:</strong>
+                <span>${outList}</span>
+            </div>
+            `;
+        }
+        
+        let gkHtml = '';
+        
+        let isStartOfGame = false;
+        if (activeShiftIdx === 0) isStartOfGame = true;
+        else if (activeShiftIdx > 0 && shiftDefinitions[activeShiftIdx] && shiftDefinitions[activeShiftIdx-1]) {
+            if (shiftDefinitions[activeShiftIdx].game_counter !== shiftDefinitions[activeShiftIdx-1].game_counter) {
+                isStartOfGame = true;
+            }
+        }
+        
+        if (fixedGkId === null && isStartOfGame) {
+            let placedGKs = [];
+            for (let i = 0; i < activeShiftIdx; i++) {
+                let sData = shiftData[i];
+                if (sData && sData.lineup && sData.lineup[1] !== undefined) {
+                    let gkSidx = parseInt(sData.lineup[1]);
+                    if (!placedGKs.includes(gkSidx)) placedGKs.push(gkSidx);
+                }
+            }
+            
+            let remainingGkCandidates = gkCandidates.filter(c => !placedGKs.includes(parseInt(c.sidx)));
+            let neededGks = numGames - placedGKs.length;
+            if (neededGks < 1) neededGks = 1;
+            
+            let gkList = remainingGkCandidates.slice(0, neededGks).map(p => {
+                let reason = `Heeft historisch gezien het minste aantal minuten in doel gestaan en is aan de beurt.`;
+                return `<strong class="text-primary" title="${reason}" data-bs-toggle="tooltip" style="cursor:help; border-bottom: 1px dotted #0d6efd;">${p.name}</strong>`;
+            }).join(', ');
+            
+            gkHtml = `
+            <div class="d-flex align-items-center mb-1">
+                <i class="fa-solid fa-hands-bubbles text-primary me-2 fs-6"></i>
+                <strong class="text-dark me-2">Aanbevolen doelman:</strong>
+                <span>${gkList}</span>
+            </div>
+            `;
+        }
+        
+        let suggBox = document.getElementById('suggestions-' + activeShiftIdx);
+        if (suggBox && (outHtml !== '' || gkHtml !== '')) {
+            let html = `
+            <div class="px-3 pb-3">
+                <div class="alert alert-info py-2 px-3 mb-0 border-info border-start border-4 shadow-sm" style="font-size: 0.8rem; background-color: #f8fbff;">
+                    ${gkHtml}
+                    ${outHtml}
+                </div>
+            </div>`;
+            suggBox.innerHTML = html;
+            
+            // Re-initialize tooltips for the new elements
+            if (typeof bootstrap !== 'undefined') {
+                let tooltipTriggerList = [].slice.call(suggBox.querySelectorAll('[data-bs-toggle="tooltip"]'));
+                tooltipTriggerList.map(function (tooltipTriggerEl) {
+                    return new bootstrap.Tooltip(tooltipTriggerEl);
+                });
+            }
+        }
+    }
     
     // Toggle the header visibility for Period column
     let thPeriod = document.querySelector('th.period-col');
@@ -1282,10 +1667,10 @@ function calculateStats() {
 
     // Render position stats per player
     let posCanvas = document.getElementById('position-stats-canvas');
-    let posTitle = document.getElementById('position-stats-title');
+    let posContainer = document.getElementById('position-stats-container');
     
     if (totalProcessedMin > 0) {
-        posTitle.classList.remove('d-none');
+        posContainer.classList.remove('d-none');
         
         let posHtml = '';
         
@@ -1325,11 +1710,11 @@ function calculateStats() {
             }
             
             posHtml += `
-                <div class="col-6 col-md-4 col-xl-3 mb-3">
-                    <div class="card h-100 shadow-sm border-0">
-                        <div class="card-header bg-white d-flex justify-content-between align-items-center py-2 border-bottom-0">
-                            <span class="fw-bold text-primary text-truncate" style="font-size: 0.9rem;" title="${st.name}">${st.name}</span>
-                            <span class="badge bg-primary rounded-pill">${st.fieldMin}m</span>
+                <div class="col-12 mb-2 px-0">
+                    <div class="card shadow-sm border-0">
+                        <div class="card-header bg-light d-flex justify-content-between align-items-center py-1 px-2 border-bottom-0">
+                            <span class="fw-bold text-primary text-truncate" style="font-size: 0.8rem;" title="${st.name}">${st.name}</span>
+                            <span class="badge bg-primary rounded-pill" style="font-size: 0.7rem;">${st.fieldMin}m</span>
                         </div>
                         <div class="card-body p-0">
                             <ul class="list-group list-group-flush mb-0">
@@ -1343,9 +1728,141 @@ function calculateStats() {
         
         posCanvas.innerHTML = posHtml;
     } else {
-        posTitle.classList.add('d-none');
+        posContainer.classList.add('d-none');
         posCanvas.innerHTML = '';
     }
+}
+
+function showCompletionModal() {
+    let actualMinsMap = {};
+    for (let i in globalPlayerStats) {
+        if (globalPlayerStats[i].is_gk && fixedGkId !== null) continue; // Skip fixed GK
+        let m = Math.round(globalPlayerStats[i].fieldMin);
+        if (!actualMinsMap[m]) actualMinsMap[m] = [];
+        actualMinsMap[m].push(globalPlayerStats[i].name);
+    }
+    
+    let actualExtraCount = (actualMinsMap[targetExtraMins] || []).length;
+    let actualBaseCount = (actualMinsMap[targetBaseMins] || []).length;
+    
+    let isMathPerfect = true;
+    if (targetPlayersExtra > 0) {
+        if (actualExtraCount !== targetPlayersExtra || actualBaseCount !== targetPlayersBase) isMathPerfect = false;
+    } else {
+        if (actualBaseCount !== targetPlayersBase) isMathPerfect = false;
+    }
+    
+    let html = `
+    <div class="mb-4">
+        <h6 class="fw-bold border-bottom pb-2"><i class="fa-solid fa-calculator text-primary me-2"></i>Wiskunde vs Realiteit</h6>
+        <div class="alert ${isMathPerfect ? 'alert-success' : 'alert-warning'} mb-2 p-2 small">
+            ${isMathPerfect ? '<i class="fa-solid fa-check-circle me-1"></i><strong>Perfect!</strong> Je schema volgt exact de berekende wiskundige verdeling.' : '<i class="fa-solid fa-triangle-exclamation me-1"></i><strong>Opgelet!</strong> De uiteindelijke speeltijden wijken af van de theorie.'}
+        </div>
+        <div class="row g-2 mt-2">
+            <div class="col-md-6">
+                <div class="card h-100 border-0 shadow-sm bg-light">
+                    <div class="card-body p-2">
+                        <strong class="small text-muted d-block mb-1">Theorie (Aanbevolen)</strong>
+                        <ul class="small mb-0 ps-3">
+    `;
+    if (targetPlayersExtra > 0) html += `<li>${targetPlayersExtra} spelers spelen ${targetExtraMins}m</li>`;
+    html += `<li>${targetPlayersBase} spelers spelen ${targetBaseMins}m</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card h-100 border-0 shadow-sm bg-light">
+                    <div class="card-body p-2">
+                        <strong class="small text-muted d-block mb-1">Jouw Schema (Actueel)</strong>
+                        <ul class="small mb-0 ps-3">
+    `;
+    Object.keys(actualMinsMap).sort((a,b) => b-a).forEach(m => {
+        html += `<li>${actualMinsMap[m].length} spelers spelen ${m}m</li>`;
+    });
+    html += `
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    `;
+    
+    if (targetPlayersExtra > 0) {
+        let actualExtraNames = actualMinsMap[targetExtraMins] || [];
+        
+        let extraMatches = actualExtraNames.filter(n => suggestedExtraNames.includes(n));
+        
+        html += `
+        <div class="mb-4">
+            <h6 class="fw-bold border-bottom pb-2"><i class="fa-solid fa-users text-primary me-2"></i>Speelminuten Verdeling</h6>
+            <div class="p-2 bg-light rounded border border-light">
+                <p class="small mb-1">We adviseerden volgende spelers voor <strong>${targetExtraMins}m</strong>: <span class="text-muted">${suggestedExtraNames.join(', ')}</span></p>
+                <p class="small mb-0">In jouw schema kregen zij ${targetExtraMins}m: <span class="${extraMatches.length === targetPlayersExtra && actualExtraNames.length === targetPlayersExtra ? 'text-success fw-bold' : 'text-danger fw-bold'}">${actualExtraNames.join(', ') || 'Niemand'}</span></p>
+            </div>
+        </div>
+        `;
+    }
+    
+    if (fixedGkId === null) {
+        let placedGKs = [];
+        shiftData.forEach(s => {
+            let gk = s.lineup[1];
+            if (gk !== undefined) {
+                let pName = globalPlayerStats[gk].name;
+                if (!placedGKs.includes(pName)) placedGKs.push(pName);
+            }
+        });
+        
+        let gkCandidates = [];
+        for(let i in globalPlayerStats) {
+            let hist = seasonStatsMap[i];
+            let gkPeriodSec = 0; let periodFieldSec = 0;
+            if (hist && hist.periodPositions && hist.periodPositions[1]) gkPeriodSec = hist.periodPositions[1];
+            if (hist && hist.periodPositions && hist.periodPositions['total_field']) periodFieldSec = hist.periodPositions['total_field'];
+            let gkPeriodPct = periodFieldSec > 0 ? (gkPeriodSec / periodFieldSec) * 100 : 0;
+            
+            let gkSeasonSec = 0; let seasonFieldSec = 0;
+            if (hist && hist.positions && hist.positions[1]) gkSeasonSec = hist.positions[1];
+            if (hist && hist.positions && hist.positions['total_field']) seasonFieldSec = hist.positions['total_field'];
+            let gkSeasonPct = seasonFieldSec > 0 ? (gkSeasonSec / seasonFieldSec) * 100 : 0;
+            
+            gkCandidates.push({
+                name: globalPlayerStats[i].name, gkPeriodPct: gkPeriodPct, gkSeasonPct: gkSeasonPct, gkSeasonSec: gkSeasonSec, periodFieldSec: periodFieldSec, seasonFieldSec: seasonFieldSec
+            });
+        }
+        gkCandidates.sort((a, b) => {
+            let usePeriodStats = document.getElementById('togglePeriodStats') ? document.getElementById('togglePeriodStats').checked : false;
+            if (usePeriodStats) {
+                if (Math.abs(a.gkPeriodPct - b.gkPeriodPct) > 0.001) return a.gkPeriodPct - b.gkPeriodPct;
+                if (Math.abs(b.periodFieldSec - a.periodFieldSec) > 0.001) return b.periodFieldSec - a.periodFieldSec;
+            }
+            if (Math.abs(a.gkSeasonPct - b.gkSeasonPct) > 0.001) return a.gkSeasonPct - b.gkSeasonPct;
+            if (Math.abs(b.seasonFieldSec - a.seasonFieldSec) > 0.001) return b.seasonFieldSec - a.seasonFieldSec;
+            return a.gkSeasonSec - b.gkSeasonSec;
+        });
+        
+        let theoreticalGKs = gkCandidates.slice(0, numGames).map(p => p.name);
+        
+        let perfectGks = true;
+        placedGKs.forEach(g => { if(!theoreticalGKs.includes(g)) perfectGks = false; });
+        if(placedGKs.length !== numGames) perfectGks = false;
+        
+        html += `
+        <div class="mb-2">
+            <h6 class="fw-bold border-bottom pb-2"><i class="fa-solid fa-hands-bubbles text-primary me-2"></i>Doelmannen</h6>
+            <div class="p-2 bg-light rounded border border-light">
+                <p class="small mb-1">We adviseerden volgende ${numGames} doelmannen: <span class="text-muted">${theoreticalGKs.join(', ')}</span></p>
+                <p class="small mb-0">In jouw schema stonden in de goal: <span class="${perfectGks ? 'text-success fw-bold' : 'text-danger fw-bold'}">${placedGKs.join(', ') || 'Geen'}</span></p>
+            </div>
+        </div>
+        `;
+    }
+    
+    document.getElementById('completionModalBody').innerHTML = html;
+    let modal = new bootstrap.Modal(document.getElementById('completionModal'));
+    modal.show();
 }
 
 function saveNewSchema() {
@@ -1418,5 +1935,24 @@ function submitForced() {
 
 document.addEventListener('DOMContentLoaded', initBuilder);
 </script>
+
+<!-- Completion Modal -->
+<div class="modal fade" id="completionModal" tabindex="-1" aria-labelledby="completionModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-success text-white border-bottom-0">
+                <h5 class="modal-title fw-bold" id="completionModalLabel"><i class="fa-solid fa-check-circle me-2"></i>Schema Compleet!</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4" id="completionModalBody">
+                <!-- JS fills this -->
+            </div>
+            <div class="modal-footer bg-light border-top-0">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Nog aanpassen</button>
+                <button type="button" class="btn btn-success fw-bold" onclick="saveNewSchema()" data-bs-dismiss="modal"><i class="fa-solid fa-floppy-disk me-1"></i> Opslaan</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <?php require_once dirname(__DIR__, 2) . '/footer.php'; ?>

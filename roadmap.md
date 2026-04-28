@@ -114,3 +114,11 @@ default wedstrijd moment thuiswedstrijden
 - na aanmaken wedstrijd (indien geen duplicate) direct naar selectie pagina
 - feedback systeem bouwen
 - ouders events laten ingeven
+
+
+
+- op http://localhost:8085/games/120/lineup?generate=1&dynamic=1&use_period=1 staat 
+Wiskunde (7 spelers, 5 posities):
+5 spelers: 45m (6x)
+2 spelers: 37.5m (5x)
+waarvoor staan die 6x en 5x..?

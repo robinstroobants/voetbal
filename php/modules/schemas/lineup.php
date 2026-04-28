@@ -64,48 +64,17 @@
     <div class="container">
       <?php if (!defined('PUBLIC_SHARE_MODE')): ?>
       <div class="d-flex justify-content-between align-items-center pt-3 pb-2">
-          <div>
-              <?php if ($prevGame): ?>
-                  <a href="/games/<?= $prevGame['id'] ?>/schema" class="btn btn-outline-secondary btn-sm d-print-none" title="Vorige: <?= htmlspecialchars($prevGame['opponent']) ?>">
-                      <i class="fa-solid fa-chevron-left"></i>
-                  </a>
-              <?php else: ?>
-                  <div style="width: 32px;"></div>
-              <?php endif; ?>
-          </div>
-          
-          <h5 class="mb-0 text-center flex-grow-1 px-2" id="dynamic-page-title">
+          <h5 class="mb-0 flex-grow-1" id="dynamic-page-title">
               <i class="fa-solid fa-futbol me-2 text-primary"></i> <?= htmlspecialchars($matchData['game']['opponent'] ?? 'Opstelling') ?>
           </h5>
-
-          <div>
-              <?php if ($nextGame): ?>
-                  <a href="/games/<?= $nextGame['id'] ?>/schema" class="btn btn-outline-secondary btn-sm d-print-none" title="Volgende: <?= htmlspecialchars($nextGame['opponent']) ?>">
-                      <i class="fa-solid fa-chevron-right"></i>
-                  </a>
-              <?php else: ?>
-                  <div style="width: 32px;"></div>
-              <?php endif; ?>
-          </div>
+          <a href="/games/<?= $gameId ?>/schema" class="btn btn-outline-secondary btn-sm">
+              <i class="fa-solid fa-arrow-left me-1"></i> Terug naar Dashboard
+          </a>
       </div>
       <?php else: ?>
           <h4 class="mb-4 mt-3 text-center" id="dynamic-page-title">
               <i class="fa-solid fa-futbol me-2 text-primary"></i> <?= htmlspecialchars($matchData['game']['opponent'] ?? 'Opstelling') ?>
           </h4>
-      <?php endif; ?>
-      
-      <?php if (!$locked_lineup && !defined('PUBLIC_SHARE_MODE')): ?>
-      <div class="d-print-none text-center mb-4 mt-2">
-          <a href="/games/<?= $gameId ?>/edit" class="btn btn-outline-secondary btn-sm">
-              <i class="fa-solid fa-pen me-1"></i> Wijzig Match
-          </a>
-          <a href="/games/<?= $gameId ?>/selection" class="btn btn-outline-success btn-sm ms-2">
-              <i class="fa-solid fa-users-gear me-1"></i> Wijzig Selectie
-          </a>
-          <a href="/games/<?= $gameId ?>/builder" class="btn btn-warning btn-sm ms-2 fw-bold text-dark">
-              <i class="fa-solid fa-hammer me-1"></i> Bouw Zelf
-          </a>
-      </div>
       <?php endif; ?>
       
       <?= $generator_error_html ?? '' ?>
@@ -114,9 +83,9 @@
       <div class="card mb-4 border-primary d-print-none shadow-sm" id="saved-lineups-container" style="<?= empty($saved_lineups) || $locked_lineup ? 'display:none;' : '' ?>">
           <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
               <div><i class="fa-solid fa-star"></i> <strong>Opgeslagen Voorselecties</strong></div>
-              <button type="button" class="btn btn-sm btn-warning fw-bold text-dark shadow-sm" data-bs-toggle="modal" data-bs-target="#generateModal">
+              <a href="/games/<?= $gameId ?>/schema" class="btn btn-sm btn-warning fw-bold text-dark shadow-sm">
                   <i class="fa-solid fa-wand-magic-sparkles"></i> Genereer Nieuwe Opties
-              </button>
+              </a>
           </div>
           <div class="card-body p-0">
               <table class="table table-hover mb-0">
@@ -161,7 +130,6 @@
       </div>
       
       <?php if (!empty($top_selected_options)): ?>
-          <h4 class="text-center d-print-none mt-5 mb-2"><i class="fa-solid fa-wand-magic-sparkles"></i> Actuele Gegenereerde Opties</h4>
 
           <?php if (isset($dynamic_analysis)): 
               // Check active period
@@ -188,9 +156,9 @@
               $compensate = !isset($_GET['compensate']) || $_GET['compensate'] == 1; // Default ON
 
               // --- Bereken wiskundige theorie net zoals in schema_builder ---
-              $playPositions = [1, 2, 4, 5, 7, 9, 10, 11];
+              $playPositions = [1, 2, 4, 5, 7, 10, 11, 9];
               if (strpos($search_format, '5v5') !== false) {
-                  $playPositions = [1, 2, 4, 5, 9];
+                  $playPositions = [1, 4, 7, 11, 9];
               }
               $fieldPositions = array_filter($playPositions, fn($p) => $p != 1);
 
@@ -283,49 +251,73 @@
                   $lastMatchHtml .= '</div>';
               }
               
-              // Render GK ratio if rotating
-              $gkRatioHtml = '';
-              if ($gk_count === 0) {
-                  $use_period = isset($_GET['use_period']) && $_GET['use_period'] == 1;
-                  
-                  $gkRatioHtml = '<div class="p-2 bg-white rounded border mb-2">';
-                  $gkRatioHtml .= '<p class="mb-1 fw-bold text-dark" style="font-size: 0.8rem;"><i class="fa-solid fa-hands-holding-circle text-warning me-1"></i>Historiek: Speelminuten Veld vs Doelman</p>';
-                  $gkRatioHtml .= '<div class="table-responsive"><table class="table table-sm table-borderless mb-0 text-nowrap" style="font-size: 0.75rem;">';
-                  
-                  if ($use_period) {
-                      $gkRatioHtml .= '<tr><th class="py-0 text-muted border-end">Speler</th><th class="py-0 text-muted">Periode</th><th class="py-0 text-muted">Seizoen</th></tr>';
-                  } else {
-                      $gkRatioHtml .= '<tr><th class="py-0 text-muted border-end">Speler</th><th class="py-0 text-muted">Seizoen</th></tr>';
-                  }
-                  
-                  // Sort by GK% ascending to show who stands the least in goal first
-                  $gkSortedStats = $dynamic_analysis['player_stats'];
-                  if ($use_period) {
-                      usort($gkSortedStats, fn($a, $b) => ($a['pct_period_gk'] ?? 0) <=> ($b['pct_period_gk'] ?? 0));
-                  } else {
-                      usort($gkSortedStats, fn($a, $b) => ($a['pct_season_gk'] ?? 0) <=> ($b['pct_season_gk'] ?? 0));
-                  }
-                  
-                  foreach ($gkSortedStats as $stat) {
-                      if ($stat['is_gk']) continue;
-                      $name = htmlspecialchars(getPlayerName($stat['pid']));
-                      
-                      $pctSeasonField = number_format((float)($stat['pct_season'] ?? 0) * 100, 2) . '%';
-                      $pctSeasonGk = number_format((float)($stat['pct_season_gk'] ?? 0) * 100, 2) . '%';
-                      $seasonHtml = "{$pctSeasonField} <span class='text-muted' style='font-size:0.65rem; cursor:help;' title='Doelman: {$pctSeasonGk}'>({$pctSeasonGk})</span>";
-                      
-                      if ($use_period) {
-                          $pctPeriodField = number_format((float)($stat['pct_period'] ?? 0) * 100, 2) . '%';
-                          $pctPeriodGk = number_format((float)($stat['pct_period_gk'] ?? 0) * 100, 2) . '%';
-                          $periodHtml = "{$pctPeriodField} <span class='text-muted' style='font-size:0.65rem; cursor:help;' title='Doelman: {$pctPeriodGk}'>({$pctPeriodGk})</span>";
-                          
-                          $gkRatioHtml .= "<tr><td class='py-0 border-end'><strong>$name</strong></td><td class='py-0'>{$periodHtml}</td><td class='py-0'>{$seasonHtml}</td></tr>";
-                      } else {
-                          $gkRatioHtml .= "<tr><td class='py-0 border-end'><strong>$name</strong></td><td class='py-0'>{$seasonHtml}</td></tr>";
-                      }
-                  }
-                  $gkRatioHtml .= '</table></div></div>';
+              // Render Historiek (Speelminuten & Posities)
+              $use_period = isset($_GET['use_period']) && $_GET['use_period'] == 1;
+              
+              $gkRatioHtml = '<div class="p-2 bg-white rounded border mb-2">';
+              $gkRatioHtml .= '<p class="mb-1 fw-bold text-dark" style="font-size: 0.8rem;"><i class="fa-solid fa-clock-rotate-left text-warning me-1"></i>Historiek (Speelminuten & Posities)</p>';
+              $gkRatioHtml .= '<div class="table-responsive"><table class="table table-sm table-borderless mb-0 text-nowrap" style="font-size: 0.75rem;">';
+              
+              $headerHtml = '<tr><th class="py-0 text-muted border-end">Speler</th>';
+              if ($use_period) {
+                  $headerHtml .= '<th class="py-0 text-muted text-center border-end">Periode</th>';
               }
+              $headerHtml .= '<th class="py-0 text-muted text-center border-end">Seizoen</th>';
+              
+              // Add columns for positions
+              foreach ($playPositions as $pos) {
+                  $posLabel = $pos == 1 ? 'GK' : $pos;
+                  $headerHtml .= '<th class="py-0 text-muted text-center">' . $posLabel . '</th>';
+              }
+              $headerHtml .= '</tr>';
+              $gkRatioHtml .= $headerHtml;
+              
+              $gkSortedStats = $dynamic_analysis['player_stats'] ?? [];
+              // Sort alphabetically
+              usort($gkSortedStats, fn($a, $b) => strcmp(getPlayerName($a['pid']), getPlayerName($b['pid'])));
+              
+              foreach ($gkSortedStats as $stat) {
+                  if ($stat['is_gk']) continue;
+                  $pid = $stat['pid'];
+                  $name = htmlspecialchars(getPlayerName($pid));
+                  
+                  $pctSeasonField = number_format((float)($stat['pct_season'] ?? 0) * 100, 0) . '%';
+                  $seasonPlayed = calctime($pt_stats[$pid]['played'] ?? 0);
+                  $seasonTotal = calctime($pt_stats[$pid]['available'] ?? 0);
+                  $seasonHtml = "<span title=\"Speeltijd: {$seasonPlayed} / {$seasonTotal}\" data-bs-toggle=\"tooltip\" style=\"cursor:help; border-bottom:1px dotted #ccc;\">{$pctSeasonField}</span>";
+                  
+                  $rowHtml = "<tr><td class='py-0 border-end'><strong>$name</strong></td>";
+                  if ($use_period) {
+                      $pctPeriodField = number_format((float)($stat['pct_period'] ?? 0) * 100, 0) . '%';
+                      $periodPlayed = calctime($pt_stats[$pid]['period_played'] ?? 0);
+                      $periodTotal = calctime($pt_stats[$pid]['period_available'] ?? 0);
+                      $pctPeriodHtml = "<span title=\"Speeltijd: {$periodPlayed} / {$periodTotal}\" data-bs-toggle=\"tooltip\" style=\"cursor:help; border-bottom:1px dotted #ccc;\">{$pctPeriodField}</span>";
+                      $rowHtml .= "<td class='py-0 text-center border-end'>{$pctPeriodHtml}</td>";
+                  }
+                  $rowHtml .= "<td class='py-0 text-center border-end'>{$seasonHtml}</td>";
+                  
+                  foreach ($playPositions as $pos) {
+                      $posPct = 0;
+                      $posTimeStr = "";
+                      if (isset($pt_stats[$pid]['positions'][$pos]['percentage'])) {
+                          $posPct = $pt_stats[$pid]['positions'][$pos]['percentage'];
+                          $posTimeStr = calctime($pt_stats[$pid]['positions'][$pos]['time'] ?? 0);
+                      }
+                      
+                      if ($posPct > 0) {
+                          $inner = number_format($posPct, 0) . '%';
+                          if ($pos == 1) $inner = '<span class="text-warning fw-bold">' . $inner . '</span>';
+                          $posHtml = '<span title="Gespeeld: ' . htmlspecialchars($posTimeStr) . '" data-bs-toggle="tooltip" style="cursor:help; border-bottom:1px dotted #ccc;">' . $inner . '</span>';
+                      } else {
+                          $posHtml = '<span class="text-muted">-</span>';
+                      }
+                      $rowHtml .= "<td class='py-0 text-center'>{$posHtml}</td>";
+                  }
+                  
+                  $rowHtml .= "</tr>";
+                  $gkRatioHtml .= $rowHtml;
+              }
+              $gkRatioHtml .= '</table></div></div>';
               
               // Group AI results by mins_game
               $aiMinsGroups = [];
@@ -339,7 +331,7 @@
           ?>
               <div class="card mb-4 border-info shadow-sm d-print-none" style="border-width: 2px;">
                   <div class="card-header bg-info text-white fw-bold d-flex align-items-center py-2" style="font-size: 0.9rem; cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#fairshiftCollapse" aria-expanded="true">
-                      <i class="fa-solid fa-lightbulb text-warning me-2"></i> FairShift Pre-Game Analyse
+                      <i class="fa-solid fa-lightbulb text-light me-2"></i> EqualPlay Pre-Game Analyse
                       <i class="fa-solid fa-chevron-down ms-auto"></i>
                   </div>
                   <div class="collapse show" id="fairshiftCollapse">
@@ -348,11 +340,11 @@
                               <!-- Linker kolom: Wiskunde & Huidige match -->
                               <div class="col-md-6">
                                   <div class="mb-2 p-1 px-2 bg-white rounded border">
-                                      <p class="mb-1" style="font-size: 0.75rem; line-height: 1.2;"><i class="fa-solid fa-calculator text-muted me-1"></i><strong>Wiskunde</strong> (<?= $numFieldPlayers ?> spelers, <?= $numFieldPositions ?> posities):</p>
+                                      <p class="mb-1" style="font-size: 0.75rem; line-height: 1.2;"><i class="fa-solid fa-calculator text-muted me-1"></i><strong><?= htmlspecialchars($search_format) ?></strong> <span class="text-muted mx-1">|</span> <i class="fa-solid fa-users text-secondary me-1"></i><?= $numFieldPlayers ?> veldspelers <span class="text-muted mx-1">|</span> <i class="fa-solid fa-street-view text-secondary me-1"></i><?= $numFieldPositions ?> posities<?= ($gk_count === 0 ? ' <span class="text-muted mx-1">|</span> <span class="text-primary fw-bold"><i class="fa-solid fa-hands-bubbles ms-1"></i> Roterende Doelman</span>' : '') ?>:</p>
                                       <?php if ($players_extra > 0): ?>
                                       <ul class="mb-0 text-dark" style="font-size: 0.75rem; line-height: 1.2; padding-left: 20px;">
-                                          <li><strong><?= $players_extra ?> spelers</strong>: <?= $extra_mins ?>m (<?= $base_blocks + 1 ?>x)</li>
-                                          <li><strong><?= $players_base ?> spelers</strong>: <?= $base_mins ?>m (<?= $base_blocks ?>x)</li>
+                                          <li><strong><?= $players_extra ?> spelers</strong>: <?= $extra_mins ?>m</li>
+                                          <li><strong><?= $players_base ?> spelers</strong>: <?= $base_mins ?>m</li>
                                       </ul>
                                       <?php else: ?>
                                       <p class="mb-0 text-success fw-bold" style="font-size: 0.75rem;"><i class="fa-solid fa-check-circle me-1"></i>Alle spelers spelen exact <?= $base_mins ?>m.</p>
@@ -360,12 +352,6 @@
                                   </div>
                                   
                                   <div class="d-flex flex-column gap-1 mb-2">
-                                      <div class="d-flex align-items-center p-1 px-2 bg-white rounded border">
-                                          <div class="form-check form-switch mb-0 w-100 d-flex justify-content-between align-items-center">
-                                              <label class="form-check-label small fw-bold text-dark mb-0" style="font-size: 0.75rem;" for="toggleCompensateFairshift">Compenseer speeltijd vorige match?</label>
-                                              <input class="form-check-input ms-2" style="transform: scale(0.8); margin-top:0;" type="checkbox" id="toggleCompensateFairshift" value="1" <?= $compensate ? 'checked' : '' ?> onchange="window.location.href='?generate=1&dynamic=1<?= $use_period ? '&use_period=1' : '' ?>&compensate=' + (this.checked ? '1' : '0')">
-                                          </div>
-                                      </div>
                                       <div class="d-flex flex-wrap gap-1">
                                           <?php if (isset($_GET['dynamic']) && $_GET['dynamic'] == 1 && $gk_count === 0): ?>
                                           <div class="d-flex align-items-center p-1 px-2 bg-white rounded border flex-grow-1">
@@ -385,7 +371,7 @@
                                   </div>
                                   
                                   <?php if ($players_extra > 0): ?>
-                                  <p class="mb-2 mt-2 fw-bold" style="font-size: 0.8rem;"><i class="fa-solid fa-robot text-success me-1"></i> FairShift Indeling:</p>
+                                  <p class="mb-2 mt-2 fw-bold" style="font-size: 0.8rem;"><i class="fa-solid fa-robot text-success me-1"></i> EqualPlay Indeling:</p>
                                   <?php 
                                   $is_first = true;
                                   foreach ($aiMinsGroups as $mins => $names): 
@@ -401,11 +387,16 @@
                                   <?php endif; ?>
                                   
                                   <?= $lastMatchHtml ?>
-                                  <?= $statsBasisHtml ?>
                               </div>
                               
                               <!-- Rechter kolom: Historiek en Vorige Wedstrijden -->
                               <div class="col-md-6">
+                                  <div class="d-flex align-items-center p-1 px-2 bg-white rounded border mb-2">
+                                      <div class="form-check form-switch mb-0 w-100 d-flex justify-content-between align-items-center">
+                                          <label class="form-check-label small fw-bold text-dark mb-0" style="font-size: 0.75rem;" for="toggleCompensateFairshift">Compenseer speeltijd vorige match?</label>
+                                          <input class="form-check-input ms-2" style="transform: scale(0.8); margin-top:0;" type="checkbox" id="toggleCompensateFairshift" value="1" <?= $compensate ? 'checked' : '' ?> onchange="window.location.href='?generate=1&dynamic=1<?= $use_period ? '&use_period=1' : '' ?>&compensate=' + (this.checked ? '1' : '0')">
+                                      </div>
+                                  </div>
                                   <?php if ($activePeriod): ?>
                                   <div class="d-flex align-items-center p-1 px-2 bg-white rounded border mb-2">
                                       <div class="form-check form-switch mb-0 w-100 d-flex justify-content-between align-items-center">
@@ -414,6 +405,7 @@
                                       </div>
                                   </div>
                                   <?php endif; ?>
+                                  <?= $statsBasisHtml ?>
                                   <?= $gkRatioHtml ?>
                               </div>
                           </div>
@@ -458,7 +450,7 @@
               ?>
                   <li class="nav-item d-print-none" role="presentation">
                       <button class="btn btn-sm btn-outline-success ms-3 mt-1" onclick='savePreselection(this, <?= json_encode((int)$gameId) ?>, <?= json_encode($selected['ws_id'] ?? 0) ?>, <?= json_encode(implode(',', array_keys($lineup->playerindex))) ?>, <?= json_encode((float)($t_opt['rating'] ?? 0)) ?>, <?= json_encode($namen_tonen_str) ?>, <?= $dynamic_json_str ?>)'>
-                          <i class="fa-solid fa-floppy-disk"></i> Bewaar FairShift Schema in Voorselecties
+                          <i class="fa-solid fa-floppy-disk"></i> Bewaar EqualPlay Schema in Voorselecties
                       </button>
                   </li>
               <?php else: 
@@ -531,34 +523,27 @@
       ?>
       <div class="tab-pane fade <?= $tab_idx == 0 ? 'show active d-print-block' : 'd-print-none' ?>" id="tab-pane-<?= $tab_idx ?>" role="tabpanel" tabindex="0">
       
-      <?php if (!defined('PUBLIC_SHARE_MODE')): ?>
-      <?php if ($shuffle_type !== 'coach'): ?>
-          <?php if (!$locked_lineup): 
-              $namen_tonen_str = implode(", ", array_map('getPlayerName', array_keys($lineup->playerindex)));
-          ?>
-          <div class="d-print-none text-center mb-4 mt-2">
-              <button class="btn btn-sm btn-outline-success" onclick='savePreselection(this, <?= json_encode((int)$gameId) ?>, <?= json_encode($selected['ws_id'] ?? 0) ?>, <?= json_encode(implode(',', array_keys($lineup->playerindex))) ?>, <?= json_encode((float)($t_opt['rating'] ?? 0)) ?>, <?= json_encode($namen_tonen_str) ?>)'>
-                  <i class="fa-solid fa-floppy-disk"></i> Bewaar #<?= $tab_idx + 1 ?> in Voorselecties
-              </button>
-              <?php if (Permissions::hasPermission(Permissions::PERM_USE_THEORY_WIZARD)): ?>
-              <a href="/schema_editor?game_id=<?= $gameId ?>&schema_id=<?= $selected['ws_id'] ?>&volgorde=<?= urlencode(implode(',', array_keys($lineup->playerindex))) ?>" class="btn btn-sm btn-outline-warning ms-2">
-                  <i class="fa-solid fa-pen-ruler"></i> Bewerk dit Schema
-              </a>
+      <div class="d-print-none text-center mb-4 mt-3">
+          <button type="button" class="btn btn-sm btn-outline-info shadow-sm fw-bold" onclick="document.getElementById('posities-<?= $tab_idx ?>').scrollIntoView({behavior: 'smooth'})">
+              <i class="fa-solid fa-clock-rotate-left me-1"></i> Bekijk Positieverdeling
+          </button>
+          
+          <?php if (!defined('PUBLIC_SHARE_MODE') && !$locked_lineup): ?>
+              <?php if ($shuffle_type !== 'coach'): 
+                  $namen_tonen_str = implode(", ", array_map('getPlayerName', array_keys($lineup->playerindex)));
+              ?>
+                  <button class="btn btn-sm btn-outline-success ms-2 shadow-sm" onclick='savePreselection(this, <?= json_encode((int)$gameId) ?>, <?= json_encode($selected['ws_id'] ?? 0) ?>, <?= json_encode(implode(',', array_keys($lineup->playerindex))) ?>, <?= json_encode((float)($t_opt['rating'] ?? 0)) ?>, <?= json_encode($namen_tonen_str) ?>)'>
+                      <i class="fa-solid fa-floppy-disk"></i> Bewaar #<?= $tab_idx + 1 ?> in Voorselecties
+                  </button>
               <?php endif; ?>
-          </div>
-          <?php endif; ?>
-      <?php else: ?>
-          <?php if (!$locked_lineup): ?>
-          <div class="d-print-none text-center mb-4 mt-2">
+              
               <?php if (Permissions::hasPermission(Permissions::PERM_USE_THEORY_WIZARD)): ?>
-              <a href="/schema_editor?game_id=<?= $gameId ?>&schema_id=<?= $selected['ws_id'] ?>&volgorde=<?= urlencode(implode(',', array_keys($lineup->playerindex))) ?>" class="btn btn-sm btn-outline-warning">
-                  <i class="fa-solid fa-pen-ruler"></i> Bewerk Huidig Schema
-              </a>
+                  <a href="/schema_editor?game_id=<?= $gameId ?>&schema_id=<?= $selected['ws_id'] ?>&volgorde=<?= urlencode(implode(',', array_keys($lineup->playerindex))) ?>" class="btn btn-sm btn-outline-warning ms-2 shadow-sm">
+                      <i class="fa-solid fa-pen-ruler"></i> Bewerk <?= $shuffle_type !== 'coach' ? 'dit' : 'Huidig' ?> Schema
+                  </a>
               <?php endif; ?>
-          </div>
           <?php endif; ?>
-      <?php endif; ?>
-      <?php endif; // End PUBLIC_SHARE_MODE ?>
+      </div>
       
       <?php
     
@@ -781,17 +766,7 @@
                         }
                         echo "</ul>";
                         
-                        // Bepaal wie er op het veld blijft staan
-                        $blijven_staan = [];
-                        foreach ($game["lineup"] as $pos => $pid) {
-                            // Als speler niet in de 'in' array van wissels zit, stond hij er vorige shift ook al
-                            if (!in_array($pid, $game["subs"]["in"])) {
-                                $blijven_staan[] = "<strong>" . getPlayerName($pid) . "</strong>";
-                            }
-                        }
-                        if (count($blijven_staan) > 0) {
-                            echo "<div class='small text-muted mt-1'><i class='fa-solid fa-anchor me-1'></i>Blijven staan: " . implode(', ', $blijven_staan) . "</div>";
-                        }
+                        // (Code voor 'blijven staan' verwijderd)
                       
                         if (array_key_exists($game_idx+1,$lineup->events) && array_key_exists("subs",$lineup->events[$game_idx+1])){
                           $next_bench = $lineup->events[$game_idx+1]["subs"]["out"];
@@ -943,7 +918,10 @@
         ?>
       
         </div>
-        <div class="timetable row mt-4 do_not_break <?php echo !$show_position_stats ? 'new-print-page' : ''; ?>">
+        <div class="timetable row mt-4 do_not_break pt-4 <?php echo !$show_position_stats ? 'new-print-page' : ''; ?>" id="posities-<?= $tab_idx ?>">
+          <div class="col-12 d-print-none text-end mb-2">
+              <a href="javascript:void(0)" onclick="window.scrollTo({top: 0, behavior: 'smooth'})" class="text-decoration-none small text-muted"><i class="fa-solid fa-arrow-up"></i> Terug naar schema</a>
+          </div>
           <?php
           
           $offset_class = "";
@@ -1341,66 +1319,25 @@
     </pre>
 <?php } ?>
 
-  
+<?php 
+// Log View Usage if we didn't just generate something heavy
+if (!isset($should_log_usage) || !$should_log_usage) {
+    if (!defined('PUBLIC_SHARE_MODE') && isset($_SESSION['user_id'])) {
+        $gen_time_ms = round((microtime(true) - $_SERVER["REQUEST_TIME_FLOAT"]) * 1000);
+        $penalty_seconds = floor($gen_time_ms / 1000); 
+        $mem_peak_mb = memory_get_peak_usage() / 1024 / 1024;
+        $penalty_memory = floor($mem_peak_mb / 2);
+        
+        $baseCost = 1; // View cost is just 1
+        $loadPenalty = ($penalty_seconds * 1) + $penalty_memory;
+        $finalCost = $baseCost + $loadPenalty;
+        
+        $pdo->prepare("INSERT INTO usage_logs (user_id, team_id, action_type, cost_weight) VALUES (?, ?, 'lineup_view', ?)")
+            ->execute([$_SESSION['user_id'] ?? 0, $_SESSION['team_id'] ?? 0, $finalCost]);
+    }
+}
+?>
+
 <?php require_once dirname(__DIR__, 2) . '/footer.php'; ?>
 
 <!-- Generate Modal -->
-<div class="modal fade" id="generateModal" tabindex="-1" aria-labelledby="generateModalLabel" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-centered">
-    <div class="modal-content">
-      <div class="modal-header bg-primary text-white">
-        <h5 class="modal-title" id="generateModalLabel"><i class="fa-solid fa-wand-magic-sparkles me-2"></i>Opstelling Genereren</h5>
-        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Sluiten"></button>
-      </div>
-      <div class="modal-body">
-        <p>Kies hoe je nieuwe opstellingen wilt genereren. We kunnen putten uit <strong>bestaande sjablonen</strong> (snel & betrouwbaar) of een <strong>compleet nieuw schema</strong> berekenen op maat van deze specifieke wedstrijd (dynamisch).</p>
-        
-        <div class="d-grid gap-3">
-          <!-- Optie 1: Klassiek Database Sjablonen -->
-          <a href="<?= build_url($base_url, ['wedstrijd' => $gameId, 'generate' => 1]) ?>" class="btn btn-outline-primary text-start p-3 position-relative">
-            <h6 class="mb-1"><i class="fa-solid fa-database me-2"></i>Bestaande Database Sjablonen</h6>
-            <small class="text-muted">Gebruikt de opgeslagen matrixen uit de instellingen en zoekt de beste posities. (Standaard)</small>
-          </a>
-
-          <hr class="my-1">
-
-          <!-- Optie 2: Dynamisch -->
-          <div class="card border-warning">
-            <div class="card-body">
-                <h6 class="mb-2 text-dark"><i class="fa-solid fa-bolt text-warning me-2"></i>Dynamisch Schema (AI Solver)</h6>
-                <p class="small text-muted mb-3">Bouwt een matrix <em>from scratch</em> met gegarandeerd gelijke speelminuten en zonder dubbele bankzitters, aangepast aan speelhistoriek.</p>
-                <form method="GET" action="<?= htmlspecialchars($base_url) ?>">
-                    <input type="hidden" name="wedstrijd" value="<?= $gameId ?>">
-                    <input type="hidden" name="generate" value="1">
-                    <input type="hidden" name="dynamic" value="1">
-                    
-                    <div class="mb-3">
-                        <label class="form-label small fw-bold">Wisselpatroon:</label>
-                        <select name="pattern" class="form-select form-select-sm border-warning bg-light">
-                            <?php foreach($patterns as $key => $pattern): ?>
-                                <option value="<?= htmlspecialchars($key) ?>" <?= $key === $selected_pattern_key ? 'selected' : '' ?>>
-                                    <?= htmlspecialchars($pattern['name']) ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                    
-                    <?php if ($hasActivePeriod): ?>
-                    <div class="form-check form-switch mb-3">
-                        <input class="form-check-input" type="checkbox" role="switch" id="usePeriodToggle" name="use_period" value="1" checked>
-                        <label class="form-check-label small fw-bold" for="usePeriodToggle">Neem de huidige beoordelingsperiode mee in de weging</label>
-                    </div>
-                    <?php endif; ?>
-                    
-                    <button type="submit" class="btn btn-warning fw-bold text-dark w-100">
-                        <i class="fa-solid fa-rocket me-2"></i>Genereer Dynamisch
-                    </button>
-                </form>
-            </div>
-          </div>
-          
-        </div>
-      </div>
-    </div>
-  </div>
-</div>

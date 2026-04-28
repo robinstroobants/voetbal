@@ -145,11 +145,12 @@
           $preview_lineup = $active_lineup; // Behandel het in de UI als een preview
       }
       
-      // LOG USAGE (AI Generation Load)
-      if ($generate_requested && !isset($_SESSION["logged_generation_$gameId"])) {
-          $pdo->prepare("INSERT INTO usage_logs (user_id, team_id, action_type, cost_weight) VALUES (?, ?, 'ai_generation', 10)")
-              ->execute([$_SESSION['user_id'] ?? 0, $_SESSION['team_id'] ?? 0]);
-          $_SESSION["logged_generation_$gameId"] = true; // Prevent F5 refresh double-billing for the same session loop
+      // BEREID LOGGING VOOR (Dynamische prijs o.b.v. executietijd)
+      $dynKey = isset($_GET['dynamic']) && $_GET['dynamic'] == 1 ? 'dyn' : 'pro';
+      $should_log_usage = false;
+      if ($generate_requested && !isset($_SESSION["logged_generation_{$gameId}_{$dynKey}"])) {
+          $should_log_usage = true;
+          $generation_start_timer = microtime(true);
       }
 
       if ($active_lineup) {
@@ -245,6 +246,7 @@
                               $current_start += ($seconds_per_block / 60);
                           }
                       }
+                      unset($part);
                   }
               }
               
@@ -289,7 +291,7 @@
                   
                   if (!empty($filtered_schemas)) {
                       $beschikbare_schemas = $filtered_schemas;
-                  } else {
+                  } elseif ($shuffle_type !== 'coach') {
                       echo "<div style='padding:20px; background:#f8d7da; border:1px solid #f5c6cb; color:#721c24; margin:15px; border-radius:5px;'>";
                       echo "<h4>⚠️ Geen Wisselschemas Voldoen Aan De Regels</h4>";
                       echo "Geen enkel opgeslagen wisselschema kan <strong>minimaal " . $min_pos_requirement . " posities per speler</strong> garanderen voor het algoritme. Verlaag de vereiste in 'Wedstrijd Bewerken'.<br/>";
@@ -300,7 +302,7 @@
               }
           } else {
               $wisselschema_meta = []; // Fallback initialization
-              if (!isset($dynamic_schema_parts)) {
+              if (!isset($dynamic_schema_parts) && $shuffle_type !== 'coach') {
                   echo "<div style='padding:20px; background:#fff3cd; border:1px solid #ffeeba; color:#856404; margin:15px; border-radius:5px;'>";
                   echo "<h4>⚠️ Beperkte / Te kleine selectie</h4>";
                   echo "Geen rekenkundig wisselschema gevonden voor formaat <strong>" . htmlspecialchars($format) . "</strong> met <strong>" . $aantal . " spelers</strong>.<br/>";
@@ -591,6 +593,7 @@
                               $current_start += ($seconds_per_block / 60);
                           }
                       }
+                      unset($part);
                   }
               }
               $events[$format][count($list_of_players)] = $schema_parts;
@@ -989,5 +992,35 @@
   // - Per wedstrijddeel een tabel met de opstelling
   // - Per speler een overzicht van speelminuten per positie
   // - (Optioneel) Geboortedata, speelminuten vorige week, statistieken per kwartaal/jaar
+
+  // ------------------------------------------------------------
+  // FINALIZE DYNAMIC USAGE LOGGING
+  // ------------------------------------------------------------
+  if (isset($should_log_usage) && $should_log_usage && isset($generation_start_timer)) {
+      $gen_time_ms = round((microtime(true) - $generation_start_timer) * 1000);
+      $penalty_seconds = floor($gen_time_ms / 1000); // Volledige secondes
+      
+      $mem_peak_mb = memory_get_peak_usage() / 1024 / 1024;
+      $penalty_memory = floor($mem_peak_mb / 2); // +1 cost per 2 MB geheugen
+      
+      if ($dynKey === 'dyn') {
+          $actionType = 'equalplay_ai';
+          $baseCost = 3;
+          // EqualPlay is wiskundig maar geen zware query loop. Straf: +1 per extra seconde
+          $loadPenalty = ($penalty_seconds * 1) + $penalty_memory;
+      } else {
+          $actionType = 'prolineup_ai';
+          $baseCost = 1;
+          // ProLineup is zeer zwaar (honderden queries). Straf: +2 per extra seconde
+          $loadPenalty = ($penalty_seconds * 2) + $penalty_memory;
+      }
+      
+      $finalCost = $baseCost + $loadPenalty;
+      
+      $pdo->prepare("INSERT INTO usage_logs (user_id, team_id, action_type, cost_weight) VALUES (?, ?, ?, ?)")
+          ->execute([$_SESSION['user_id'] ?? 0, $_SESSION['team_id'] ?? 0, $actionType, $finalCost]);
+          
+      $_SESSION["logged_generation_{$gameId}_{$dynKey}"] = true;
+  }
 
   ?>

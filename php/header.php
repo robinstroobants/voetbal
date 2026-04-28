@@ -48,7 +48,7 @@ header("Expires: 0"); // Proxies blockeren
 </head>
 <body class="bg-light pb-5">
     <?php if (isset($_SESSION['original_user_id'])): ?>
-    <div class="alert alert-warning text-center fw-bold py-2 mb-0 rounded-0 border-bottom border-warning shadow-sm sticky-top d-print-none" style="z-index: 1050;">
+    <div class="alert alert-warning text-center fw-bold py-2 mb-0 rounded-0 border-bottom border-warning shadow-sm d-print-none" style="z-index: 1050;">
         <i class="fa-solid fa-user-secret me-2"></i> Je bent actief als coach: <span class="text-dark bg-white px-2 py-1 rounded ms-1 border border-warning shadow-sm"><?= htmlspecialchars($_SESSION['impersonated_first_name'] ?? 'Coach') ?></span>
         <a href="/admin/impersonate?action=stop" class="btn btn-danger btn-sm ms-3 fw-bold rounded-pill shadow-sm"><i class="fa-solid fa-right-from-bracket me-1"></i> Terug naar Beheerders-weergave</a>
     </div>

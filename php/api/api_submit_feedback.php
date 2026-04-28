@@ -38,8 +38,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $userId = $_SESSION['user_id'] ?? null;
     $teamId = $_SESSION['team_id'] ?? null;
-    $firstName = $_SESSION['first_name'] ?? 'Onbekend';
     $teamName = $_SESSION['team_name'] ?? 'Onbekend';
+    $parentEmail = $data['parentEmail'] ?? null;
+    
+    // Haal voornaam op uit database in plaats van session
+    $firstName = 'Onbekend';
+    if ($parentEmail) {
+        $firstName = 'Ouder (' . $parentEmail . ')';
+    } elseif ($userId) {
+        $stmtU = $pdo->prepare("SELECT first_name, last_name FROM users WHERE id = ?");
+        $stmtU->execute([$userId]);
+        $userRow = $stmtU->fetch(PDO::FETCH_ASSOC);
+        if ($userRow) {
+            $firstName = trim($userRow['first_name'] . ' ' . $userRow['last_name']);
+        }
+    }
 
     // Opslaan in database
     $stmt = $pdo->prepare("INSERT INTO user_feedback (user_id, team_id, feedback_type, description, url, user_agent) VALUES (?, ?, ?, ?, ?, ?)");
@@ -62,6 +75,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         ini_get('error_log'),
         dirname(__DIR__) . '/error_log',
         dirname(__DIR__) . '/php_errorlog',
+        '/Applications/XAMPP/logs/php_error_log',
+        '/Applications/MAMP/logs/php_error.log',
         '/var/log/php-fpm/error.log',
         '/var/log/apache2/error.log',
         '/var/log/nginx/error.log'

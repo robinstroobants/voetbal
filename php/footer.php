@@ -90,7 +90,7 @@
         });
     </script>
 
-    <?php if (isset($_SESSION['user_id']) && !defined('PUBLIC_SHARE_MODE')): ?>
+    <?php // Feedback button nu zichtbaar voor iedereen (ook parents in PUBLIC_SHARE_MODE) ?>
     <!-- Feedback Floating Button -->
     <button class="btn btn-warning rounded-circle shadow-lg position-fixed d-print-none" 
             style="bottom: 20px; right: 20px; width: 60px; height: 60px; z-index: 1050; border: 3px solid white;"
@@ -161,6 +161,9 @@
                 url: window.location.href,
                 userAgent: navigator.userAgent
             };
+            if (localStorage.getItem('parent_email')) {
+                payload.parentEmail = localStorage.getItem('parent_email');
+            }
             
             fetch('/api/submit_feedback', {
                 method: 'POST',
@@ -193,7 +196,7 @@
             });
         }
     </script>
-    <?php endif; ?>
+    <?php // Einde feedback blok ?>
 
 </body>
 </html>

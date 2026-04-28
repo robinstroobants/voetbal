@@ -547,9 +547,9 @@
               }
               echo "<h5>Wedstrijd $game_counter &middot; " . $game_titles[$wedstrijd][$game_counter]["title"] . " <small>(" . $game_titles[$wedstrijd][$game_counter]["info"] . ")</small></h5>";  
             } else {
-              $first_event_idx = $game_parts[0];
-              if (!empty($game_block_labels[$first_event_idx])) {
-                  echo "<h5>" . htmlspecialchars($game_block_labels[$first_event_idx]) . "</h5>";
+              $block_idx = $game_counter - 1;
+              if (!empty($game_block_labels[$block_idx])) {
+                  echo "<h5>" . htmlspecialchars($game_block_labels[$block_idx]) . "</h5>";
               } else {
                   echo "<h5>Wedstrijd $game_counter</h5>";
               }

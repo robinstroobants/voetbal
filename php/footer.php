@@ -90,10 +90,12 @@
         });
     </script>
 
-    <?php // Feedback button nu zichtbaar voor iedereen (ook parents in PUBLIC_SHARE_MODE) ?>
+    <?php // Feedback button nu zichtbaar voor iedereen (ook parents in PUBLIC_SHARE_MODE)
+    $feedback_bottom_offset = defined('PUBLIC_SHARE_MODE') ? '90px' : '20px'; 
+    ?>
     <!-- Feedback Floating Button -->
     <button class="btn btn-warning rounded-circle shadow-lg position-fixed d-print-none" 
-            style="bottom: 20px; right: 20px; width: 60px; height: 60px; z-index: 1050; border: 3px solid white;"
+            style="bottom: <?= $feedback_bottom_offset ?>; right: 20px; width: 60px; height: 60px; z-index: 1050; border: 3px solid white;"
             data-bs-toggle="modal" data-bs-target="#feedbackModal" title="Meld een Bug of Geef Feedback">
         <i class="fa-solid fa-bug fs-4 text-dark"></i>
     </button>

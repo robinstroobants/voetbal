@@ -720,6 +720,12 @@ document.addEventListener("DOMContentLoaded", function() {
             return;
         }
         tournamentLabelsContainer.style.display = 'block';
+        
+        // Sla huidige waarden op (zodat we getypte tekst niet kwijtraken)
+        let currentValues = [];
+        const existingInputs = tournamentLabelsContainer.querySelectorAll('input');
+        existingInputs.forEach(input => currentValues.push(input.value));
+        
         tournamentLabelsContainer.innerHTML = '';
         
         const formatSelect = document.getElementById('modal_game_parts');
@@ -732,7 +738,15 @@ document.addEventListener("DOMContentLoaded", function() {
         for (let i = 0; i < numBlocks; i++) {
             let col = document.createElement('div');
             col.className = 'col-md-6';
-            let val = (window.existingTournamentLabels && window.existingTournamentLabels[i]) ? window.existingTournamentLabels[i] : '';
+            
+            let val = '';
+            if (currentValues[i] !== undefined) {
+                val = currentValues[i]; // behoud wat net getypt werd
+            } else if (window.existingTournamentLabels && window.existingTournamentLabels[i]) {
+                val = window.existingTournamentLabels[i]; // behoud wat uit de db kwam
+            }
+            val = val.replace(/"/g, '&quot;');
+            
             col.innerHTML = `
                 <label class="form-label text-muted small fw-bold mb-1">Naam Wedstrijd ${i + 1}</label>
                 <input type="text" class="form-control form-control-sm" name="block_labels[${i}]" value="${val}" placeholder="Bv. Wedstrijd ${i + 1}">
@@ -741,6 +755,8 @@ document.addEventListener("DOMContentLoaded", function() {
         }
         tournamentLabelsContainer.appendChild(labelsRow);
     };
+    
+    document.getElementById('modal_game_parts').addEventListener('change', window.updateTournamentLabels);
     
     window.tournamentManuallyToggled = false;
     isTournamentCheckbox.addEventListener('change', function() {

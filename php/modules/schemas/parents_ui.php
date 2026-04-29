@@ -226,10 +226,10 @@ if ($matchStarted) {
                 <button class="btn btn-primary fw-bold shadow-sm flex-fill" onclick="openEventModal('goal')">⚽ Goal</button>
                 <button class="btn btn-danger fw-bold shadow-sm flex-fill" onclick="openEventModal('opp_goal')">🥅 Tegengoal</button>
             </div>
+            <hr class="w-100 my-1 text-muted">
+            <h6 class="text-start fw-bold text-muted w-100 mb-0" style="font-size: 0.85rem;"><i class="fa-solid fa-list-check me-1"></i> Wedstrijdverloop</h6>
+            <div id="liveEventsFeed" class="w-100 pb-1"></div>
         </div>
-        
-        <h6 class="text-center fw-bold text-muted mt-2 mb-3"><i class="fa-solid fa-clock-rotate-left me-1"></i> Laatste Acties</h6>
-        <div id="liveEventsFeed" class="w-100 pb-4"></div>
         
     </div>
     <div class="tab-pane fade" id="tab-lineup" role="tabpanel">

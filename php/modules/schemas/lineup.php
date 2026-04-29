@@ -84,7 +84,7 @@
           </a>
       </div>
       <?php else: ?>
-          <h4 class="mb-4 mt-3 text-center" id="dynamic-page-title">
+          <h4 class="mb-2 mt-2 text-center" id="dynamic-page-title">
               <i class="fa-solid fa-futbol me-2 text-primary"></i> <?= htmlspecialchars($matchData['game']['opponent'] ?? 'Opstelling') ?>
           </h4>
       <?php endif; ?>
@@ -490,7 +490,7 @@
       <?php endif; ?>
       
       <?php if (!empty($top_selected_options)): ?>
-      <div class="tab-content" id="lineupTabsContent">
+      <div class="tab-content <?php echo defined('PUBLIC_SHARE_MODE') ? '' : 'mt-3'; ?>" id="lineupTabsContent">
       <?php foreach ($top_selected_options as $tab_idx => $t_opt): 
           $lineup = $t_opt['team'];
           $selected = $t_opt;

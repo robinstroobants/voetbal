@@ -212,8 +212,8 @@ if ($matchStarted) {
 
 </style>
 
-<div class="container d-print-none mt-3 mb-4" id="parentsShareTabsContainer">
-  <ul class="nav nav-pills nav-fill bg-white p-1 rounded shadow-sm border mb-3" id="parentsTabs" role="tablist">
+<div class="d-print-none mt-1 mb-2 w-100" id="parentsShareTabsContainer">
+  <ul class="nav nav-pills nav-fill bg-white p-1 rounded shadow-sm border mb-2" id="parentsTabs" role="tablist">
     <li class="nav-item" role="presentation">
       <button class="nav-link active fw-bold text-dark border-0" data-bs-toggle="pill" data-bs-target="#tab-tracker" type="button" role="tab"><i class="fa-solid fa-stopwatch me-1"></i> Match Tracker</button>
     </li>
@@ -819,6 +819,6 @@ document.addEventListener("DOMContentLoaded", function() {
 
     if (matchStarted) {
         fetchLiveEvents();
-        setInterval(fetchLiveEvents, 5000); // Check every 5 seconds
+        setInterval(fetchLiveEvents, 30000); // Check every 30 seconds
     }
 </script>

@@ -831,6 +831,7 @@ function openGameModal(game = null, isDuplicate = false) {
     document.getElementById('modal_game_id').value = '';
     document.getElementById('modal_source_game_id').value = '';
     window.tournamentManuallyToggled = false;
+    document.getElementById('modal_tournament_labels').innerHTML = '';
     
     if (game && !isDuplicate) {
         document.getElementById('gameModalLabel').innerText = 'Wedstrijd Bewerken';

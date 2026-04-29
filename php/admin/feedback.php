@@ -1,5 +1,6 @@
 <?php
 $page_title = "Feedback & Bugs - Admin";
+require_once dirname(__DIR__) . '/core/getconn.php';
 require_once dirname(__DIR__) . '/header.php';
 
 // Verwerk status updates

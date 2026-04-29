@@ -41,6 +41,10 @@ header("Expires: 0"); // Proxies blockeren
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
 
+      <?php if (isset($_SESSION['user_id'])): ?>
+      gtag('set', 'user_properties', { 'coach_id': '<?= (string)$_SESSION['user_id'] ?>' });
+      <?php endif; ?>
+
       <?php 
       $gtag_config = [
           'page_path' => $_SERVER['REQUEST_URI'],

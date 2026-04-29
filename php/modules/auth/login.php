@@ -111,6 +111,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
+
+      <?php if (isset($_GET['logout']) && $_GET['logout'] == 1): ?>
+      gtag('set', { 'user_id': null });
+      gtag('set', 'user_properties', { 'coach_id': null });
+      <?php endif; ?>
       <?php 
       $gtag_config = [
           'page_path' => $_SERVER['REQUEST_URI'],

@@ -186,7 +186,7 @@ if ($searchTerm !== '') {
     $params = ["%$searchTerm%", "%$searchTerm%", "%$searchTerm%"];
 }
 
-$queryStr .= " ORDER BY t.id DESC LIMIT 10";
+$queryStr .= " ORDER BY total_usage DESC, t.id DESC LIMIT 10";
 
 $stmtTeams = $pdo->prepare($queryStr);
 $stmtTeams->execute($params);

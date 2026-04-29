@@ -13,7 +13,11 @@ $msg_success = '';
 
 if (isset($_GET['msg'])) {
     if ($_GET['msg'] === 'registered') {
-        $msg_success = "Je account is aangemaakt! We hebben een activatielink gestuurd naar je e-mailadres.";
+        if (isset($_GET['status']) && $_GET['status'] === 'pending') {
+            $msg_success = "Je account is succesvol geregistreerd! Omdat we in gesloten bèta zijn, ben je toegevoegd aan de wachtlijst. We sturen je een e-mail van zodra je account geactiveerd is om te testen.";
+        } else {
+            $msg_success = "Je account is aangemaakt! We hebben een activatielink gestuurd naar je e-mailadres.";
+        }
     } elseif ($_GET['msg'] === 'verified') {
         $msg_success = "Je e-mailadres is met succes geverifieerd. Je kan nu inloggen.";
     } elseif ($_GET['msg'] === 'password_reset') {

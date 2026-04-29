@@ -419,6 +419,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error) {
                 <p>Maak een gratis account aan om te starten.</p>
             <?php endif; ?>
         </div>
+        
+        <?php if (!$invited_team_id): ?>
+        <div style="background: #eef2ff; border: 1px solid #d0d7f5; color: #3b5998; padding: 12px; border-radius: 10px; font-size: 0.9rem; margin-bottom: 24px; text-align: center;">
+            <i class="fa-solid fa-circle-info me-1"></i> <strong>Lineup zit momenteel in gesloten bèta.</strong><br>Je kan je registreren, waarna je op de wachtlijst komt. We sturen je een seintje zodra je kan testen!
+        </div>
+        <?php endif; ?>
 
         <?php if ($error): ?>
             <div class="error"><?= htmlspecialchars($error) ?></div>

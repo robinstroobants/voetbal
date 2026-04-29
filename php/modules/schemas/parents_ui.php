@@ -737,9 +737,9 @@ document.addEventListener("DOMContentLoaded", function() {
             const el = document.createElement('div');
             el.className = 'live-event-toast shadow-sm d-flex justify-content-between align-items-center gap-2';
             
-            let text = e.event_minute + "' - ";
+            let text = e.event_minute + "' ";
             if (e.event_type === 'goal') {
-                text += '⚽ Goal door ' + (e.p1_first || 'Onbekend');
+                text += '⚽ ' + (e.p1_first || 'Onbekend');
                 if (e.p2_first) {
                     text += ' (' + e.p2_first + ')';
                 }

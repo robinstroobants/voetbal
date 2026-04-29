@@ -710,7 +710,7 @@ document.addEventListener("DOMContentLoaded", function() {
             if (!pid) { alert("Selecteer de speler die gescoord heeft."); return; }
             payload.player_id = pid;
             const assistPid = document.getElementById('assistPlayerId').value;
-            if (assistPid) { payload.assist_player_id = assistPid; }
+            if (assistPid) { payload.player_out_id = assistPid; }
         } else if (type === 'opp_goal') {
             // Niets extra nodig
         } else if (type === 'wissel') {

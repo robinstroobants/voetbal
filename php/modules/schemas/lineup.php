@@ -432,7 +432,7 @@
                   }
               ?>
                   <?php if (!defined('PUBLIC_SHARE_MODE')): ?>
-                  <li class="nav-item d-print-none" role="presentation">
+                  <li class="nav-item d-print-none" role="presentation" id="lineup-action-buttons">
                       <?php if ($can_unlock): ?>
                       <button class="btn btn-warning ms-3 btn-sm mt-1" onclick="unlockLineups(<?= $gameId ?>)">
                           <i class="fa-solid fa-lock-open"></i> Ontgrendel Wedstrijd
@@ -1289,6 +1289,16 @@
                 // titleDisplay.innerText = newTitle; // Laten we overgeslagen: de h5 titel blijft kort voor mobiele weergave
                 if (newTitle) {
                     document.title = newTitle; // Zet wel de document title up-to-date voor PDF generatie / Printing!
+                }
+                
+                var actionBtns = document.getElementById("lineup-action-buttons");
+                if (actionBtns) {
+                    var targetId = e.target.getAttribute("data-bs-target");
+                    if (targetId === "#tab-events") {
+                        actionBtns.style.display = "none";
+                    } else {
+                        actionBtns.style.display = "block";
+                    }
                 }
             });
         });

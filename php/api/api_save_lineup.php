@@ -124,9 +124,6 @@ try {
         // Unlock all lineups for generating mode
         $pdo->prepare("UPDATE game_lineups SET is_final = 0, finalized_by_user_id = NULL WHERE game_id = ?")->execute([$game_id]);
         
-        // Breek actieve share tokens
-        $pdo->prepare("UPDATE games SET share_token = NULL, share_expires_at = NULL WHERE id = ?")->execute([$game_id]);
-        
         require_once dirname(__DIR__, 1) . '/models/MatchManager.php';
         $mm = new MatchManager($pdo);
         $mm->syncGameLogs($game_id);

@@ -221,12 +221,8 @@ class MatchManager {
             $stmtClear = $this->pdo->prepare("DELETE FROM game_selections WHERE game_id = ?");
             $stmtClear->execute([$gameId]);
 
-            // Wis out-of-date opgeslagen schema-schemas die gekoppeld zijn aan de oude spelers samenstelling
-            if ($statusId == 2) {
-                // We deleten enkel schema-schemas als we effectief de 'Wedscheids Selectie' wijzigen
-                $stmtClearLineups = $this->pdo->prepare("DELETE FROM game_lineups WHERE game_id = ?");
-                $stmtClearLineups->execute([$gameId]);
-            }
+            // OUDE LOGICA: Verwijderde hier vroeger game_lineups als de selectie veranderde.
+            // NU BEHOUDEN WE ZE: zodat coaches een afwezige speler uit een bestaande opstelling kunnen slepen zonder alles te verliezen.
 
             // Insert new selection
             $stmtIns = $this->pdo->prepare("INSERT INTO game_selections (game_id, player_id, status_id, is_goalkeeper) VALUES (?, ?, ?, ?)");

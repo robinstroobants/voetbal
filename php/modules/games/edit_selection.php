@@ -66,10 +66,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     // Opslaan db status
     $manager->saveSelection($gameId, $allSelected, 2, $goalkeepers);
     
-    if ($selection_changed && $lineupsCount > 0) {
-        $pdo->prepare("DELETE FROM game_lineups WHERE game_id = ?")->execute([$gameId]);
-    }
-    
     // Redirect direct naar de opstellingengenerator na opslaan
     header("Location: /games/" . $gameId . "/schema");
     exit;

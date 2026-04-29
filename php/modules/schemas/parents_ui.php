@@ -621,6 +621,17 @@ document.addEventListener("DOMContentLoaded", function() {
             document.getElementById('eventModalTitle').innerText = '🔄 Wissel Menu';
             document.getElementById('goalPlayerSelect').style.display = 'none';
             document.getElementById('wisselMenu').style.display = 'block';
+            
+            // Update next block label in the modal
+            if (currentShiftIndex < shiftsData.length - 1) {
+                const nShift = shiftsData[currentShiftIndex + 1];
+                const shiftTitle = nShift.title || ('Blok ' + (nShift.index));
+                const el1 = document.getElementById('modalNextBlockName');
+                if (el1) el1.innerText = shiftTitle;
+                const el2 = document.getElementById('modalNextBlockBtnName');
+                if (el2) el2.innerText = shiftTitle;
+            }
+            
             populateDropdown('wisselPlayerInId', shift.bench, false);
             populateDropdown('wisselPlayerOutId', shift.pitch, true);
             
@@ -773,7 +784,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 if (e.p2_first) {
                     text += ' (' + e.p2_first + ')';
                 }
-            } else if (e.event_type === 'opp_goal' || e.event_type === 'tegengoal') {
+            } else if (e.event_type === 'opp_goal' || e.event_type === 'tegengoal' || !e.event_type || e.event_type.trim() === '') {
                 text += '🥅 Tegendoelpunt';
             } else if (e.event_type === 'substitution') {
                 text += '🔄 Wissel: ' + (e.p1_first || '?') + ' IN, ' + (e.p2_first || '?') + ' UIT';

@@ -65,6 +65,7 @@ foreach ($events as $ev) {
                                         break;
                                     case 'opp_goal':
                                     case 'tegengoal':
+                                    case '':
                                         $icon = 'fa-futbol'; $color = 'text-danger'; $bg = 'bg-danger-subtle';
                                         $title = 'Tegendoelpunt';
                                         $desc = 'De tegenstander heeft gescoord.';

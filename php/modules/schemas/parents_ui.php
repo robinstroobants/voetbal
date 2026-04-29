@@ -193,10 +193,18 @@ body {
 <div id="liveEventsFeed" class="d-print-none"></div>
 
 <div class="parents-bottom-bar d-print-none">
-    <div id="liveClockContainer" class="parents-clock-container">
+    <div id="liveClockContainer" class="parents-clock-container" style="flex: 1;">
         <?php if ($matchStarted): ?>
-            <div class="parents-block-label" id="currentBlockLabel">Blok <?= $currentShiftIndex + 1 ?> / <?= $totalBlocksCount ?></div>
-            <div class="parents-clock" id="liveClockDisplay">00:00</div>
+            <div class="d-flex align-items-center gap-3">
+                <div class="d-flex flex-column align-items-start">
+                    <div class="parents-block-label" id="currentBlockLabel">Blok <?= $currentShiftIndex + 1 ?> / <?= $totalBlocksCount ?></div>
+                    <div class="parents-clock" id="liveClockDisplay">00:00</div>
+                </div>
+                <div class="d-flex flex-column align-items-center">
+                    <div class="parents-block-label">Score</div>
+                    <div class="parents-clock text-primary border-primary bg-white" id="liveScoreDisplay">0 - 0</div>
+                </div>
+            </div>
         <?php else: ?>
             <button class="btn btn-sm btn-outline-primary fw-bold" onclick="startMatch()">▶ Start Match</button>
         <?php endif; ?>
@@ -244,8 +252,14 @@ body {
         <!-- Wie scoorde er? (Enkel) -->
         <div id="goalPlayerSelect" class="mb-3" style="display:none;">
             <label class="form-label fw-bold small text-primary">Wie heeft er gescoord?</label>
-            <select class="form-select mb-2" id="goalPlayerId">
+            <select class="form-select mb-3" id="goalPlayerId">
                 <option value="">Selecteer een speler...</option>
+                <!-- JS vult dit -->
+            </select>
+            
+            <label class="form-label fw-bold small text-info">Wie gaf de assist? (Optioneel)</label>
+            <select class="form-select mb-2" id="assistPlayerId">
+                <option value="">Geen assist / Onbekend</option>
                 <!-- JS vult dit -->
             </select>
         </div>
@@ -399,7 +413,11 @@ body {
 
     function populateDropdown(selectId, playersData, isPitch) {
         const sel = document.getElementById(selectId);
-        sel.innerHTML = '<option value="">Selecteer speler...</option>';
+        if (selectId === 'assistPlayerId') {
+            sel.innerHTML = '<option value="">Geen assist / Onbekend</option>';
+        } else {
+            sel.innerHTML = '<option value="">Selecteer speler...</option>';
+        }
         if (isPitch) {
             playersData.forEach(item => {
                 if (playerMap[item.id]) {
@@ -469,6 +487,7 @@ body {
             document.getElementById('goalPlayerSelect').style.display = 'block';
             document.getElementById('wisselMenu').style.display = 'none';
             populateDropdown('goalPlayerId', shift.pitch, true);
+            populateDropdown('assistPlayerId', shift.pitch, true);
         } else if (type === 'opp_goal') {
             document.getElementById('eventModalTitle').innerText = '🥅 Tegengoal Melden';
             document.getElementById('goalPlayerSelect').style.display = 'none';
@@ -519,6 +538,8 @@ body {
             const pid = document.getElementById('goalPlayerId').value;
             if (!pid) { alert("Selecteer de speler die gescoord heeft."); return; }
             payload.player_id = pid;
+            const assistPid = document.getElementById('assistPlayerId').value;
+            if (assistPid) { payload.assist_player_id = assistPid; }
         } else if (type === 'opp_goal') {
             // Niets extra nodig
         } else if (type === 'wissel') {
@@ -531,7 +552,7 @@ body {
             payload.event_type = 'substitution';
         }
 
-        sendApiEvent(payload.event_type, payload.event_minute, payload.player_id, payload.player_out_id);
+        sendApiEventObject(payload);
     }
 
     function sendApiEvent(eventType, eventMinute, playerId = null, playerOutId = null) {
@@ -545,7 +566,10 @@ body {
         };
         if (playerId) payload.player_id = playerId;
         if (playerOutId) payload.player_out_id = playerOutId;
+        sendApiEventObject(payload);
+    }
 
+    function sendApiEventObject(payload) {
         fetch('/api/api_game_events.php', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -583,6 +607,23 @@ body {
     function renderLiveEvents(events) {
         const feed = document.getElementById('liveEventsFeed');
         feed.innerHTML = '';
+        
+        let homeScore = 0;
+        let awayScore = 0;
+        
+        // Calculate score
+        events.forEach(e => {
+            if (e.event_type === 'goal') {
+                homeScore++;
+            } else if (e.event_type === 'opp_goal') {
+                awayScore++;
+            }
+        });
+        
+        const scoreDisplay = document.getElementById('liveScoreDisplay');
+        if (scoreDisplay) {
+            scoreDisplay.innerText = homeScore + ' - ' + awayScore;
+        }
         
         // Filter out non-display events and take the last 3
         const visibleEvents = events.filter(e => e.event_type !== 'match_start' && e.event_type !== 'period_start').slice(-3);

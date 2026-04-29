@@ -884,7 +884,7 @@
           if ($building_lineup && ($game_idx <= count($lineup->events)-1)){
             $last_bench_history = array_pop($lineup->bench_order_history);
             foreach($last_bench_history as $player_on_the_bench){
-              if (array_key_exists("pos",$lineup->playerinfo[$player_on_the_bench])){
+              if (isset($lineup->playerinfo[$player_on_the_bench]) && is_array($lineup->playerinfo[$player_on_the_bench]) && array_key_exists("pos",$lineup->playerinfo[$player_on_the_bench])){
                 $available_positions_for_player = $lineup->playerinfo[$player_on_the_bench]["pos"];
               } else {
                 // indien nog geen posities gedefinieerd dan is alles ok.
@@ -943,7 +943,7 @@
             $score_for_player = 0;
             $playertime_to_print[] = "\"" . $player ."\" => " . $lineup->total_playtime[$player];
             $available_positions_for_player = array();
-            if (array_key_exists("pos",$lineup->playerinfo[$player])){
+            if (isset($lineup->playerinfo[$player]) && is_array($lineup->playerinfo[$player]) && array_key_exists("pos",$lineup->playerinfo[$player])){
               $available_positions_for_player = $lineup->playerinfo[$player]["pos"];
             } else {
               // indien nog geen posities gedefinieerd dan is alles ok.

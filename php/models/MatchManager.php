@@ -210,7 +210,7 @@ class MatchManager {
     /**
      * Sla een nieuwe selectie op voor een wedstrijd, overschrijft de bestaande.
      */
-    public function saveSelection(int $gameId, array $playerIds, int $statusId, array $goalkeeperIds = []): bool {
+    public function saveSelection(int $gameId, array $playerIds, int $statusId, array $goalkeeperIds = [], bool $forceClearLineups = false): bool {
         $useTransaction = !$this->pdo->inTransaction();
         try {
             if ($useTransaction) {
@@ -221,8 +221,14 @@ class MatchManager {
             $stmtClear = $this->pdo->prepare("DELETE FROM game_selections WHERE game_id = ?");
             $stmtClear->execute([$gameId]);
 
-            // OUDE LOGICA: Verwijderde hier vroeger game_lineups als de selectie veranderde.
-            // NU BEHOUDEN WE ZE: zodat coaches een afwezige speler uit een bestaande opstelling kunnen slepen zonder alles te verliezen.
+            // Wis out-of-date opgeslagen schema-schemas die gekoppeld zijn aan de oude spelers samenstelling
+            if ($statusId == 2 && $forceClearLineups) {
+                // We deleten enkel schema-schemas als we effectief de 'Wedstrijd Selectie' wijzigen
+                // En we ontgrendelen the wedstrijd door is_final = 0 te forceren voor we deleten (safety check)
+                $this->pdo->prepare("UPDATE game_lineups SET is_final = 0, finalized_by_user_id = NULL WHERE game_id = ?")->execute([$gameId]);
+                $stmtClearLineups = $this->pdo->prepare("DELETE FROM game_lineups WHERE game_id = ?");
+                $stmtClearLineups->execute([$gameId]);
+            }
 
             // Insert new selection
             $stmtIns = $this->pdo->prepare("INSERT INTO game_selections (game_id, player_id, status_id, is_goalkeeper) VALUES (?, ?, ?, ?)");

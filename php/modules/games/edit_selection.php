@@ -63,8 +63,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         }
     }
     
-    // Opslaan db status
-    $manager->saveSelection($gameId, $allSelected, 2, $goalkeepers);
+    // Opslaan db status en geef aan of de selectie is gewijzigd (zodat schemas gewist worden)
+    $manager->saveSelection($gameId, $allSelected, 2, $goalkeepers, $selection_changed);
+    
+    // Als de selectie is gewijzigd en er waren lineups, synchroniseer de logs om oude minuten te wissen
+    if ($selection_changed && $lineupsCount > 0) {
+        $manager->syncGameLogs($gameId);
+    }
     
     // Redirect direct naar de opstellingengenerator na opslaan
     header("Location: /games/" . $gameId . "/schema");

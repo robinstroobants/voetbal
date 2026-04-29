@@ -211,60 +211,17 @@ foreach ($squad as $idx => $pid) {
 // Preload existing schema if requested
 $preload_shift_data = 'null';
 if (isset($_GET['schema_id']) && (int)$_GET['schema_id'] > 0) {
-    $stmtLoad = $pdo->prepare("SELECT l.schema_data, gl.player_order FROM lineups l JOIN game_lineups gl ON l.id = gl.schema_id WHERE l.id = ?");
+    $stmtLoad = $pdo->prepare("SELECT schema_data FROM lineups WHERE id = ?");
     $stmtLoad->execute([(int)$_GET['schema_id']]);
+    $db_schema = $stmtLoad->fetchColumn();
+    if ($db_schema) {
+        $preload_shift_data = $db_schema;
+    }
 } elseif (isset($_GET['preview']) && (int)$_GET['preview'] > 0) {
-    $stmtLoad = $pdo->prepare("SELECT l.schema_data, gl.player_order FROM lineups l JOIN game_lineups gl ON l.id = gl.schema_id WHERE gl.id = ?");
+    $stmtLoad = $pdo->prepare("SELECT schema_data FROM lineups WHERE id = (SELECT schema_id FROM game_lineups WHERE id = ?)");
     $stmtLoad->execute([(int)$_GET['preview']]);
-}
-
-if (isset($stmtLoad)) {
-    $res = $stmtLoad->fetch(PDO::FETCH_ASSOC);
-    if ($res && $res['schema_data']) {
-        $db_schema = $res['schema_data'];
-        $old_order_str = $res['player_order'] ?? '';
-        
-        if (!empty($old_order_str)) {
-            $old_order = explode(',', $old_order_str);
-            $new_order = array_values($squad);
-            
-            $sidx_map = [];
-            foreach ($old_order as $old_sidx => $pid) {
-                $new_sidx = array_search($pid, $new_order);
-                if ($new_sidx !== false) {
-                    $sidx_map[$old_sidx] = $new_sidx;
-                } else {
-                    $sidx_map[$old_sidx] = -1;
-                }
-            }
-            
-            $decoded = json_decode($db_schema, true);
-            if ($decoded && is_array($decoded)) {
-                foreach ($decoded as &$shift) {
-                    if (isset($shift['lineup'])) {
-                        foreach ($shift['lineup'] as $pos => $old_sidx) {
-                            $new_sidx = $sidx_map[(int)$old_sidx] ?? -1;
-                            if ($new_sidx !== -1) {
-                                $shift['lineup'][$pos] = $new_sidx;
-                            } else {
-                                unset($shift['lineup'][$pos]);
-                            }
-                        }
-                    }
-                    if (isset($shift['bench'])) {
-                        $new_bench = [];
-                        foreach ($shift['bench'] as $old_sidx) {
-                            $new_sidx = $sidx_map[(int)$old_sidx] ?? -1;
-                            if ($new_sidx !== -1) {
-                                $new_bench[] = $new_sidx;
-                            }
-                        }
-                        $shift['bench'] = $new_bench;
-                    }
-                }
-                $db_schema = json_encode($decoded);
-            }
-        }
+    $db_schema = $stmtLoad->fetchColumn();
+    if ($db_schema) {
         $preload_shift_data = $db_schema;
     }
 }

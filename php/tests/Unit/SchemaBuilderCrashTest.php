@@ -80,6 +80,7 @@ class SchemaBuilderCrashTest extends TestCase
         });
 
         try {
+            $pdo = $this->pdo;
             require __DIR__ . '/../../modules/schemas/schema_builder.php';
         } catch (\Throwable $e) {
             $errors[] = "FATAL: " . $e->getMessage();

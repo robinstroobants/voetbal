@@ -76,9 +76,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     exit;
 }
 
-// Haal alle actieve spelers op
-$stmtPlayers = $pdo->prepare("SELECT * FROM players WHERE team_id = ? ORDER BY first_name, last_name");
-$stmtPlayers->execute([$_SESSION['team_id']]);
+// Haal alle actieve spelers op, PLUS verwijderde spelers die al geselecteerd waren
+$stmtPlayers = $pdo->prepare("
+    SELECT * FROM players 
+    WHERE team_id = ? 
+    AND (deleted_at IS NULL OR id IN (SELECT player_id FROM game_selections WHERE game_id = ?))
+    ORDER BY first_name, last_name
+");
+$stmtPlayers->execute([$_SESSION['team_id'], $gameId]);
 $allPlayers = $stmtPlayers->fetchAll(PDO::FETCH_ASSOC);
 
 $page_title = 'Selectie Beheren: ' . htmlspecialchars($game['opponent']);

@@ -8,6 +8,23 @@ if (isset($_SERVER['CONTENT_TYPE']) && strpos($_SERVER['CONTENT_TYPE'], 'applica
     $json = file_get_contents('php://input');
     $data = json_decode($json, true);
 
+    if (isset($data["action"]) && $data["action"] === "delete_player" && isset($data["player_id"])) {
+        $id = intval($data["player_id"]);
+        try {
+            // Soft delete: set deleted_at so they don't count towards the limit, but keep their name for historical schemas
+            $stmt = $pdo->prepare("UPDATE players SET deleted_at=NOW() WHERE id=? AND team_id=?");
+            if (!$stmt->execute([$id, $_SESSION['team_id']])) {
+                echo json_encode(['success' => false, 'error' => 'Could not execute query']);
+                exit;
+            }
+            echo json_encode(['success' => true]);
+            exit;
+        } catch (PDOException $e) {
+            echo json_encode(['success' => false, 'error' => $e->getMessage()]);
+            exit;
+        }
+    }
+
     if (isset($data["player_id"])) {
         $id = intval($data["player_id"]);
         $first_name = $data["first_name"] ?? '';
@@ -48,7 +65,7 @@ if (isset($_SERVER['CONTENT_TYPE']) && strpos($_SERVER['CONTENT_TYPE'], 'applica
 }
 
 // Fetch players
-$stmtAll = $pdo->prepare("SELECT * FROM players WHERE team_id=? ORDER BY first_name, last_name");
+$stmtAll = $pdo->prepare("SELECT * FROM players WHERE team_id=? AND deleted_at IS NULL ORDER BY first_name, last_name");
 $stmtAll->execute([$_SESSION['team_id']]);
 $players = $stmtAll->fetchAll(PDO::FETCH_ASSOC);
 $players_count = count($players);
@@ -137,8 +154,9 @@ require_once dirname(__DIR__, 2) . '/header.php';
                     </td>
                     <td class="text-end" style="min-width: 120px; cursor: pointer;">
                         <span class="view-mode">
-                            <a href="/players/<?= $row['id'] ?>/dashboard" class="btn btn-sm btn-outline-primary py-0 px-2 me-2" title="Profiel & Dashboard"><i class="fa-solid fa-user"></i></a>
-                            <span class="text-muted small fst-italic" title="Snel bewerken"><i class="fa-solid fa-pen"></i></span>
+                            <a href="/players/<?= $row['id'] ?>/dashboard" class="btn btn-sm btn-outline-primary py-0 px-2 me-1" title="Profiel & Dashboard"><i class="fa-solid fa-user"></i></a>
+                            <span class="text-muted small fst-italic me-1 edit-trigger" title="Snel bewerken"><i class="fa-solid fa-pen"></i></span>
+                            <button type="button" class="btn btn-sm btn-outline-danger py-0 px-2 delete-btn" data-id="<?= $row['id'] ?>" title="Verwijderen"><i class="fa-solid fa-trash"></i></button>
                         </span>
                         <button type="button" class="btn btn-primary btn-sm save-btn d-none" data-id="<?= $row['id'] ?>"><i class="fa-solid fa-check"></i></button>
                     </td>
@@ -203,8 +221,8 @@ document.addEventListener("DOMContentLoaded", function() {
     
     // Zorg ervoor dat klikken op een rij inline edit mode aanzet
     $('#playersTable tbody').on('click', 'tr', function(e) {
-        // Als we niet op de save-knop zelf klikken of een link, activeer focus
-        if (!e.target.closest('.save-btn') && !e.target.closest('a')) {
+        // Als we niet op de save-knop zelf klikken of een link of delete knop, activeer focus
+        if (!e.target.closest('.save-btn') && !e.target.closest('a') && !e.target.closest('.delete-btn')) {
             let tr = $(this);
             if (!tr.hasClass('editing')) {
                 tr.addClass('editing');
@@ -212,6 +230,35 @@ document.addEventListener("DOMContentLoaded", function() {
                 tr.find('.edit-mode, .save-btn').removeClass('d-none');
             }
         }
+    });
+
+    // Delete Logic
+    $('#playersTable tbody').on('click', '.delete-btn', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if(!confirm("Weet je zeker dat je deze speler wilt verwijderen? Dit maakt een plekje vrij in je rooster. Historische opstellingen en statistieken blijven wel intact.")) return;
+        
+        const tr = $(this).closest('tr');
+        const id = $(this).data('id');
+        const btn = $(this);
+        btn.html('<i class="fa-solid fa-spinner fa-spin"></i>');
+        
+        fetch('/players', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'delete_player', player_id: id })
+        }).then(r => r.json()).then(res => {
+            if(res.success) {
+                let dt = $('#playersTable').DataTable();
+                dt.row(tr).remove().draw(false);
+            } else {
+                alert("Fout bij verwijderen: " + (res.error || "Onbekend"));
+                btn.html('<i class="fa-solid fa-trash"></i>');
+            }
+        }).catch(err => {
+            alert("Netwerkfout bij verwijderen.");
+            btn.html('<i class="fa-solid fa-trash"></i>');
+        });
     });
 
     // Ajax Save Logic

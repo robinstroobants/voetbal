@@ -74,7 +74,7 @@
                         <thead class="table-light">
                             <tr>
                                 <th>Naam</th>
-                                <th>E-mailadres</th>
+                                <th class="d-none d-md-table-cell">E-mailadres</th>
                                 <th class="text-center" title="Verbruik (Vandaag / 7 Dagen / 30 Dagen)">Load (Vand/7d/30d)</th>
                                 <th>Laatst Actief</th>
                                 <th>Rechten Rol</th>
@@ -98,7 +98,7 @@
                                         </div>
                                     <?php endif; ?>
                                 </td>
-                                <td><?= htmlspecialchars($user['email']) ?></td>
+                                <td class="d-none d-md-table-cell"><?= htmlspecialchars($user['email']) ?></td>
                                 <td class="text-center align-middle">
                                     <div class="small fw-bold text-nowrap">
                                         <span class="text-success" title="Verbruik Vandaag"><?= (int)$user['usage_today'] ?></span> / 
@@ -171,7 +171,7 @@
                                         <i class="fa-solid fa-clock"></i> In afwachting
                                     </div>
                                 </td>
-                                <td class="text-muted"><?= htmlspecialchars($invite['email']) ?></td>
+                                <td class="text-muted d-none d-md-table-cell"><?= htmlspecialchars($invite['email']) ?></td>
                                 <td class="text-center">-</td>
                                 <td>
                                     <span class="badge bg-warning text-dark">Invited</span>

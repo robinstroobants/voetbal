@@ -9,7 +9,7 @@ if (isset($_SESSION['role']) && $_SESSION['role'] === 'superadmin') {
 }
 
 // 1. Calculate Onboarding Status
-$stmtP = $pdo->prepare("SELECT COUNT(*) FROM players WHERE team_id = ?");
+$stmtP = $pdo->prepare("SELECT COUNT(*) FROM players WHERE team_id = ? AND deleted_at IS NULL");
 $stmtP->execute([$team_id]);
 $players_count = (int)$stmtP->fetchColumn();
 
@@ -242,6 +242,7 @@ if ($onboarding_complete) {
         SELECT COUNT(*) 
         FROM players p 
         WHERE p.team_id = ? 
+          AND p.deleted_at IS NULL
           AND NOT EXISTS (SELECT 1 FROM player_scores ps WHERE ps.player_id = p.id) 
           AND NOT EXISTS (SELECT 1 FROM gk_scores gks WHERE gks.player_id = p.id)
     ");

@@ -27,7 +27,7 @@ if (strpos($default_format, '2v2') === 0 || strpos($default_format, '3v3') === 0
 }
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'reset_matrix') {
     // Reset alle scores voor het hele team
-    $stmtPlayers = $pdo->prepare("SELECT id, is_doelman FROM players WHERE team_id = ?");
+    $stmtPlayers = $pdo->prepare("SELECT id, is_doelman FROM players WHERE team_id = ? AND deleted_at IS NULL");
     $stmtPlayers->execute([$_SESSION['team_id']]);
     $teamPlayers = $stmtPlayers->fetchAll(PDO::FETCH_ASSOC);
     $allPos = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
@@ -106,7 +106,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['player_id']) && !isse
 }
 
 // Scores ophalen per speler en positie (laatste score), gefilterd op team
-$stmtAll = $pdo->prepare("SELECT * FROM players WHERE team_id = ? ORDER BY first_name, last_name");
+$stmtAll = $pdo->prepare("SELECT * FROM players WHERE team_id = ? AND deleted_at IS NULL ORDER BY first_name, last_name");
 $stmtAll->execute([$_SESSION['team_id']]);
 $players = [];
 $player_ids = [];

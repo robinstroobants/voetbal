@@ -25,7 +25,7 @@ if (strpos($default_format, '2v2') === 0 || strpos($default_format, '3v3') === 0
     $max_players = 12;
 }
 
-$stmtP = $pdo->prepare("SELECT COUNT(*) FROM players WHERE team_id = ?");
+$stmtP = $pdo->prepare("SELECT COUNT(*) FROM players WHERE team_id = ? AND deleted_at IS NULL");
 $stmtP->execute([$team_id]);
 $current_players = (int)$stmtP->fetchColumn();
 

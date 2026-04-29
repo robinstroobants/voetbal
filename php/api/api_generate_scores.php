@@ -6,7 +6,7 @@ try {
     $pdo->beginTransaction();
 
     // 1. Haal spelers op met hun favo posities
-    $stmt = $pdo->prepare("SELECT id, favorite_positions, is_doelman FROM players WHERE team_id = ?");
+    $stmt = $pdo->prepare("SELECT id, favorite_positions, is_doelman FROM players WHERE team_id = ? AND deleted_at IS NULL");
     $stmt->execute([$_SESSION['team_id']]);
     $players = $stmt->fetchAll(PDO::FETCH_ASSOC);
     $players_data = [];

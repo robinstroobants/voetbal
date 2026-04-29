@@ -22,7 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         // Fetch team players to show selection list
-        $stmtPlayers = $pdo->prepare("SELECT id, first_name, last_name FROM players WHERE team_id = ? ORDER BY first_name");
+        $stmtPlayers = $pdo->prepare("SELECT id, first_name, last_name FROM players WHERE team_id = ? AND deleted_at IS NULL ORDER BY first_name");
         $stmtPlayers->execute([$_SESSION['team_id']]);
         $all_players = $stmtPlayers->fetchAll(PDO::FETCH_ASSOC);
 
@@ -38,7 +38,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $step = 2; // Return to step 2
             
             // Refetch players
-            $stmtPlayers = $pdo->prepare("SELECT id, first_name, last_name FROM players WHERE team_id = ? ORDER BY first_name");
+            $stmtPlayers = $pdo->prepare("SELECT id, first_name, last_name FROM players WHERE team_id = ? AND deleted_at IS NULL ORDER BY first_name");
             $stmtPlayers->execute([$_SESSION['team_id']]);
             $all_players = $stmtPlayers->fetchAll(PDO::FETCH_ASSOC);
         } else {

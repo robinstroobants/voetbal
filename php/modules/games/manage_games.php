@@ -106,7 +106,7 @@ $games = $stmt->fetchAll(PDO::FETCH_ASSOC);
 $groupedGames = [];
 $groupedByWeek = [];
 
-$stmtP = $pdo->prepare("SELECT id, first_name, last_name FROM players WHERE team_id = ?");
+$stmtP = $pdo->prepare("SELECT id, first_name, last_name FROM players WHERE team_id = ? AND deleted_at IS NULL");
 $stmtP->execute([$_SESSION['team_id']]);
 $players = $stmtP->fetchAll(PDO::FETCH_ASSOC);
 

@@ -8,7 +8,7 @@ if (isset($_SESSION['user_id'])) {
 
 require_once dirname(__DIR__, 2) . '/core/getconn.php';
 
-$error = '';
+$error = $_GET['error'] ?? '';
 $msg_success = '';
 
 if (isset($_GET['msg'])) {

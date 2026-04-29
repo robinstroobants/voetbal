@@ -161,7 +161,7 @@
                 type: type,
                 description: description,
                 url: window.location.href,
-                userAgent: navigator.userAgent
+                userAgent: navigator.userAgent + " | Screen: " + window.innerWidth + "x" + window.innerHeight
             };
             if (localStorage.getItem('parent_email')) {
                 payload.parentEmail = localStorage.getItem('parent_email');

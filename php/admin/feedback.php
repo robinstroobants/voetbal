@@ -68,6 +68,31 @@ $feedback_items = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                     // Zou ouders/public kunnen zijn
                                     $userDisplay = '<i class="fa-solid fa-earth-europe text-muted me-1" title="Publieke Share of Ongelogd"></i> Gast';
                                 }
+                                
+                                $ua = $item['user_agent'] ?? '';
+                                $deviceIcon = '<i class="fa-solid fa-desktop" title="Desktop"></i>';
+                                if (stripos($ua, 'Mobile') !== false || stripos($ua, 'Android') !== false || stripos($ua, 'iPhone') !== false) {
+                                    $deviceIcon = '<i class="fa-solid fa-mobile-screen" title="Mobiel"></i>';
+                                }
+                                if (stripos($ua, 'Tablet') !== false || stripos($ua, 'iPad') !== false) {
+                                    $deviceIcon = '<i class="fa-solid fa-tablet-screen-button" title="Tablet"></i>';
+                                }
+                                
+                                $os = 'Onbekend OS';
+                                if (stripos($ua, 'Windows') !== false) $os = 'Windows';
+                                elseif (stripos($ua, 'Mac OS') !== false) $os = 'MacOS';
+                                elseif (stripos($ua, 'Linux') !== false) $os = 'Linux';
+                                elseif (stripos($ua, 'Android') !== false) $os = 'Android';
+                                elseif (stripos($ua, 'iPhone') !== false) $os = 'iOS';
+                                elseif (stripos($ua, 'iPad') !== false) $os = 'iPadOS';
+                                
+                                // Extract screen size if appended
+                                $screen = '';
+                                if (preg_match('/Screen: (\d+x\d+)/', $ua, $matches)) {
+                                    $screen = ' <span class="text-muted ms-1">(' . $matches[1] . ')</span>';
+                                }
+
+                                $deviceHtml = "<div class='mt-1'><span class='badge bg-light text-secondary border' title='" . htmlspecialchars($ua) . "'>$deviceIcon $os$screen</span></div>";
                             ?>
                             <tr class="<?= $item['status'] !== 'open' ? 'opacity-75 bg-light' : '' ?>">
                                 <td class="small" style="white-space:nowrap;">
@@ -76,7 +101,7 @@ $feedback_items = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                 </td>
                                 <td><span class="badge <?= $badgeClass ?>"><?= ucfirst($item['status'] ?? 'open') ?></span></td>
                                 <td class="<?= $typeClass ?>"><?= htmlspecialchars($item['feedback_type']) ?></td>
-                                <td><?= $userDisplay ?></td>
+                                <td><?= $userDisplay ?><?= $deviceHtml ?></td>
                                 <td>
                                     <div style="max-width: 400px; max-height: 80px; overflow-y: auto; font-size: 0.9rem;">
                                         <?= nl2br(htmlspecialchars($item['description'])) ?>

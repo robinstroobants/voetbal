@@ -678,20 +678,18 @@ document.addEventListener("DOMContentLoaded", function() {
         const selectedFormat = formatSelect.value;
         partsSelect.innerHTML = '';
         
-        let parts = availableParts[selectedFormat] || [];
-        if (parts.length === 0) {
-            if (selectedFormat === '11v11') {
-                parts = ['2x45', '2x40', '2x35'];
-            } else if (selectedFormat === '8v8') {
-                parts = ['4x15', '5x15', '6x15', '7x15', '4x20', '5x20', '6x20', '7x20'];
-            } else if (selectedFormat === '5v5') {
-                parts = ['4x15', '5x15', '6x15', '7x15'];
-            } else if (selectedFormat === '3v3' || selectedFormat === '2v2') {
-                parts = ['6x10'];
-            } else {
-                parts = ['4x15'];
-            }
-        }
+        const standardParts = {
+            '11v11': ['2x45', '2x40', '2x35'],
+            '8v8': ['4x15', '5x15', '6x15', '7x15', '4x20', '5x20', '6x20', '7x20'],
+            '5v5': ['4x15', '5x15', '6x15', '7x15', '8x15'],
+            '3v3': ['6x10'],
+            '2v2': ['6x10']
+        };
+        
+        let parts = Array.from(new Set([
+            ...(availableParts[selectedFormat] || []),
+            ...(standardParts[selectedFormat] || ['4x15'])
+        ]));
 
         parts.forEach(part => {
             const option = document.createElement('option');

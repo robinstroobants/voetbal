@@ -330,6 +330,20 @@ $numFieldPlayers = count($squad) - ($fixedGkIdPHP !== null ? 1 : 0);
 $totalBlocks = count($shift_definitions);
 $totalFieldBlocks = $numFieldPositions * $totalBlocks;
 
+$suggestedExtra = [];
+$suggestedBase = [];
+$extraNames = [];
+$baseNames = [];
+$lastMatchHtml = '';
+$rightColHtml = '';
+$wisselpatroonHtml = '';
+$seasonBasisStr = '';
+$periodBasisStr = '';
+$players_extra = 0;
+$extra_mins = 0;
+$players_base = 0;
+$base_mins = 0;
+
 if ($numFieldPlayers > 0 && $totalFieldBlocks > 0) {
     $block_dur = $shift_definitions[0]['duration'];
     $base_blocks = floor($totalFieldBlocks / $numFieldPlayers);
@@ -341,8 +355,7 @@ if ($numFieldPlayers > 0 && $totalFieldBlocks > 0) {
     $base_mins = $base_blocks * $block_dur;
     $extra_mins = $base_mins + $block_dur;
     
-    if ($players_extra > 0) {
-        $sortedPlayers = [];
+    $sortedPlayers = [];
         
         // Fetch last match playtime for these players
         $lastMatchPlaytimes = [];
@@ -541,7 +554,8 @@ if ($numFieldPlayers > 0 && $totalFieldBlocks > 0) {
         
         $wisselpatroonHtml .= '</div>';
 
-        $pregame_analysis_html = '
+        if ($players_extra > 0) {
+            $pregame_analysis_html = '
         <div class="card mb-3 border-info shadow-sm" style="border-width: 2px;">
             <div class="card-header bg-info text-white fw-bold d-flex align-items-center py-2" style="font-size: 0.9rem; cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#pregameCollapse" aria-expanded="true">
                 <i class="fa-solid fa-lightbulb text-white me-2"></i> In-Game Analyse
@@ -552,7 +566,7 @@ if ($numFieldPlayers > 0 && $totalFieldBlocks > 0) {
                     <div class="row g-2">
                         <div class="col-md-6">
                             <div class="mb-2 p-1 px-2 bg-white rounded border">
-                                <p class="mb-1" style="font-size: 0.75rem; line-height: 1.2;"><i class="fa-solid fa-calculator text-muted me-1"></i><strong>' . htmlspecialchars($search_format) . '</strong> <span class="text-muted mx-1">|</span> <i class="fa-solid fa-users text-secondary me-1"></i>' . $numFieldPlayers . ' veldspelers <span class="text-muted mx-1">|</span> <i class="fa-solid fa-street-view text-secondary me-1"></i>' . $numFieldPositions . ' posities' . ($fixed_gk_id === null ? ' <span class="text-muted mx-1">|</span> <span class="text-primary fw-bold"><i class="fa-solid fa-hands-bubbles ms-1"></i> Roterende Doelman</span>' : '') . ':</p>
+                                <p class="mb-1" style="font-size: 0.75rem; line-height: 1.2;"><i class="fa-solid fa-calculator text-muted me-1"></i><strong>' . htmlspecialchars($search_format) . '</strong> <span class="text-muted mx-1">|</span> <i class="fa-solid fa-users text-secondary me-1"></i>' . $numFieldPlayers . ' veldspelers <span class="text-muted mx-1">|</span> <i class="fa-solid fa-street-view text-secondary me-1"></i>' . $numFieldPositions . ' posities' . ($fixedGkIdPHP === null ? ' <span class="text-muted mx-1">|</span> <span class="text-primary fw-bold"><i class="fa-solid fa-hands-bubbles ms-1"></i> Roterende Doelman</span>' : '') . ':</p>
                                 <ul class="mb-0 text-dark" style="font-size: 0.75rem; line-height: 1.2; padding-left: 20px;">
                                     <li><strong>' . $players_extra . ' spelers</strong> spelen <strong>' . $extra_mins . 'm</strong> </li>
                                     <li><strong>' . $players_base . ' spelers</strong> spelen <strong>' . $base_mins . 'm</strong> </li>
@@ -589,7 +603,7 @@ if ($numFieldPlayers > 0 && $totalFieldBlocks > 0) {
                     <div class="row g-2">
                         <div class="col-md-6">
                             <div class="mb-2 p-1 px-2 bg-white rounded border">
-                                <p class="mb-1" style="font-size: 0.75rem; line-height: 1.2;"><i class="fa-solid fa-calculator text-muted me-1"></i><strong>' . htmlspecialchars($search_format) . '</strong> <span class="text-muted mx-1">|</span> <i class="fa-solid fa-users text-secondary me-1"></i>' . $numFieldPlayers . ' veldspelers <span class="text-muted mx-1">|</span> <i class="fa-solid fa-street-view text-secondary me-1"></i>' . $numFieldPositions . ' posities' . ($fixed_gk_id === null ? ' <span class="text-muted mx-1">|</span> <span class="text-primary fw-bold"><i class="fa-solid fa-hands-bubbles ms-1"></i> Roterende Doelman</span>' : '') . ':</p>
+                                <p class="mb-1" style="font-size: 0.75rem; line-height: 1.2;"><i class="fa-solid fa-calculator text-muted me-1"></i><strong>' . htmlspecialchars($search_format) . '</strong> <span class="text-muted mx-1">|</span> <i class="fa-solid fa-users text-secondary me-1"></i>' . $numFieldPlayers . ' veldspelers <span class="text-muted mx-1">|</span> <i class="fa-solid fa-street-view text-secondary me-1"></i>' . $numFieldPositions . ' posities' . ($fixedGkIdPHP === null ? ' <span class="text-muted mx-1">|</span> <span class="text-primary fw-bold"><i class="fa-solid fa-hands-bubbles ms-1"></i> Roterende Doelman</span>' : '') . ':</p>
                                 <div class="alert alert-success p-2 mb-0" style="font-size: 0.8rem;">
                                     <strong>Perfecte wiskunde!</strong> Alle ' . $numFieldPlayers . ' veldspelers spelen exact <strong>' . $base_mins . 'm</strong> (' . $base_blocks . ' blokjes).
                                 </div>

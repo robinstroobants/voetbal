@@ -35,11 +35,14 @@ foreach($gamePlayers as $p) {
     $playerMap[$p['id']] = $p['first_name'] . ' ' . $p['last_name'];
 }
 
-// Check if it's a tournament by looking at is_tournament flag
-$stmtTour = $pdo->prepare("SELECT is_tournament FROM games WHERE id = ?");
+// Check if it's a tournament by looking at block_labels
+$stmtTour = $pdo->prepare("SELECT block_labels FROM games WHERE id = ?");
 $stmtTour->execute([$gameId]);
 $gameRow = $stmtTour->fetch(PDO::FETCH_ASSOC);
-$isTournament = ($gameRow && $gameRow['is_tournament'] == 1);
+$isTournament = false;
+if ($gameRow && !empty($gameRow['block_labels']) && $gameRow['block_labels'] !== 'null' && $gameRow['block_labels'] !== '[]') {
+    $isTournament = true;
+}
 
 // Haal de shifts (blokken) op uit het lineup object
 $shifts_data = [];

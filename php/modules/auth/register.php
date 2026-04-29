@@ -501,7 +501,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error) {
                             </div>
                             <div style="flex: 1;">
                                 <select name="default_game_parts" id="default_game_parts" class="form-control" style="width: 100%; background: #ffffff; border: 1px solid var(--apple-border); color: var(--apple-text-main); padding: 16px; border-radius: 12px; font-size: 1rem; outline: none; appearance: auto;" required>
-                                    <option value="" disabled selected>Wedstrijdjes</option>
+                                    <option value="" disabled selected>Minuten</option>
                                 </select>
                             </div>
                         </div>
@@ -569,7 +569,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error) {
 
                     function updateParts() {
                         const selectedFormat = formatSelect.value;
-                        partsSelect.innerHTML = '<option value="" disabled selected>Indeling</option>';
+                        partsSelect.innerHTML = '<option value="" disabled>Minuten</option>';
                         
                         if (!selectedFormat) return;
                         
@@ -587,10 +587,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error) {
                                 parts = ['4x15'];
                             }
                         }
-                        parts.forEach(part => {
+                        parts.forEach((part, index) => {
                             const option = document.createElement('option');
                             option.value = part;
                             option.textContent = part;
+                            if (index === 0) {
+                                option.selected = true;
+                            }
                             partsSelect.appendChild(option);
                         });
                     }

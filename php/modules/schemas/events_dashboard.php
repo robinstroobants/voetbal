@@ -56,14 +56,27 @@ foreach ($events as $ev) {
                                         $desc = 'Gevraagd om door te schuiven naar het volgende wisselblok.';
                                         break;
                                     case 'goal':
-                                        $icon = 'fa-futbol'; $color = 'text-warning'; $bg = 'bg-warning-subtle';
+                                        $icon = 'fa-futbol'; $color = 'text-success'; $bg = 'bg-success-subtle';
                                         $title = 'Goal!';
                                         $desc = 'Gescoord door <strong>' . htmlspecialchars($ev['first_name'] . ' ' . $ev['last_name']) . '</strong>';
+                                        if (!empty($ev['out_first'])) {
+                                            $desc .= ' <span class="text-muted small">(Assist: ' . htmlspecialchars($ev['out_first']) . ')</span>';
+                                        }
+                                        break;
+                                    case 'opp_goal':
+                                        $icon = 'fa-futbol'; $color = 'text-danger'; $bg = 'bg-danger-subtle';
+                                        $title = 'Tegendoelpunt';
+                                        $desc = 'De tegenstander heeft gescoord.';
                                         break;
                                     case 'substitution':
                                         $icon = 'fa-rotate'; $color = 'text-info'; $bg = 'bg-info-subtle';
                                         $title = 'Individuele Wissel';
                                         $desc = '<strong class="text-success">' . htmlspecialchars($ev['first_name'] . ' ' . $ev['last_name']) . '</strong> IN, <strong class="text-danger">' . htmlspecialchars($ev['out_first'] . ' ' . $ev['out_last']) . '</strong> UIT.';
+                                        break;
+                                    case 'match_end':
+                                        $icon = 'fa-stop'; $color = 'text-danger'; $bg = 'bg-danger-subtle';
+                                        $title = 'Einde Wedstrijd';
+                                        $desc = 'De wedstrijd is definitief beëindigd.';
                                         break;
                                 }
                                 

@@ -111,6 +111,10 @@ $stmtBlocks = $pdo->prepare("SELECT created_at FROM game_events WHERE game_id = 
 $stmtBlocks->execute([$gameId]);
 $blockEvents = $stmtBlocks->fetchAll(PDO::FETCH_COLUMN);
 
+$stmtMatchEnd = $pdo->prepare("SELECT created_at FROM game_events WHERE game_id = ? AND event_type = 'match_end' AND is_deleted = 0 ORDER BY created_at DESC LIMIT 1");
+$stmtMatchEnd->execute([$gameId]);
+$matchEndedAt = $stmtMatchEnd->fetchColumn();
+
 $matchStarted = count($blockEvents) > 0;
 // De currentShiftIndex is hoeveel block events er zijn (1 event = shift index 0, 2 events = shift index 1)
 $currentShiftIndex = max(0, count($blockEvents) - 1);
@@ -127,16 +131,15 @@ if ($matchStarted) {
 
 <style>
 .parents-bottom-bar {
-    position: fixed;
-    bottom: 0; left: 0; right: 0;
-    background: #fff;
-    box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
-    padding: 10px 15px;
-    z-index: 1040;
+    background: white;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.05);
     display: flex;
-    justify-content: space-between;
+    flex-direction: column;
+    gap: 20px;
     align-items: center;
-    border-top: 2px solid #0071e3;
+    border: 1px solid #e9ecef;
 }
 .parents-clock-container {
     display: flex;
@@ -160,19 +163,10 @@ if ($matchStarted) {
     text-transform: uppercase;
     margin-bottom: 2px;
 }
-body {
-    padding-bottom: 80px;
-}
 #liveEventsFeed {
-    position: fixed;
-    bottom: 70px;
-    left: 15px;
-    right: 15px;
-    z-index: 1030;
     display: flex;
     flex-direction: column;
     gap: 6px;
-    pointer-events: none;
     align-items: center;
 }
 .live-event-toast {
@@ -202,31 +196,75 @@ body {
 }
 </style>
 
-<div id="liveEventsFeed" class="d-print-none"></div>
+</style>
 
-<div class="parents-bottom-bar d-print-none">
-    <div id="liveClockContainer" class="parents-clock-container" style="flex: 1;">
-        <?php if ($matchStarted): ?>
-            <div class="d-flex align-items-center gap-3">
-                <div class="d-flex flex-column align-items-start">
-                    <div class="parents-block-label" id="currentBlockLabel">Blok <?= $currentShiftIndex + 1 ?> / <?= $totalBlocksCount ?></div>
-                    <div class="parents-clock" id="liveClockDisplay">00:00</div>
-                </div>
-                <div class="d-flex flex-column align-items-center">
-                    <div class="parents-block-label">Score</div>
-                    <div class="parents-clock text-primary border-primary bg-white" id="liveScoreDisplay">0 - 0</div>
-                </div>
+<div class="container d-print-none mt-3 mb-4" id="parentsShareTabsContainer">
+  <ul class="nav nav-pills nav-fill bg-white p-1 rounded shadow-sm border mb-3" id="parentsTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link active fw-bold text-dark border-0" data-bs-toggle="pill" data-bs-target="#tab-tracker" type="button" role="tab"><i class="fa-solid fa-stopwatch me-1"></i> Match Tracker</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link fw-bold text-dark border-0" data-bs-toggle="pill" data-bs-target="#tab-lineup" type="button" role="tab"><i class="fa-solid fa-clipboard-list me-1"></i> Opstelling</button>
+    </li>
+  </ul>
+  
+  <div class="tab-content" id="parentsTabsContent">
+    <div class="tab-pane fade show active d-flex flex-column align-items-center" id="tab-tracker" role="tabpanel">
+       
+        <div class="parents-bottom-bar w-100">
+            <div id="liveClockContainer" class="parents-clock-container w-100 d-flex justify-content-center">
+                <?php if ($matchStarted): ?>
+                    <div class="d-flex align-items-center gap-4">
+                        <div class="d-flex flex-column align-items-center">
+                            <div class="parents-block-label" id="currentBlockLabel">Blok <?= $currentShiftIndex + 1 ?> / <?= $totalBlocksCount ?></div>
+                            <div class="parents-clock" id="liveClockDisplay">00:00</div>
+                        </div>
+                        <div class="d-flex flex-column align-items-center">
+                            <div class="parents-block-label">Score</div>
+                            <div class="parents-clock text-primary border-primary bg-white" id="liveScoreDisplay">0 - 0</div>
+                        </div>
+                    </div>
+                <?php else: ?>
+                    <button class="btn btn-primary fw-bold" onclick="startMatch()">▶ Start Match</button>
+                <?php endif; ?>
             </div>
-        <?php else: ?>
-            <button class="btn btn-sm btn-outline-primary fw-bold" onclick="startMatch()">▶ Start Match</button>
-        <?php endif; ?>
+            <div class="d-flex gap-2 w-100 justify-content-center flex-wrap">
+                <button class="btn btn-primary fw-bold shadow-sm" onclick="openEventModal('goal')">⚽ Goal</button>
+                <button class="btn btn-danger fw-bold shadow-sm" onclick="openEventModal('opp_goal')">🥅 Tegengoal</button>
+                <button id="btnWissel" class="btn btn-secondary shadow-sm" onclick="openEventModal('wissel')">🔄 Wissel</button>
+            </div>
+        </div>
+        
+        <h6 class="text-center fw-bold text-muted mt-2 mb-3"><i class="fa-solid fa-clock-rotate-left me-1"></i> Laatste Acties</h6>
+        <div id="liveEventsFeed" class="w-100 pb-4"></div>
+        
     </div>
-    <div class="d-flex gap-2">
-        <button class="btn btn-sm btn-primary fw-bold shadow-sm" onclick="openEventModal('goal')">⚽ Goal</button>
-        <button class="btn btn-sm btn-danger fw-bold shadow-sm" onclick="openEventModal('opp_goal')">🥅 Tegengoal</button>
-        <button id="btnWissel" class="btn btn-sm btn-secondary shadow-sm" onclick="openEventModal('wissel')">🔄 Wissel</button>
+    <div class="tab-pane fade" id="tab-lineup" role="tabpanel">
+        <!-- JS moves lineup content here -->
     </div>
+  </div>
 </div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const titleElem = document.getElementById('dynamic-page-title');
+    const tabsContainer = document.getElementById('parentsShareTabsContainer');
+    const tabLineup = document.getElementById('tab-lineup');
+    
+    if (titleElem && tabsContainer && tabLineup) {
+        titleElem.parentNode.insertBefore(tabsContainer, titleElem.nextSibling);
+        let nextNode = tabsContainer.nextSibling;
+        const nodesToMove = [];
+        while (nextNode) {
+            if (nextNode.nodeName !== 'SCRIPT' && nextNode.nodeName !== 'STYLE' && nextNode.id !== 'eventActionModal' && nextNode.id !== 'parentIdentityModal') {
+                nodesToMove.push(nextNode);
+            }
+            nextNode = nextNode.nextSibling;
+        }
+        nodesToMove.forEach(n => tabLineup.appendChild(n));
+    }
+});
+</script>
 
 <!-- Modal: Wie ben jij? -->
 <div class="modal fade" id="parentIdentityModal" tabindex="-1" data-bs-backdrop="static" aria-hidden="true" data-bs-focus="false">
@@ -348,6 +386,7 @@ body {
     let currentCalculatedMinute = 0;
     let currentAdjustedMinute = 0;
     let clockInterval = null;
+    let matchEndedAtMs = <?= $matchEndedAt ? strtotime($matchEndedAt) * 1000 : 'null' ?>;
 
     document.addEventListener('DOMContentLoaded', function() {
         window.scrollTo(0,0);
@@ -387,6 +426,10 @@ body {
     function getActiveShift() {
         return shiftsData[currentShiftIndex] || shiftsData[0];
     }
+    
+    function isMatchEnded() {
+        return blockEvents.includes('match_end_time'); // We'll track match end by checking the last event
+    }
 
     function calculateElapsedMinutes() {
         if (!matchStarted) return 0;
@@ -402,7 +445,7 @@ body {
     function formatClock() {
         if (!matchStarted) return '00:00';
         const shift = getActiveShift();
-        const now = new Date().getTime();
+        const now = matchEndedAtMs ? matchEndedAtMs : new Date().getTime();
         let diffMs = now - activeBlockEventTimeMs;
         if (diffMs < 0) diffMs = 0;
         
@@ -418,15 +461,18 @@ body {
         if (display) {
             display.innerText = formatClock();
             updateWisselHint();
-            clockInterval = setInterval(() => {
-                display.innerText = formatClock();
-                updateWisselHint();
-            }, 1000);
+            
+            if (!matchEndedAtMs) {
+                clockInterval = setInterval(() => {
+                    display.innerText = formatClock();
+                    updateWisselHint();
+                }, 1000);
+            }
         }
     }
 
     function updateWisselHint() {
-        if (!matchStarted) return;
+        if (!matchStarted || matchEndedAtMs) return;
         const shift = getActiveShift();
         const now = new Date().getTime();
         let diffMs = now - activeBlockEventTimeMs;
@@ -437,13 +483,35 @@ body {
         
         const btn = document.getElementById('btnWissel');
         if (btn) {
-            // Als de geplande tijd overschreden is EN het is niet het laatste blok
-            if (currentShiftIndex < shiftsData.length - 1 && currentSeconds >= expectedEndSeconds) {
-                btn.classList.add('btn-wissel-due');
-                btn.innerHTML = '🔄 Wissel?';
+            // Check if we are past the expected duration
+            if (currentSeconds >= expectedEndSeconds) {
+                if (currentShiftIndex < shiftsData.length - 1) {
+                    btn.classList.add('btn-wissel-due');
+                    btn.classList.remove('btn-danger');
+                    btn.innerHTML = '🔄 Wissel?';
+                    btn.onclick = () => openEventModal('wissel');
+                } else {
+                    btn.classList.add('btn-wissel-due');
+                    btn.classList.replace('btn-secondary', 'btn-danger');
+                    btn.innerHTML = '🛑 Einde Match?';
+                    btn.onclick = () => {
+                        if (confirm("Is de wedstrijd definitief afgelopen?")) {
+                            sendApiEventObject({
+                                action: 'log_event',
+                                game_id: gameId,
+                                parent_email: getParentEmail(),
+                                event_type: 'match_end',
+                                event_minute: Math.floor(currentSeconds / 60)
+                            });
+                        }
+                    };
+                }
             } else {
                 btn.classList.remove('btn-wissel-due');
+                btn.classList.remove('btn-danger');
+                if (!btn.classList.contains('btn-secondary')) btn.classList.add('btn-secondary');
                 btn.innerHTML = '🔄 Wissel';
+                btn.onclick = () => openEventModal('wissel');
             }
         }
     }
@@ -679,6 +747,8 @@ body {
                 text += '🥅 Tegendoelpunt';
             } else if (e.event_type === 'substitution') {
                 text += '🔄 Wissel: ' + (e.p1_first || '?') + ' IN, ' + (e.p2_first || '?') + ' UIT';
+            } else if (e.event_type === 'match_end') {
+                text += '🛑 Einde Wedstrijd';
             } else {
                 text += e.event_type;
             }

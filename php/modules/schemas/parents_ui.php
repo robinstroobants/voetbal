@@ -183,6 +183,7 @@ body {
     font-size: 0.8rem;
     font-weight: bold;
     animation: fadeIn 0.3s ease-out;
+    pointer-events: auto;
 }
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(10px); }

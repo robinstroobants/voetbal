@@ -647,6 +647,15 @@ document.addEventListener("DOMContentLoaded", function() {
         document.getElementById('eventMinuteDisplay').innerText = currentAdjustedMinute + "'";
     }
 
+    function updateBlockLabel() {
+        if (!matchStarted) return;
+        const shift = getActiveShift();
+        const lbl = document.getElementById('currentBlockLabel');
+        if (lbl) {
+            lbl.innerText = shift.title || `Blok ${shift.index} / ${shiftsData.length}`;
+        }
+    }
+
     function submitEvent() {
         const type = document.getElementById('eventTypeInput').value;
         const email = getParentEmail();

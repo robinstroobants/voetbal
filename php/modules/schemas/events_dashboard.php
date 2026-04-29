@@ -41,7 +41,7 @@ foreach ($events as $ev) {
                                 $icon = 'fa-circle-info';
                                 $color = 'text-secondary';
                                 $bg = 'bg-light';
-                                $title = 'Onbekend';
+                                $title = 'Onbekend: [' . htmlspecialchars($ev['event_type']) . ']';
                                 $desc = '';
                                 
                                 switch ($ev['event_type']) {

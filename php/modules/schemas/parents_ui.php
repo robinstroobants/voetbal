@@ -35,14 +35,11 @@ foreach($gamePlayers as $p) {
     $playerMap[$p['id']] = $p['first_name'] . ' ' . $p['last_name'];
 }
 
-// Check if it's a tournament by looking at block_labels
-$stmtTour = $pdo->prepare("SELECT block_labels FROM games WHERE id = ?");
+// Check if it's a tournament by looking at is_tournament flag
+$stmtTour = $pdo->prepare("SELECT is_tournament FROM games WHERE id = ?");
 $stmtTour->execute([$gameId]);
 $gameRow = $stmtTour->fetch(PDO::FETCH_ASSOC);
-$isTournament = false;
-if ($gameRow && !empty($gameRow['block_labels']) && $gameRow['block_labels'] !== 'null' && $gameRow['block_labels'] !== '[]') {
-    $isTournament = true;
-}
+$isTournament = ($gameRow && $gameRow['is_tournament'] == 1);
 
 // Haal de shifts (blokken) op uit het lineup object
 $shifts_data = [];
@@ -146,10 +143,21 @@ if ($currentShiftIndex >= count($shifts_data)) {
     $currentShiftIndex = count($shifts_data) - 1; // Cap op laatste blok
 }
 
+$stmtPeriodEnd = $pdo->prepare("SELECT created_at FROM game_events WHERE game_id = ? AND event_type = 'period_end' AND is_deleted = 0 ORDER BY created_at DESC LIMIT 1");
+$stmtPeriodEnd->execute([$gameId]);
+$lastPeriodEndAt = $stmtPeriodEnd->fetchColumn();
+
 $activeBlockEventTimeMs = 'null';
+$isPaused = false;
+$pausedAtMs = 'null';
 if ($matchStarted) {
     // Tijdstip van de start van het huidige blok
     $activeBlockEventTimeMs = strtotime($blockEvents[$currentShiftIndex]) * 1000;
+    
+    if ($lastPeriodEndAt && strtotime($lastPeriodEndAt) > strtotime($blockEvents[$currentShiftIndex])) {
+        $isPaused = true;
+        $pausedAtMs = strtotime($lastPeriodEndAt) * 1000;
+    }
 }
 ?>
 
@@ -337,9 +345,15 @@ document.addEventListener("DOMContentLoaded", function() {
             <?php if ($currentShiftIndex < $totalBlocksCount - 1): ?>
             <div class="card mb-3 border-success">
                 <div class="card-body p-3 text-center">
-                    <h6 class="fw-bold mb-1">Volgend Blok Starten</h6>
-                    <p class="small text-muted mb-2">Bevestig dat het geplande wisselmoment (<span id="modalNextBlockName">Blok <?= $currentShiftIndex + 2 ?></span>) is ingegaan. De timer springt dan automatisch naar de start van het nieuwe blok.</p>
-                    <button class="btn btn-success btn-sm fw-bold w-100" onclick="submitNextBlock()">▶ Start <span id="modalNextBlockBtnName">Blok <?= $currentShiftIndex + 2 ?></span></button>
+                    <h6 class="fw-bold mb-1">Wisselmoment Beheren</h6>
+                    <?php if ($isPaused): ?>
+                        <p class="small text-muted mb-2">De wedstrijd is gepauzeerd. Bevestig dat het volgende blok (<span id="modalNextBlockName">Blok <?= $currentShiftIndex + 2 ?></span>) is gestart.</p>
+                        <button class="btn btn-success btn-sm fw-bold w-100" onclick="submitNextBlock()">▶ Start <span id="modalNextBlockBtnName">Blok <?= $currentShiftIndex + 2 ?></span></button>
+                    <?php else: ?>
+                        <p class="small text-muted mb-2">Is het huidige deel afgelopen? Fluit af voor rust/pauze, of start direct het nieuwe blok (<span id="modalNextBlockName">Blok <?= $currentShiftIndex + 2 ?></span>).</p>
+                        <button class="btn btn-warning btn-sm fw-bold w-100 mb-2" onclick="submitPauseBlock()">⏹ Fluit af (Pauze / Einde Helft)</button>
+                        <button class="btn btn-success btn-sm fw-bold w-100" onclick="submitNextBlock()">▶ Start <span id="modalNextBlockBtnName">Blok <?= $currentShiftIndex + 2 ?></span> direct</button>
+                    <?php endif; ?>
                 </div>
             </div>
             <div class="text-center text-muted small fw-bold mb-3">- OF INDIVIDUELE WISSEL (UITZONDERING) -</div>
@@ -394,6 +408,8 @@ document.addEventListener("DOMContentLoaded", function() {
     }
     
     const matchStarted = <?= $matchStarted ? 'true' : 'false' ?>;
+    const isPaused = <?= $isPaused ? 'true' : 'false' ?>;
+    const pausedAtMs = <?= $pausedAtMs ?>;
     let activeBlockEventTimeMs = <?= $activeBlockEventTimeMs ?>;
     let currentShiftIndex = <?= $currentShiftIndex ?>;
     const shiftsData = <?= json_encode($shifts_data) ?>;
@@ -454,6 +470,7 @@ document.addEventListener("DOMContentLoaded", function() {
         const now = new Date().getTime();
         let diffMs = now - activeBlockEventTimeMs;
         if (diffMs < 0) diffMs = 0;
+        if (isPaused) diffMs = pausedAtMs - activeBlockEventTimeMs;
         
         const minutesInCurrentBlock = diffMs / 60000;
         return Math.floor(shift.start_minute + minutesInCurrentBlock);
@@ -465,6 +482,7 @@ document.addEventListener("DOMContentLoaded", function() {
         const now = matchEndedAtMs ? matchEndedAtMs : new Date().getTime();
         let diffMs = now - activeBlockEventTimeMs;
         if (diffMs < 0) diffMs = 0;
+        if (isPaused) diffMs = pausedAtMs - activeBlockEventTimeMs;
         
         const totalSeconds = Math.floor((shift.start_minute * 60) + (diffMs / 1000));
         const mins = Math.floor(totalSeconds / 60);
@@ -496,6 +514,7 @@ document.addEventListener("DOMContentLoaded", function() {
         const now = new Date().getTime();
         let diffMs = now - activeBlockEventTimeMs;
         if (diffMs < 0) diffMs = 0;
+        if (isPaused) diffMs = pausedAtMs - activeBlockEventTimeMs;
         
         const currentSeconds = (shift.start_minute * 60) + (diffMs / 1000);
         const expectedEndSeconds = (shift.start_minute + shift.duration) * 60;
@@ -588,6 +607,13 @@ document.addEventListener("DOMContentLoaded", function() {
         if (!nextShift) return;
 
         sendApiEvent('period_start', Math.floor(nextShift.start_minute));
+    }
+    
+    function submitPauseBlock() {
+        if (!matchStarted) return;
+        if(!confirm("Ben je zeker dat je deze helft wil afsluiten en de timer wil pauzeren?")) return;
+        
+        sendApiEvent('period_end', calculateElapsedMinutes());
     }
 
     function openEventModal(type) {
@@ -771,7 +797,7 @@ document.addEventListener("DOMContentLoaded", function() {
         }
         
         // Render all events, reverse them to show newest on top
-        const visibleEvents = events.filter(e => e.event_type !== 'match_start' && e.event_type !== 'period_start').reverse();
+        const visibleEvents = events.filter(e => e.event_type !== 'match_start' && e.event_type !== 'period_start' && e.event_type !== 'period_end').reverse();
         
         visibleEvents.forEach(e => {
             const el = document.createElement('div');

@@ -52,8 +52,13 @@ foreach ($events as $ev) {
                                         break;
                                     case 'period_start':
                                         $icon = 'fa-forward-step'; $color = 'text-success'; $bg = 'bg-success-subtle';
-                                        $title = 'Wisselmoment / Volgend Blok';
-                                        $desc = 'Gevraagd om door te schuiven naar het volgende wisselblok.';
+                                        $title = 'Wisselmoment / Volgend Blok gestart';
+                                        $desc = 'De klok loopt weer voor het nieuwe wisselblok.';
+                                        break;
+                                    case 'period_end':
+                                        $icon = 'fa-pause'; $color = 'text-warning'; $bg = 'bg-warning-subtle';
+                                        $title = 'Rust / Einde Helft';
+                                        $desc = 'De wedstrijd is gepauzeerd / afgefloten.';
                                         break;
                                     case 'goal':
                                         $icon = 'fa-futbol'; $color = 'text-success'; $bg = 'bg-success-subtle';

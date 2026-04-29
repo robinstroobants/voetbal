@@ -1300,8 +1300,24 @@
                         actionBtns.style.display = "block";
                     }
                 }
+                
+                // Save active tab
+                var targetId = e.target.getAttribute("data-bs-target");
+                if (targetId) {
+                    localStorage.setItem('activeLineupTab_<?= $gameId ?>', targetId);
+                }
             });
         });
+        
+        // Restore active tab
+        var activeTab = localStorage.getItem('activeLineupTab_<?= $gameId ?>');
+        if (activeTab) {
+            var tabBtn = document.querySelector("#lineupTabs button[data-bs-target='" + activeTab + "']");
+            if (tabBtn) {
+                var bsTab = new bootstrap.Tab(tabBtn);
+                bsTab.show();
+            }
+        }
     });
     </script>
     

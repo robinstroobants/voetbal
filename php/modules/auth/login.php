@@ -105,16 +105,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
     
     <?php $is_localhost = isset($_SERVER['HTTP_HOST']) && (strpos($_SERVER['HTTP_HOST'], 'localhost') !== false || strpos($_SERVER['HTTP_HOST'], '127.0.0.1') !== false); ?>
-    <?php if (!$is_localhost): ?>
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-25S9DSJM7N"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
-      gtag('config', 'G-25S9DSJM7N');
+      <?php 
+      $gtag_config = [
+          'page_path' => $_SERVER['REQUEST_URI'],
+          'page_title' => 'Inloggen - Lineup'
+      ];
+      if ($is_localhost) {
+          $gtag_config['debug_mode'] = true;
+      }
+      ?>
+      gtag('config', 'G-25S9DSJM7N', <?= json_encode($gtag_config) ?>);
     </script>
-    <?php endif; ?>
 
     <?php if (isset($_GET['msg']) && $_GET['msg'] === 'registered'): ?>
     <script>

@@ -34,7 +34,6 @@ header("Expires: 0"); // Proxies blockeren
     <!-- Print Styles -->
     <link href="/css/print.css" rel="stylesheet" media="print">
     
-    <?php if (!$is_localhost): ?>
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-25S9DSJM7N"></script>
     <script>
@@ -42,13 +41,20 @@ header("Expires: 0"); // Proxies blockeren
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
 
-      <?php if (isset($_SESSION['user_id'])): ?>
-      gtag('config', 'G-25S9DSJM7N', { 'user_id': '<?= htmlspecialchars($_SESSION["user_id"]) ?>' });
-      <?php else: ?>
-      gtag('config', 'G-25S9DSJM7N');
-      <?php endif; ?>
+      <?php 
+      $gtag_config = [
+          'page_path' => $_SERVER['REQUEST_URI'],
+          'page_title' => $page_title ?? 'Lineup App'
+      ];
+      if ($is_localhost) {
+          $gtag_config['debug_mode'] = true;
+      }
+      if (isset($_SESSION['user_id'])) {
+          $gtag_config['user_id'] = (string)$_SESSION['user_id'];
+      }
+      ?>
+      gtag('config', 'G-25S9DSJM7N', <?= json_encode($gtag_config) ?>);
     </script>
-    <?php endif; ?>
 </head>
 <body class="bg-light pb-5">
     <?php if (isset($_SESSION['original_user_id'])): ?>

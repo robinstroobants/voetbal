@@ -63,9 +63,10 @@
   <?php if (isset($_GET['generate']) && $_GET['generate'] == 1): ?>
   <script>
   if (typeof gtag === 'function') {
-      gtag('event', 'schema_generated', { 
-          'format': '<?= htmlspecialchars($search_format) ?>',
-          'type': '<?= (isset($_GET["dynamic"]) && $_GET["dynamic"] == 1) ? "EqualPlay AI" : "ProLineup AI" ?>'
+      gtag('event', 'generate_formation', { 
+          'formation_type': '<?= htmlspecialchars($search_format) ?>',
+          'ai_type': '<?= (isset($_GET["dynamic"]) && $_GET["dynamic"] == 1) ? "EqualPlay AI" : "ProLineup AI" ?>',
+          'coach_id': '<?= htmlspecialchars($_SESSION["user_id"] ?? "") ?>'
       });
   }
   </script>

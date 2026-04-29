@@ -1,0 +1,1 @@
+ALTER TABLE game_events ADD COLUMN ip_address VARCHAR(45) DEFAULT NULL;

@@ -312,7 +312,7 @@ require_once __DIR__ . '/../header.php';
                                         <ul class="dropdown-menu dropdown-menu-end shadow-sm">
                                             <?php if ($u['account_status'] === 'pending'): ?>
                                             <li>
-                                                <form method="POST" action="/admin/users" class="m-0 p-0">
+                                                <form method="POST" action="" class="m-0 p-0">
                                                     <input type="hidden" name="action" value="approve_user">
                                                     <input type="hidden" name="user_id" value="<?= $u['id'] ?>">
                                                     <button type="submit" class="dropdown-item text-success fw-bold"><i class="fa-solid fa-check-circle me-2"></i> Goedkeuren & Mailen</button>
@@ -338,7 +338,7 @@ require_once __DIR__ . '/../header.php';
                                             <?php if (!$u['is_verified']): ?>
                                             <li><hr class="dropdown-divider"></li>
                                             <li>
-                                                <form method="POST" action="/admin/users" class="m-0 p-0">
+                                                <form method="POST" action="" class="m-0 p-0">
                                                     <input type="hidden" name="action" value="resend_activation">
                                                     <input type="hidden" name="user_id" value="<?= $u['id'] ?>">
                                                     <button type="submit" class="dropdown-item text-primary"><i class="fa-solid fa-paper-plane me-2"></i> Activatiemail sturen</button>
@@ -346,7 +346,7 @@ require_once __DIR__ . '/../header.php';
                                             </li>
                                             <?php elseif ($u['account_status'] !== 'pending'): ?>
                                             <li>
-                                                <form method="POST" action="/admin/users" class="m-0 p-0">
+                                                <form method="POST" action="" class="m-0 p-0">
                                                     <input type="hidden" name="action" value="send_reset_email">
                                                     <input type="hidden" name="user_id" value="<?= $u['id'] ?>">
                                                     <button type="submit" class="dropdown-item text-primary"><i class="fa-solid fa-envelope me-2"></i> Reset mail sturen</button>
@@ -363,7 +363,7 @@ require_once __DIR__ . '/../header.php';
                                             <?php if ($u['id'] !== $_SESSION['user_id']): ?>
                                             <li><hr class="dropdown-divider"></li>
                                             <li>
-                                                <form method="POST" action="/admin/users" class="m-0 p-0" onsubmit="return confirm('ALARM: Zeker dat je deze gebruiker DEFINITIEF wilt wissen uit het systeem? Dit kan niet ongedaan worden gemaakt.');">
+                                                <form method="POST" action="" class="m-0 p-0" onsubmit="return confirm('ALARM: Zeker dat je deze gebruiker DEFINITIEF wilt wissen uit het systeem? Dit kan niet ongedaan worden gemaakt.');">
                                                     <input type="hidden" name="action" value="delete_user">
                                                     <input type="hidden" name="user_id" value="<?= $u['id'] ?>">
                                                     <button type="submit" class="dropdown-item text-danger"><i class="fa-solid fa-trash me-2"></i> Verwijderen</button>

@@ -188,6 +188,17 @@ body {
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
 }
+@keyframes pulseWissel {
+    0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 159, 67, 0.7); }
+    50% { transform: scale(1.05); box-shadow: 0 0 0 8px rgba(255, 159, 67, 0); }
+    100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 159, 67, 0); }
+}
+.btn-wissel-due {
+    animation: pulseWissel 2s infinite !important;
+    background-color: #ff9f43 !important;
+    border-color: #ff9f43 !important;
+    color: white !important;
+}
 </style>
 
 <div id="liveEventsFeed" class="d-print-none"></div>
@@ -212,7 +223,7 @@ body {
     <div class="d-flex gap-2">
         <button class="btn btn-sm btn-primary fw-bold shadow-sm" onclick="openEventModal('goal')">⚽ Goal</button>
         <button class="btn btn-sm btn-danger fw-bold shadow-sm" onclick="openEventModal('opp_goal')">🥅 Tegengoal</button>
-        <button class="btn btn-sm btn-secondary shadow-sm" onclick="openEventModal('wissel')">🔄 Wissel</button>
+        <button id="btnWissel" class="btn btn-sm btn-secondary shadow-sm" onclick="openEventModal('wissel')">🔄 Wissel</button>
     </div>
 </div>
 
@@ -405,9 +416,34 @@ body {
         const display = document.getElementById('liveClockDisplay');
         if (display) {
             display.innerText = formatClock();
+            updateWisselHint();
             clockInterval = setInterval(() => {
                 display.innerText = formatClock();
+                updateWisselHint();
             }, 1000);
+        }
+    }
+
+    function updateWisselHint() {
+        if (!matchStarted) return;
+        const shift = getActiveShift();
+        const now = new Date().getTime();
+        let diffMs = now - activeBlockEventTimeMs;
+        if (diffMs < 0) diffMs = 0;
+        
+        const currentSeconds = (shift.start_minute * 60) + (diffMs / 1000);
+        const expectedEndSeconds = (shift.start_minute + shift.duration) * 60;
+        
+        const btn = document.getElementById('btnWissel');
+        if (btn) {
+            // Als de geplande tijd overschreden is EN het is niet het laatste blok
+            if (currentShiftIndex < shiftsData.length - 1 && currentSeconds >= expectedEndSeconds) {
+                btn.classList.add('btn-wissel-due');
+                btn.innerHTML = '🔄 Wissel?';
+            } else {
+                btn.classList.remove('btn-wissel-due');
+                btn.innerHTML = '🔄 Wissel';
+            }
         }
     }
 
@@ -630,26 +666,53 @@ body {
         
         visibleEvents.forEach(e => {
             const el = document.createElement('div');
-            el.className = 'live-event-toast shadow-sm';
+            el.className = 'live-event-toast shadow-sm d-flex justify-content-between align-items-center gap-2';
             
             let text = e.event_minute + "' - ";
             if (e.event_type === 'goal') {
                 text += '⚽ Goal door ' + (e.p1_first || 'Onbekend');
+                if (e.p2_first) {
+                    text += ' (' + e.p2_first + ')';
+                }
             } else if (e.event_type === 'opp_goal') {
                 text += '🥅 Tegendoelpunt';
-            } else if (e.event_type === 'assist') {
-                text += '👟 Assist door ' + (e.p1_first || 'Onbekend');
             } else if (e.event_type === 'substitution') {
                 text += '🔄 Wissel: ' + (e.p1_first || '?') + ' IN, ' + (e.p2_first || '?') + ' UIT';
             } else {
                 text += e.event_type;
             }
             
-            if (e.is_confirmed == 1) {
-                 text += ' ✅';
+            const textSpan = document.createElement('span');
+            textSpan.innerText = text + (e.is_confirmed == 1 ? ' ✅' : '');
+            el.appendChild(textSpan);
+
+            if (e.parent_email === getParentEmail() && e.is_confirmed == 0) {
+                const delBtn = document.createElement('button');
+                delBtn.className = 'btn btn-sm btn-link text-white p-0 m-0 text-decoration-none opacity-75';
+                delBtn.innerHTML = '&times;';
+                delBtn.style.fontSize = '1.2rem';
+                delBtn.style.lineHeight = '1';
+                delBtn.onclick = () => deleteOwnEvent(e.id);
+                el.appendChild(delBtn);
             }
-            el.innerText = text;
+            
             feed.appendChild(el);
+        });
+    }
+
+    function deleteOwnEvent(eventId) {
+        if (!confirm("Ben je zeker dat je deze foutieve actie wil verwijderen?")) return;
+        const email = getParentEmail();
+        fetch('/api/api_game_events.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ action: 'delete_own_event', event_id: eventId, parent_email: email })
+        }).then(res => res.json()).then(data => {
+            if (data.status === 'success') {
+                fetchLiveEvents();
+            } else {
+                alert("Kon event niet verwijderen.");
+            }
         });
     }
 

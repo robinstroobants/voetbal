@@ -34,7 +34,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $eventType = $data['event_type'] ?? '';
         $playerId = !empty($data['player_id']) ? (int)$data['player_id'] : null;
         $playerOutId = !empty($data['player_out_id']) ? (int)$data['player_out_id'] : null;
-        $assistPlayerId = !empty($data['assist_player_id']) ? (int)$data['assist_player_id'] : null;
         $eventMinute = (int)($data['event_minute'] ?? 0);
         $userAgent = substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 500);
         $ipAddress = $_SERVER['HTTP_CF_CONNECTING_IP'] ?? $_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? null;
@@ -69,11 +68,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $stmt = $pdo->prepare("INSERT INTO game_events (game_id, parent_email, event_type, player_id, player_out_id, event_minute, is_confirmed, user_agent, ip_address) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
         $stmt->execute([$gameId, $parentEmail, $eventType, $playerId, $playerOutId, $eventMinute, $isCoach, $userAgent, $ipAddress]);
-        
-        if ($eventType === 'goal' && $assistPlayerId) {
-            $stmtAssist = $pdo->prepare("INSERT INTO game_events (game_id, parent_email, event_type, player_id, event_minute, is_confirmed, user_agent, ip_address) VALUES (?, ?, 'assist', ?, ?, ?, ?, ?)");
-            $stmtAssist->execute([$gameId, $parentEmail, $assistPlayerId, $eventMinute, $isCoach, $userAgent, $ipAddress]);
-        }
 
         echo json_encode(['status' => 'success', 'event_id' => $pdo->lastInsertId()]);
         exit;
@@ -122,6 +116,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt = $pdo->prepare("UPDATE game_events SET is_confirmed = 1 WHERE game_id = ? AND is_deleted = 0 AND is_confirmed = 0");
         $stmt->execute([$gameId]);
         
+        echo json_encode(['status' => 'success']);
+        exit;
+    }
+
+    if ($action === 'delete_own_event') {
+        $eventId = (int)($data['event_id'] ?? 0);
+        $parentEmail = $data['parent_email'] ?? '';
+        
+        if ($eventId && $parentEmail) {
+            $stmt = $pdo->prepare("UPDATE game_events SET is_deleted = 1 WHERE id = ? AND parent_email = ? AND is_confirmed = 0");
+            $stmt->execute([$eventId, $parentEmail]);
+        }
         echo json_encode(['status' => 'success']);
         exit;
     }

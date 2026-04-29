@@ -103,6 +103,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     <!-- FontAwesome toevoegen -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+    
+    <?php $is_localhost = isset($_SERVER['HTTP_HOST']) && (strpos($_SERVER['HTTP_HOST'], 'localhost') !== false || strpos($_SERVER['HTTP_HOST'], '127.0.0.1') !== false); ?>
+    <?php if (!$is_localhost): ?>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-25S9DSJM7N"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-25S9DSJM7N');
+    </script>
+    <?php endif; ?>
+
+    <?php if (isset($_GET['msg']) && $_GET['msg'] === 'registered'): ?>
+    <script>
+      if (typeof gtag === 'function') {
+          <?php if (isset($_GET['status']) && $_GET['status'] === 'pending'): ?>
+          gtag('event', 'waitlist_signup', { 'value': 1 });
+          <?php else: ?>
+          gtag('event', 'sign_up', { 'method': 'email' });
+          <?php endif; ?>
+          <?php if (isset($_GET['invite']) && $_GET['invite'] === 'accepted'): ?>
+          gtag('event', 'invite_coach_accepted', { 'method': 'email' });
+          <?php endif; ?>
+      }
+    </script>
+    <?php endif; ?>
+    
     <style>
         :root {
             --apple-bg: #f5f5f7;

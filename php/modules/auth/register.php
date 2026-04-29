@@ -142,7 +142,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error) {
 
                     // Redirect naar login pagina met melding in plaats van direct in te loggen
                     unset($_SESSION['google_signup']);
-                    header("Location: /login?msg=registered");
+                    header("Location: /login?msg=registered&status=" . $account_status . ($invited_team_id ? "&invite=accepted" : ""));
                     exit;
 
                 } catch (Exception $e) {

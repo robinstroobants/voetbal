@@ -158,6 +158,13 @@ require_once __DIR__ . '/header.php';
 
     <?php if ($success): ?>
         <div class="alert alert-success"><i class="fa-solid fa-check-circle me-2"></i><?= htmlspecialchars($success) ?></div>
+        <?php if (strpos($success, 'Uitnodiging succesvol verstuurd') !== false): ?>
+        <script>
+        if (typeof gtag === 'function') {
+            gtag('event', 'invite_coach', { 'method': 'email' });
+        }
+        </script>
+        <?php endif; ?>
     <?php endif; ?>
     
     <?php if ($error): ?>

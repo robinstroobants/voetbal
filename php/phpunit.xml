@@ -9,7 +9,8 @@
          failOnWarning="true"
          colors="true">
     <php>
-        <env name="DB_NAME" value="lineup_test_db"/>
+        <env name="DB_NAME" value="lineup_test_db" force="true"/>
+        <server name="DB_NAME" value="lineup_test_db" force="true"/>
     </php>
     <testsuites>
         <testsuite name="Unit">

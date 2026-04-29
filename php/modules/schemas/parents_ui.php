@@ -51,10 +51,14 @@ $cumulative_min = 0;
 $game_start_mins = []; // Voor tornooien om de tijd per wedstrijd (game_counter) bij te houden
 
 $event_to_game = [];
+$event_to_part = [];
+$event_total_parts = [];
 if (isset($lineup) && isset($lineup->game_parts)) {
     foreach ($lineup->game_parts as $g_counter => $g_parts) {
-        foreach ($g_parts as $g_idx) {
+        foreach ($g_parts as $part_idx => $g_idx) {
             $event_to_game[$g_idx] = $g_counter;
+            $event_to_part[$g_idx] = $part_idx + 1;
+            $event_total_parts[$g_idx] = count($g_parts);
         }
     }
 }
@@ -81,8 +85,27 @@ if (isset($lineup) && isset($lineup->events)) {
             $cumulative_min += $duration_minutes;
         }
         
+        $title = "Blok " . ($idx + 1);
+        $total_parts = $event_total_parts[$idx] ?? 1;
+        $part = $event_to_part[$idx] ?? 1;
+        
+        $game_prefix = "Wedstrijd $current_game_counter";
+        $game_block_labels = json_decode($matchData['game']['block_labels'] ?? '[]', true) ?: [];
+        if (!empty($game_block_labels[$current_game_counter - 1])) {
+            $game_prefix = $game_block_labels[$current_game_counter - 1];
+        }
+        
+        if ($total_parts == 1) {
+            $title = $game_prefix;
+        } elseif ($total_parts == 2) {
+            $title = $game_prefix . ", Helft " . $part;
+        } else {
+            $title = $game_prefix . ", Deel " . $part;
+        }
+        
         $shifts_data[] = [
             'index' => $idx + 1,
+            'title' => $title,
             'duration' => $duration_minutes,
             'start_minute' => $start_minute,
             'bench' => array_values($ev['bench'] ?? []),
@@ -99,6 +122,7 @@ if (isset($lineup) && isset($lineup->events)) {
     
     $shifts_data[] = [
         'index' => 1,
+        'title' => 'Wedstrijd 1',
         'duration' => 45,
         'start_minute' => 0,
         'bench' => [],
@@ -206,7 +230,7 @@ if ($matchStarted) {
                 <?php if ($matchStarted): ?>
                     <div class="d-flex justify-content-center align-items-center gap-3 w-100 flex-nowrap">
                         <div class="d-flex flex-column align-items-center flex-grow-1" style="flex-basis: 33%;">
-                            <div class="parents-block-label" id="currentBlockLabel">Blok <?= $currentShiftIndex + 1 ?> / <?= $totalBlocksCount ?></div>
+                            <div class="parents-block-label" id="currentBlockLabel">Loading...</div>
                             <div class="parents-clock" id="liveClockDisplay">00:00</div>
                         </div>
                         <div class="d-flex flex-column align-items-center flex-grow-1" style="flex-basis: 33%;">
@@ -314,8 +338,8 @@ document.addEventListener("DOMContentLoaded", function() {
             <div class="card mb-3 border-success">
                 <div class="card-body p-3 text-center">
                     <h6 class="fw-bold mb-1">Volgend Blok Starten</h6>
-                    <p class="small text-muted mb-2">Bevestig dat het geplande wisselmoment (Blok <?= $currentShiftIndex + 2 ?>) is ingegaan. De timer springt dan automatisch naar de start van het nieuwe blok.</p>
-                    <button class="btn btn-success btn-sm fw-bold w-100" onclick="submitNextBlock()">▶ Start Blok <?= $currentShiftIndex + 2 ?></button>
+                    <p class="small text-muted mb-2">Bevestig dat het geplande wisselmoment (<span id="modalNextBlockName">Blok <?= $currentShiftIndex + 2 ?></span>) is ingegaan. De timer springt dan automatisch naar de start van het nieuwe blok.</p>
+                    <button class="btn btn-success btn-sm fw-bold w-100" onclick="submitNextBlock()">▶ Start <span id="modalNextBlockBtnName">Blok <?= $currentShiftIndex + 2 ?></span></button>
                 </div>
             </div>
             <div class="text-center text-muted small fw-bold mb-3">- OF INDIVIDUELE WISSEL (UITZONDERING) -</div>
@@ -453,11 +477,13 @@ document.addEventListener("DOMContentLoaded", function() {
         const display = document.getElementById('liveClockDisplay');
         if (display) {
             display.innerText = formatClock();
+            updateBlockLabel();
             updateWisselHint();
             
             if (!matchEndedAtMs) {
                 clockInterval = setInterval(() => {
                     display.innerText = formatClock();
+                    updateBlockLabel();
                     updateWisselHint();
                 }, 1000);
             }
@@ -481,7 +507,8 @@ document.addEventListener("DOMContentLoaded", function() {
                 if (currentShiftIndex < shiftsData.length - 1) {
                     btn.classList.add('btn-wissel-due');
                     btn.classList.remove('btn-danger');
-                    btn.innerHTML = '🔄 Wissel?';
+                    let nShift = shiftsData[currentShiftIndex + 1];
+                    btn.innerHTML = '🔄 ' + (nShift.title || 'Wissel?');
                     btn.onclick = () => openEventModal('wissel');
                 } else {
                     btn.classList.add('btn-wissel-due');
@@ -713,7 +740,7 @@ document.addEventListener("DOMContentLoaded", function() {
         events.forEach(e => {
             if (e.event_type === 'goal') {
                 homeScore++;
-            } else if (e.event_type === 'opp_goal') {
+            } else if (e.event_type === 'opp_goal' || e.event_type === 'tegengoal') {
                 awayScore++;
             }
         });
@@ -737,14 +764,14 @@ document.addEventListener("DOMContentLoaded", function() {
                 if (e.p2_first) {
                     text += ' (' + e.p2_first + ')';
                 }
-            } else if (e.event_type === 'opp_goal') {
+            } else if (e.event_type === 'opp_goal' || e.event_type === 'tegengoal') {
                 text += '🥅 Tegendoelpunt';
             } else if (e.event_type === 'substitution') {
                 text += '🔄 Wissel: ' + (e.p1_first || '?') + ' IN, ' + (e.p2_first || '?') + ' UIT';
             } else if (e.event_type === 'match_end') {
                 text += '🛑 Einde Wedstrijd';
             } else {
-                text += e.event_type;
+                text += '[' + e.event_type + ']';
             }
             
             const textSpan = document.createElement('span');

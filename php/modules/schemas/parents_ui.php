@@ -169,16 +169,6 @@ if ($matchStarted) {
     gap: 6px;
     align-items: center;
 }
-.live-event-toast {
-    background: rgba(0, 0, 0, 0.75);
-    color: white;
-    padding: 6px 15px;
-    border-radius: 20px;
-    font-size: 0.8rem;
-    font-weight: bold;
-    animation: fadeIn 0.3s ease-out;
-    pointer-events: auto;
-}
 @keyframes fadeIn {
     from { opacity: 0; transform: translateY(10px); }
     to { opacity: 1; transform: translateY(0); }
@@ -214,24 +204,27 @@ if ($matchStarted) {
         <div class="parents-bottom-bar w-100">
             <div id="liveClockContainer" class="parents-clock-container w-100 d-flex justify-content-center">
                 <?php if ($matchStarted): ?>
-                    <div class="d-flex align-items-center gap-4">
-                        <div class="d-flex flex-column align-items-center">
+                    <div class="d-flex justify-content-center align-items-center gap-3 w-100 flex-nowrap">
+                        <div class="d-flex flex-column align-items-center flex-grow-1" style="flex-basis: 33%;">
                             <div class="parents-block-label" id="currentBlockLabel">Blok <?= $currentShiftIndex + 1 ?> / <?= $totalBlocksCount ?></div>
                             <div class="parents-clock" id="liveClockDisplay">00:00</div>
                         </div>
-                        <div class="d-flex flex-column align-items-center">
+                        <div class="d-flex flex-column align-items-center flex-grow-1" style="flex-basis: 33%;">
                             <div class="parents-block-label">Score</div>
                             <div class="parents-clock text-primary border-primary bg-white" id="liveScoreDisplay">0 - 0</div>
+                        </div>
+                        <div class="d-flex flex-column align-items-center flex-grow-1" style="flex-basis: 33%;">
+                            <div class="parents-block-label">Wissel</div>
+                            <button id="btnWissel" class="btn btn-secondary shadow-sm w-100" style="padding: 3px 8px; font-weight: bold; height: 32px;" onclick="openEventModal('wissel')">🔄 Wissel</button>
                         </div>
                     </div>
                 <?php else: ?>
                     <button class="btn btn-primary fw-bold" onclick="startMatch()">▶ Start Match</button>
                 <?php endif; ?>
             </div>
-            <div class="d-flex gap-2 w-100 justify-content-center flex-wrap">
-                <button class="btn btn-primary fw-bold shadow-sm" onclick="openEventModal('goal')">⚽ Goal</button>
-                <button class="btn btn-danger fw-bold shadow-sm" onclick="openEventModal('opp_goal')">🥅 Tegengoal</button>
-                <button id="btnWissel" class="btn btn-secondary shadow-sm" onclick="openEventModal('wissel')">🔄 Wissel</button>
+            <div class="d-flex gap-2 w-100 justify-content-center mt-1">
+                <button class="btn btn-primary fw-bold shadow-sm flex-fill" onclick="openEventModal('goal')">⚽ Goal</button>
+                <button class="btn btn-danger fw-bold shadow-sm flex-fill" onclick="openEventModal('opp_goal')">🥅 Tegengoal</button>
             </div>
         </div>
         
@@ -730,12 +723,13 @@ document.addEventListener("DOMContentLoaded", function() {
             scoreDisplay.innerText = homeScore + ' - ' + awayScore;
         }
         
-        // Filter out non-display events and take the last 3
-        const visibleEvents = events.filter(e => e.event_type !== 'match_start' && e.event_type !== 'period_start').slice(-3);
+        // Render all events, reverse them to show newest on top
+        const visibleEvents = events.filter(e => e.event_type !== 'match_start' && e.event_type !== 'period_start').reverse();
         
         visibleEvents.forEach(e => {
             const el = document.createElement('div');
-            el.className = 'live-event-toast shadow-sm d-flex justify-content-between align-items-center gap-2';
+            el.className = 'py-2 border-bottom d-flex justify-content-between align-items-center w-100 text-dark';
+            el.style.fontSize = '0.9rem';
             
             let text = e.event_minute + "' ";
             if (e.event_type === 'goal') {
@@ -754,13 +748,13 @@ document.addEventListener("DOMContentLoaded", function() {
             }
             
             const textSpan = document.createElement('span');
-            textSpan.innerText = text + (e.is_confirmed == 1 ? ' ✅' : '');
+            textSpan.innerHTML = text + (e.is_confirmed == 1 ? ' <i class="fa-solid fa-check text-success ms-1"></i>' : '');
             el.appendChild(textSpan);
 
             if (e.parent_email === getParentEmail() && e.is_confirmed == 0) {
                 const delBtn = document.createElement('button');
-                delBtn.className = 'btn btn-sm btn-link text-white p-0 m-0 text-decoration-none opacity-75';
-                delBtn.innerHTML = '&times;';
+                delBtn.className = 'btn btn-sm btn-link text-danger p-0 m-0 text-decoration-none';
+                delBtn.innerHTML = '<i class="fa-solid fa-xmark"></i>';
                 delBtn.style.fontSize = '1.2rem';
                 delBtn.style.lineHeight = '1';
                 delBtn.onclick = () => deleteOwnEvent(e.id);

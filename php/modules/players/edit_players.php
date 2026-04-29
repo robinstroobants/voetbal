@@ -234,7 +234,7 @@ document.addEventListener("DOMContentLoaded", function() {
         const btn = $(this);
         btn.html('<i class="fa-solid fa-spinner fa-spin"></i>');
         
-        fetch('edit_players.php', {
+        fetch('/players', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)

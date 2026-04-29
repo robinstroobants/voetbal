@@ -20,6 +20,33 @@ if (isset($_GET['msg']) && $_GET['msg'] === 'google_onboard') {
     $msg_success = "Je Google account is gekoppeld! Vul nog snel even je teamgegevens aan om de registratie te voltooien.";
 }
 
+if (isset($_GET['action']) && $_GET['action'] === 'save_intent' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $_SESSION['signup_data'] = [
+        'team_name' => $_POST['team_name'] ?? '',
+        'default_format' => $_POST['default_format'] ?? '',
+        'default_game_parts' => $_POST['default_game_parts'] ?? '',
+        'invite_token' => $_POST['invite_token'] ?? ''
+    ];
+    header("Location: /google_auth?intent=signup");
+    exit;
+}
+
+if (isset($_GET['action']) && $_GET['action'] === 'google_finalize' && isset($_SESSION['google_profile'])) {
+    $_SERVER['REQUEST_METHOD'] = 'POST';
+    $signupData = $_SESSION['signup_data'] ?? [];
+    
+    $_POST['name'] = trim($_SESSION['google_profile']['first_name'] . ' ' . $_SESSION['google_profile']['last_name']);
+    $_POST['email'] = $_SESSION['google_profile']['email'];
+    $_POST['password'] = bin2hex(random_bytes(16)); // Random long password
+    
+    if (!empty($signupData['team_name'])) $_POST['team_name'] = $signupData['team_name'];
+    if (!empty($signupData['default_format'])) $_POST['default_format'] = $signupData['default_format'];
+    if (!empty($signupData['default_game_parts'])) $_POST['default_game_parts'] = $signupData['default_game_parts'];
+    if (!empty($signupData['invite_token'])) $_POST['invite_token'] = $signupData['invite_token'];
+    
+    $_POST['is_google_signup'] = true;
+}
+
 if (isset($_SESSION['google_signup'])) {
     $prefill_email = $_SESSION['google_signup']['email'];
     $prefill_name = trim($_SESSION['google_signup']['first_name'] . ' ' . $_SESSION['google_signup']['last_name']);
@@ -73,7 +100,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error) {
     $has_team_data = $invited_team_id ? true : ($team_name && $default_format && $default_game_parts);
 
     if ($name && $email && $password && $has_team_data) {
-        if (strlen($password) < 6) {
+        if (empty($_POST['is_google_signup']) && strlen($password) < 6) {
             $error = "Wachtwoord moet minimaal 6 tekens lang zijn.";
         } else {
             // Controleer of e-mail al bestaat
@@ -92,8 +119,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error) {
                     
                     $account_status = $invited_team_id ? 'active' : 'pending';
                     
-                    $stmtUser = $pdo->prepare("INSERT INTO users (email, first_name, last_name, password_hash, role, is_verified, verification_token, account_status) VALUES (?, ?, ?, ?, ?, 0, ?, ?)");
-                    $stmtUser->execute([$email, $first_name, $last_name, $hash, $role, $token, $account_status]);
+                    $is_google = !empty($_POST['is_google_signup']) ? 1 : 0;
+                    
+                    $stmtUser = $pdo->prepare("INSERT INTO users (email, first_name, last_name, password_hash, role, is_verified, verification_token, account_status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+                    $stmtUser->execute([$email, $first_name, $last_name, $hash, $role, $is_google, $is_google ? NULL : $token, $account_status]);
                     $user_id = $pdo->lastInsertId();
 
                     if ($invited_team_id) {
@@ -127,21 +156,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error) {
 
                     $pdo->commit();
 
-                    // 4. Verstuur de verificatie e-mail
-                    $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http");
-                    $host = $_SERVER['HTTP_HOST'];
-                    $verify_link = "$protocol://$host/verify.php?token=$token";
-                    
-                    $subject = "Activeer je Lineup account";
-                    $message = "Beste $first_name,\n\nWelkom bij Lineup!\nKlik op de onderstaande link om je account te activeren:\n$verify_link\n\nMet vriendelijke groeten,\nHet Lineup Team";
-                    
-                    require_once dirname(__DIR__, 2) . '/core/Mailer.php';
-                    Mailer::send($email, $subject, $message);
+                    if (empty($_POST['is_google_signup'])) {
+                        // 4. Verstuur de verificatie e-mail (enkel voor email signups)
+                        $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http");
+                        $host = $_SERVER['HTTP_HOST'];
+                        $verify_link = "$protocol://$host/verify.php?token=$token";
+                        
+                        $subject = "Activeer je Lineup account";
+                        $message = "Beste $first_name,\n\nWelkom bij Lineup!\nKlik op de onderstaande link om je account te activeren:\n$verify_link\n\nMet vriendelijke groeten,\nHet Lineup Team";
+                        
+                        require_once dirname(__DIR__, 2) . '/core/Mailer.php';
+                        Mailer::send($email, $subject, $message);
+                    }
                     
 
 
                     // Redirect naar login pagina met melding in plaats van direct in te loggen
                     unset($_SESSION['google_signup']);
+                    unset($_SESSION['google_profile']);
+                    unset($_SESSION['signup_data']);
                     header("Location: /login?msg=registered&status=" . $account_status . ($invited_team_id ? "&invite=accepted" : ""));
                     exit;
 
@@ -398,29 +431,55 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error) {
         <?php endif; ?>
 
         <div class="login-layout">
-            <div class="login-social">
-                <button type="button" class="btn-social" onclick="window.location.href='/google_auth';">
-                    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <g transform="matrix(1, 0, 0, 1, 27.009001, -39.238998)">
-                            <path fill="#4285F4" d="M -3.264 51.509 C -3.264 50.719 -3.334 49.969 -3.454 49.239 L -14.754 49.239 L -14.754 53.749 L -8.284 53.749 C -8.574 55.229 -9.424 56.479 -10.684 57.329 L -10.684 60.329 L -6.824 60.329 C -4.564 58.239 -3.264 55.159 -3.264 51.509 Z"/>
-                            <path fill="#34A853" d="M -14.754 63.239 C -11.514 63.239 -8.804 62.159 -6.824 60.329 L -10.684 57.329 C -11.764 58.049 -13.134 58.489 -14.754 58.489 C -17.884 58.489 -20.534 56.379 -21.484 53.529 L -25.464 53.529 L -25.464 56.619 C -23.494 60.539 -19.444 63.239 -14.754 63.239 Z"/>
-                            <path fill="#FBBC05" d="M -21.484 53.529 C -21.734 52.809 -21.864 52.039 -21.864 51.239 C -21.864 50.439 -21.724 49.669 -21.484 48.949 L -21.484 45.859 L -25.464 45.859 C -26.284 47.479 -26.754 49.299 -26.754 51.239 C -26.754 53.179 -26.284 54.999 -25.464 56.619 L -21.484 53.529 Z"/>
-                            <path fill="#EA4335" d="M -14.754 43.989 C -12.984 43.989 -11.404 44.599 -10.154 45.789 L -6.734 42.369 C -8.804 40.429 -11.514 39.239 -14.754 39.239 C -19.444 39.239 -23.494 41.939 -25.464 45.859 L -21.484 48.949 C -20.534 46.099 -17.884 43.989 -14.754 43.989 Z"/>
-                        </g>
-                    </svg>
-                    Ga verder met Google
-                </button>
-            </div>
+            <?php if ($invite_token): ?>
+                <!-- Direct naar stap 2 (Kies registratiemethode) -->
+                <div id="step2">
+                    <div class="login-social">
+                        <form method="POST" action="/register?action=save_intent" id="google-form">
+                            <input type="hidden" name="invite_token" value="<?= htmlspecialchars($invite_token) ?>">
+                            <button type="button" class="btn-social" onclick="document.getElementById('google-form').submit();">
+                                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                    <g transform="matrix(1, 0, 0, 1, 27.009001, -39.238998)">
+                                        <path fill="#4285F4" d="M -3.264 51.509 C -3.264 50.719 -3.334 49.969 -3.454 49.239 L -14.754 49.239 L -14.754 53.749 L -8.284 53.749 C -8.574 55.229 -9.424 56.479 -10.684 57.329 L -10.684 60.329 L -6.824 60.329 C -4.564 58.239 -3.264 55.159 -3.264 51.509 Z"/>
+                                        <path fill="#34A853" d="M -14.754 63.239 C -11.514 63.239 -8.804 62.159 -6.824 60.329 L -10.684 57.329 C -11.764 58.049 -13.134 58.489 -14.754 58.489 C -17.884 58.489 -20.534 56.379 -21.484 53.529 L -25.464 53.529 L -25.464 56.619 C -23.494 60.539 -19.444 63.239 -14.754 63.239 Z"/>
+                                        <path fill="#FBBC05" d="M -21.484 53.529 C -21.734 52.809 -21.864 52.039 -21.864 51.239 C -21.864 50.439 -21.724 49.669 -21.484 48.949 L -21.484 45.859 L -25.464 45.859 C -26.284 47.479 -26.754 49.299 -26.754 51.239 C -26.754 53.179 -26.284 54.999 -25.464 56.619 L -21.484 53.529 Z"/>
+                                        <path fill="#EA4335" d="M -14.754 43.989 C -12.984 43.989 -11.404 44.599 -10.154 45.789 L -6.734 42.369 C -8.804 40.429 -11.514 39.239 -14.754 39.239 C -19.444 39.239 -23.494 41.939 -25.464 45.859 L -21.484 48.949 C -20.534 46.099 -17.884 43.989 -14.754 43.989 Z"/>
+                                    </g>
+                                </svg> Ga verder met Google
+                            </button>
+                        </form>
+                    </div>
 
-            <div class="divider"><span>of registreer met e-mail</span></div>
+                    <div class="divider"><span>of registreer met e-mail</span></div>
 
-            <div class="login-main">
-                <form method="POST" action="">
-                    <?php if ($invite_token): ?>
-                        <input type="hidden" name="invite_token" value="<?= htmlspecialchars($invite_token) ?>">
-                    <?php else: ?>
+                    <div class="login-main">
+                        <form method="POST" action="">
+                            <input type="hidden" name="invite_token" value="<?= htmlspecialchars($invite_token) ?>">
+                            
+                            <div class="form-group">
+                                <input type="text" name="name" placeholder="Je volledige naam" value="<?= htmlspecialchars($prefill_name) ?>" required <?= empty($prefill_name) ? 'autofocus' : '' ?>>
+                            </div>
+                            <div class="form-group">
+                                <?php if ($prefill_email): ?>
+                                    <input type="email" name="email" value="<?= htmlspecialchars($prefill_email) ?>" readonly style="background-color: #f5f5f7; color: var(--apple-text-muted);">
+                                <?php else: ?>
+                                    <input type="email" name="email" placeholder="E-mailadres" required>
+                                <?php endif; ?>
+                            </div>
+                            <div class="form-group">
+                                <input type="password" name="password" placeholder="Kies een wachtwoord" required>
+                            </div>
+                            <button type="submit" class="btn-submit">Account Aanmaken</button>
+                        </form>
+                    </div>
+                </div>
+            <?php else: ?>
+                <!-- STAP 1: Team gegevens -->
+                <div id="step1">
+                    <h3 style="font-size: 1.1rem; margin-bottom: 16px;">Stap 1: Jouw Team</h3>
+                    <form id="step1-form" onsubmit="event.preventDefault(); goToStep2();">
                         <div class="form-group">
-                            <input type="text" name="team_name" placeholder="Naam team (bv. U11 Thes IP)" required>
+                            <input type="text" id="team_name_input" name="team_name" placeholder="Naam team (bv. U11 Thes IP)" required autofocus>
                         </div>
 
                         <div class="form-group" style="display: flex; gap: 10px;">
@@ -441,69 +500,147 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error) {
                             </div>
                         </div>
                         
-                        <script>
-                        document.addEventListener('DOMContentLoaded', function() {
-                            const availableParts = <?= $json_available_parts ?>;
-                            const formatSelect = document.getElementById('default_format');
-                            const partsSelect = document.getElementById('default_game_parts');
+                        <button type="submit" class="btn-submit">Volgende stap</button>
+                    </form>
+                </div>
 
-                            function updateParts() {
-                                const selectedFormat = formatSelect.value;
-                                partsSelect.innerHTML = '<option value="" disabled selected>Indeling</option>';
-                                
-                                if (!selectedFormat) return;
-                                
-                                let parts = availableParts[selectedFormat] || [];
-                                if (parts.length === 0) {
-                                    if (selectedFormat === '11v11') {
-                                        parts = ['2x45', '2x40', '2x35'];
-                                    } else if (selectedFormat === '8v8') {
-                                        parts = ['4x15', '5x15', '6x15', '7x15', '4x20', '5x20', '6x20', '7x20'];
-                                    } else if (selectedFormat === '5v5') {
-                                        parts = ['4x15', '5x15', '6x15', '7x15'];
-                                    } else if (selectedFormat === '3v3' || selectedFormat === '2v2') {
-                                        parts = ['6x10'];
-                                    } else {
-                                        parts = ['4x15'];
-                                    }
-                                }
-                                parts.forEach(part => {
-                                    const option = document.createElement('option');
-                                    option.value = part;
-                                    option.textContent = part;
-                                    partsSelect.appendChild(option);
-                                });
+                <!-- STAP 2: Registratiemethode -->
+                <div id="step2" style="display: none;">
+                    <div style="display:flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                        <h3 style="font-size: 1.1rem; margin: 0;">Stap 2: Registreren</h3>
+                        <a href="javascript:void(0)" onclick="goToStep1()" style="font-size: 0.85rem; color: var(--apple-blue); text-decoration: none;"><i class="fa-solid fa-arrow-left"></i> Terug</a>
+                    </div>
+                    
+                    <div class="login-social">
+                        <form method="POST" action="/register?action=save_intent" id="google-form">
+                            <input type="hidden" name="team_name" id="g_team_name">
+                            <input type="hidden" name="default_format" id="g_default_format">
+                            <input type="hidden" name="default_game_parts" id="g_default_game_parts">
+                            <button type="button" class="btn-social" onclick="document.getElementById('google-form').submit();">
+                                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                    <g transform="matrix(1, 0, 0, 1, 27.009001, -39.238998)">
+                                        <path fill="#4285F4" d="M -3.264 51.509 C -3.264 50.719 -3.334 49.969 -3.454 49.239 L -14.754 49.239 L -14.754 53.749 L -8.284 53.749 C -8.574 55.229 -9.424 56.479 -10.684 57.329 L -10.684 60.329 L -6.824 60.329 C -4.564 58.239 -3.264 55.159 -3.264 51.509 Z"/>
+                                        <path fill="#34A853" d="M -14.754 63.239 C -11.514 63.239 -8.804 62.159 -6.824 60.329 L -10.684 57.329 C -11.764 58.049 -13.134 58.489 -14.754 58.489 C -17.884 58.489 -20.534 56.379 -21.484 53.529 L -25.464 53.529 L -25.464 56.619 C -23.494 60.539 -19.444 63.239 -14.754 63.239 Z"/>
+                                        <path fill="#FBBC05" d="M -21.484 53.529 C -21.734 52.809 -21.864 52.039 -21.864 51.239 C -21.864 50.439 -21.724 49.669 -21.484 48.949 L -21.484 45.859 L -25.464 45.859 C -26.284 47.479 -26.754 49.299 -26.754 51.239 C -26.754 53.179 -26.284 54.999 -25.464 56.619 L -21.484 53.529 Z"/>
+                                        <path fill="#EA4335" d="M -14.754 43.989 C -12.984 43.989 -11.404 44.599 -10.154 45.789 L -6.734 42.369 C -8.804 40.429 -11.514 39.239 -14.754 39.239 C -19.444 39.239 -23.494 41.939 -25.464 45.859 L -21.484 48.949 C -20.534 46.099 -17.884 43.989 -14.754 43.989 Z"/>
+                                    </g>
+                                </svg> Ga verder met Google
+                            </button>
+                        </form>
+                    </div>
+
+                    <div class="divider"><span>of met e-mail</span></div>
+
+                    <div class="login-main">
+                        <form method="POST" action="">
+                            <input type="hidden" name="team_name" id="e_team_name">
+                            <input type="hidden" name="default_format" id="e_default_format">
+                            <input type="hidden" name="default_game_parts" id="e_default_game_parts">
+                            
+                            <div class="form-group">
+                                <input type="text" name="name" placeholder="Je volledige naam" value="<?= htmlspecialchars($prefill_name) ?>" required>
+                            </div>
+                            <div class="form-group">
+                                <?php if ($prefill_email): ?>
+                                    <input type="email" name="email" value="<?= htmlspecialchars($prefill_email) ?>" readonly style="background-color: #f5f5f7; color: var(--apple-text-muted);">
+                                <?php else: ?>
+                                    <input type="email" name="email" placeholder="E-mailadres" required>
+                                <?php endif; ?>
+                            </div>
+                            <div class="form-group">
+                                <input type="password" name="password" placeholder="Kies een wachtwoord" required>
+                            </div>
+
+                            <button type="submit" class="btn-submit">Account Aanmaken</button>
+                        </form>
+                    </div>
+                </div>
+
+                <script>
+                    const availableParts = <?= $json_available_parts ?>;
+                    const formatSelect = document.getElementById('default_format');
+                    const partsSelect = document.getElementById('default_game_parts');
+
+                    function updateParts() {
+                        const selectedFormat = formatSelect.value;
+                        partsSelect.innerHTML = '<option value="" disabled selected>Indeling</option>';
+                        
+                        if (!selectedFormat) return;
+                        
+                        let parts = availableParts[selectedFormat] || [];
+                        if (parts.length === 0) {
+                            if (selectedFormat === '11v11') {
+                                parts = ['2x45', '2x40', '2x35'];
+                            } else if (selectedFormat === '8v8') {
+                                parts = ['4x15', '5x15', '6x15', '7x15', '4x20', '5x20', '6x20', '7x20'];
+                            } else if (selectedFormat === '5v5') {
+                                parts = ['4x15', '5x15', '6x15', '7x15'];
+                            } else if (selectedFormat === '3v3' || selectedFormat === '2v2') {
+                                parts = ['6x10'];
+                            } else {
+                                parts = ['4x15'];
                             }
-
-                            formatSelect.addEventListener('change', updateParts);
+                        }
+                        parts.forEach(part => {
+                            const option = document.createElement('option');
+                            option.value = part;
+                            option.textContent = part;
+                            partsSelect.appendChild(option);
                         });
-                        </script>
-                    <?php endif; ?>
-                    
-                    <div class="form-group">
-                        <input type="text" name="name" placeholder="Je volledige naam" value="<?= htmlspecialchars($prefill_name) ?>" required <?= empty($prefill_name) ? 'autofocus' : '' ?>>
-                    </div>
+                    }
 
-                    <div class="form-group">
-                        <?php if ($prefill_email): ?>
-                            <input type="email" name="email" value="<?= htmlspecialchars($prefill_email) ?>" readonly style="background-color: #f5f5f7; color: var(--apple-text-muted);">
-                        <?php else: ?>
-                            <input type="email" name="email" placeholder="E-mailadres" required>
-                        <?php endif; ?>
-                    </div>
+                    if (formatSelect) {
+                        formatSelect.addEventListener('change', updateParts);
+                    }
 
+                    function goToStep2() {
+                        const teamName = document.getElementById('team_name_input').value;
+                        const format = document.getElementById('default_format').value;
+                        const parts = document.getElementById('default_game_parts').value;
+                        
+                        if (!teamName || !format || !parts) return;
+                        
+                        document.getElementById('g_team_name').value = teamName;
+                        document.getElementById('g_default_format').value = format;
+                        document.getElementById('g_default_game_parts').value = parts;
+                        
+                        document.getElementById('e_team_name').value = teamName;
+                        document.getElementById('e_default_format').value = format;
+                        document.getElementById('e_default_game_parts').value = parts;
+                        
+                        document.getElementById('step1').style.display = 'none';
+                        document.getElementById('step2').style.display = 'block';
+                    }
                     
+                    function goToStep1() {
+                        document.getElementById('step2').style.display = 'none';
+                        document.getElementById('step1').style.display = 'block';
+                    }
                     
-                    <div class="form-group">
-                        <input type="password" name="password" placeholder="Kies een wachtwoord" required>
-                    </div>
-
-                    <button type="submit" class="btn-submit">Account Aanmaken</button>
-                    
-                    <div class="switch-link">
-                        Heb je al een account? <a href="/login">Log in</a>
-                    </div>
-                </form>
+                    const teamNameInput = document.getElementById('team_name_input');
+                    if (teamNameInput) {
+                        teamNameInput.addEventListener('input', function(e) {
+                            let name = e.target.value.toLowerCase();
+                            let format = '';
+                            if (name.includes('u6')) format = '2v2';
+                            else if (name.includes('u7')) format = '3v3';
+                            else if (name.includes('u8') || name.includes('u9')) format = '5v5';
+                            else if (name.match(/u1[0-3]/)) format = '8v8';
+                            else if (name.match(/u1[4-9]/) || name.match(/u2[0-9]/) || name.includes('eerste') || name.includes('prov') || name.includes('belofte')) format = '11v11';
+                            
+                            if (format) {
+                                if (formatSelect.value !== format) {
+                                    formatSelect.value = format;
+                                    formatSelect.dispatchEvent(new Event('change'));
+                                }
+                            }
+                        });
+                    }
+                </script>
+            <?php endif; ?>
+            
+            <div class="switch-link">
+                Heb je al een account? <a href="/login">Log in</a>
             </div>
         </div>
         

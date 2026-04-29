@@ -116,14 +116,20 @@ try {
         }
         exit;
     } else {
-        // Stop auto-registratie! Sla gegevens op en stuur naar registratieformulier.
-        $_SESSION['google_signup'] = [
-            'email' => $email,
-            'first_name' => $firstName,
-            'last_name' => $lastName
-        ];
-        header("Location: /register?msg=google_onboard");
-        exit;
+        $intent = $_SESSION['auth_intent'] ?? 'login';
+        
+        if ($intent === 'login') {
+            header("Location: /login?error=" . urlencode("We konden geen account vinden met dit e-mailadres. Maak er eerst een aan."));
+            exit;
+        } else {
+            $_SESSION['google_profile'] = [
+                'email' => $email,
+                'first_name' => $firstName,
+                'last_name' => $lastName
+            ];
+            header("Location: /register?action=google_finalize");
+            exit;
+        }
     }
 
 } catch (Exception $e) {

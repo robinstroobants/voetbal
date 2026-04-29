@@ -5,6 +5,10 @@ if (session_status() === PHP_SESSION_NONE) {
 
 require_once dirname(__DIR__, 2) . '/vendor/autoload.php';
 
+if (isset($_GET['intent'])) {
+    $_SESSION['auth_intent'] = $_GET['intent'];
+}
+
 $googleClientId = $_SERVER['GOOGLE_CLIENT_ID'] ?? getenv('GOOGLE_CLIENT_ID');
 $googleClientSecret = $_SERVER['GOOGLE_CLIENT_SECRET'] ?? getenv('GOOGLE_CLIENT_SECRET');
 $redirectUri = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http") . "://" . $_SERVER['HTTP_HOST'] . "/google_callback";

@@ -1,0 +1,1 @@
+ALTER TABLE game_events ADD COLUMN user_agent VARCHAR(512) DEFAULT NULL;

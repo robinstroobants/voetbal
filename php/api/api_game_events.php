@@ -14,6 +14,7 @@ CREATE TABLE IF NOT EXISTS game_events (
     is_confirmed TINYINT(1) DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     is_deleted TINYINT(1) DEFAULT 0,
+    user_agent VARCHAR(512) NULL,
     FOREIGN KEY (game_id) REFERENCES games(id) ON DELETE CASCADE,
     FOREIGN KEY (player_id) REFERENCES players(id) ON DELETE SET NULL,
     FOREIGN KEY (player_out_id) REFERENCES players(id) ON DELETE SET NULL
@@ -33,6 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $playerId = !empty($data['player_id']) ? (int)$data['player_id'] : null;
         $playerOutId = !empty($data['player_out_id']) ? (int)$data['player_out_id'] : null;
         $eventMinute = (int)($data['event_minute'] ?? 0);
+        $userAgent = substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 500);
         
         // Coach overrides 'is_confirmed' to 1 immediately
         $isCoach = isset($_SESSION['user_id']) ? 1 : 0;
@@ -59,8 +61,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
-        $stmt = $pdo->prepare("INSERT INTO game_events (game_id, parent_email, event_type, player_id, player_out_id, event_minute, is_confirmed) VALUES (?, ?, ?, ?, ?, ?, ?)");
-        $stmt->execute([$gameId, $parentEmail, $eventType, $playerId, $playerOutId, $eventMinute, $isCoach]);
+        $stmt = $pdo->prepare("INSERT INTO game_events (game_id, parent_email, event_type, player_id, player_out_id, event_minute, is_confirmed, user_agent) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+        $stmt->execute([$gameId, $parentEmail, $eventType, $playerId, $playerOutId, $eventMinute, $isCoach, $userAgent]);
 
         echo json_encode(['status' => 'success', 'event_id' => $pdo->lastInsertId()]);
         exit;

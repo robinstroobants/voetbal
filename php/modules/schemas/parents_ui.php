@@ -163,7 +163,34 @@ if ($matchStarted) {
 body {
     padding-bottom: 80px;
 }
+#liveEventsFeed {
+    position: fixed;
+    bottom: 70px;
+    left: 15px;
+    right: 15px;
+    z-index: 1030;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    pointer-events: none;
+    align-items: center;
+}
+.live-event-toast {
+    background: rgba(0, 0, 0, 0.75);
+    color: white;
+    padding: 6px 15px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: bold;
+    animation: fadeIn 0.3s ease-out;
+}
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
 </style>
+
+<div id="liveEventsFeed" class="d-print-none"></div>
 
 <div class="parents-bottom-bar d-print-none">
     <div id="liveClockContainer" class="parents-clock-container">
@@ -530,5 +557,54 @@ body {
         }).catch(err => {
             alert("Verbindingsfout.");
         });
+    }
+    function fetchLiveEvents() {
+        if (!matchStarted) return;
+        fetch('/api/api_game_events.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ action: 'get_events', game_id: gameId })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.status === 'success' && data.events) {
+                renderLiveEvents(data.events);
+            }
+        }).catch(() => {});
+    }
+
+    function renderLiveEvents(events) {
+        const feed = document.getElementById('liveEventsFeed');
+        feed.innerHTML = '';
+        
+        // Filter out non-display events and take the last 3
+        const visibleEvents = events.filter(e => e.event_type !== 'match_start' && e.event_type !== 'period_start').slice(-3);
+        
+        visibleEvents.forEach(e => {
+            const el = document.createElement('div');
+            el.className = 'live-event-toast shadow-sm';
+            
+            let text = e.event_minute + "' - ";
+            if (e.event_type === 'goal') {
+                text += '⚽ Goal door ' + (e.p1_first || 'Onbekend');
+            } else if (e.event_type === 'assist') {
+                text += '👟 Assist door ' + (e.p1_first || 'Onbekend');
+            } else if (e.event_type === 'substitution') {
+                text += '🔄 Wissel: ' + (e.p1_first || '?') + ' IN, ' + (e.p2_first || '?') + ' UIT';
+            } else {
+                text += e.event_type;
+            }
+            
+            if (e.is_confirmed == 1) {
+                 text += ' ✅';
+            }
+            el.innerText = text;
+            feed.appendChild(el);
+        });
+    }
+
+    if (matchStarted) {
+        fetchLiveEvents();
+        setInterval(fetchLiveEvents, 5000); // Check every 5 seconds
     }
 </script>

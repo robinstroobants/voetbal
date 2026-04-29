@@ -203,6 +203,7 @@ body {
     </div>
     <div class="d-flex gap-2">
         <button class="btn btn-sm btn-primary fw-bold shadow-sm" onclick="openEventModal('goal')">⚽ Goal</button>
+        <button class="btn btn-sm btn-danger fw-bold shadow-sm" onclick="openEventModal('opp_goal')">🥅 Tegengoal</button>
         <button class="btn btn-sm btn-secondary shadow-sm" onclick="openEventModal('wissel')">🔄 Wissel</button>
     </div>
 </div>
@@ -468,6 +469,10 @@ body {
             document.getElementById('goalPlayerSelect').style.display = 'block';
             document.getElementById('wisselMenu').style.display = 'none';
             populateDropdown('goalPlayerId', shift.pitch, true);
+        } else if (type === 'opp_goal') {
+            document.getElementById('eventModalTitle').innerText = '🥅 Tegengoal Melden';
+            document.getElementById('goalPlayerSelect').style.display = 'none';
+            document.getElementById('wisselMenu').style.display = 'none';
         } else if (type === 'wissel') {
             document.getElementById('eventModalTitle').innerText = '🔄 Wissel Menu';
             document.getElementById('goalPlayerSelect').style.display = 'none';
@@ -514,6 +519,8 @@ body {
             const pid = document.getElementById('goalPlayerId').value;
             if (!pid) { alert("Selecteer de speler die gescoord heeft."); return; }
             payload.player_id = pid;
+        } else if (type === 'opp_goal') {
+            // Niets extra nodig
         } else if (type === 'wissel') {
             const pIn = document.getElementById('wisselPlayerInId').value;
             const pOut = document.getElementById('wisselPlayerOutId').value;
@@ -587,6 +594,8 @@ body {
             let text = e.event_minute + "' - ";
             if (e.event_type === 'goal') {
                 text += '⚽ Goal door ' + (e.p1_first || 'Onbekend');
+            } else if (e.event_type === 'opp_goal') {
+                text += '🥅 Tegendoelpunt';
             } else if (e.event_type === 'assist') {
                 text += '👟 Assist door ' + (e.p1_first || 'Onbekend');
             } else if (e.event_type === 'substitution') {

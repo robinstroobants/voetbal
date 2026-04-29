@@ -786,7 +786,7 @@ document.addEventListener("DOMContentLoaded", function() {
         events.forEach(e => {
             if (e.event_type === 'goal') {
                 homeScore++;
-            } else if (e.event_type === 'opp_goal' || e.event_type === 'tegengoal') {
+            } else if (e.event_type === 'opp_goal' || e.event_type === 'tegengoal' || !e.event_type || e.event_type.trim() === '') {
                 awayScore++;
             }
         });

@@ -120,6 +120,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
 
+    if ($action === 'delete_all_events') {
+        if (!isset($_SESSION['user_id'])) {
+            echo json_encode(['status' => 'error', 'message' => 'Not authorized']);
+            exit;
+        }
+        $gameId = (int)($data['game_id'] ?? 0);
+        $stmt = $pdo->prepare("UPDATE game_events SET is_deleted = 1 WHERE game_id = ?");
+        $stmt->execute([$gameId]);
+        
+        echo json_encode(['status' => 'success']);
+        exit;
+    }
+
     if ($action === 'delete_own_event') {
         $eventId = (int)($data['event_id'] ?? 0);
         $parentEmail = $data['parent_email'] ?? '';

@@ -23,9 +23,14 @@ foreach ($events as $ev) {
     <div class="row">
         <div class="col-12 col-md-8 mx-auto">
             <div class="card shadow-sm border-0">
-                <div class="card-header bg-white border-bottom-0 pt-4 pb-0">
-                    <h5 class="fw-bold mb-0"><i class="fa-solid fa-list-check text-primary me-2"></i> Wedstrijdverslag & Wachtkamer</h5>
-                    <p class="text-muted small mt-1">Hier verschijnen alle acties die jij of de ouders (via de live share-link) hebben doorgegeven.</p>
+                <div class="card-header bg-white border-bottom-0 pt-4 pb-0 d-flex justify-content-between align-items-start flex-wrap gap-2">
+                    <div>
+                        <h5 class="fw-bold mb-0"><i class="fa-solid fa-list-check text-primary me-2"></i> Wedstrijdverslag & Wachtkamer</h5>
+                        <p class="text-muted small mt-1">Hier verschijnen alle acties die jij of de ouders (via de live share-link) hebben doorgegeven.</p>
+                    </div>
+                    <?php if (!empty($events)): ?>
+                        <button class="btn btn-sm btn-outline-danger fw-bold shadow-sm" onclick="deleteAllEvents()"><i class="fa-solid fa-trash-can me-1"></i> Alles Wissen</button>
+                    <?php endif; ?>
                 </div>
                 <div class="card-body">
                     
@@ -198,6 +203,26 @@ function confirmAllEvents() {
     
     let fd = new FormData();
     fd.append('action', 'confirm_all_events');
+    fd.append('game_id', <?= $gameId ?>);
+    
+    fetch('/api/api_game_events.php', { method: 'POST', body: fd })
+    .then(r => r.json())
+    .then(data => {
+        if(data.status === 'success') {
+            location.reload();
+        } else {
+            alert('Fout: ' + (data.message || 'Onbekend'));
+        }
+    }).catch(err => {
+        alert('Netwerk fout');
+    });
+}
+
+function deleteAllEvents() {
+    if (!confirm("Weet je zeker dat je het hele wedstrijdverslag (alle events) wilt verwijderen? Dit kan niet ongedaan worden gemaakt.")) return;
+    
+    let fd = new FormData();
+    fd.append('action', 'delete_all_events');
     fd.append('game_id', <?= $gameId ?>);
     
     fetch('/api/api_game_events.php', { method: 'POST', body: fd })

@@ -41,6 +41,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $ipAddress = explode(',', $ipAddress)[0]; // neem enkel eerste IP indien x-forwarded-for meerdere IPs heeft
         }
         
+        // DEBUGGING TEMPORARY
+        file_put_contents(__DIR__ . '/debug_events.log', date('Y-m-d H:i:s') . " - log_event: " . print_r($data, true) . "\n", FILE_APPEND);
+        
+        
         // Coach overrides 'is_confirmed' to 1 immediately
         $isCoach = isset($_SESSION['user_id']) ? 1 : 0;
 

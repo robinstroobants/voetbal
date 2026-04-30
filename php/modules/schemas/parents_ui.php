@@ -937,7 +937,9 @@ document.addEventListener("DOMContentLoaded", function() {
             } else if (e.event_type === 'period_end') {
                 text += '⏸ Rust / Einde Helft' + (e.parent_email === 'auto@systeem' ? ' (auto)' : '');
             } else if (e.event_type === 'match_start' || e.event_type === 'period_start') {
-                text += `▶ Wedstrijd/Blok ${e._blockIndex} Gestart`;
+                let shiftData = shiftsData[e._blockIndex - 1];
+                let blockTitle = shiftData ? shiftData.title : `Blok ${e._blockIndex}`;
+                text += `▶ Start ${blockTitle}` + (e.parent_email === 'auto@systeem' ? ' (auto)' : '');
             } else {
                 text += '[' + e.event_type + ']';
             }

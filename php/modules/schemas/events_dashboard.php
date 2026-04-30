@@ -58,12 +58,16 @@ foreach ($events as $ev) {
                                     switch ($ev['event_type']) {
                                         case 'match_start':
                                             $icon = 'fa-play'; $color = 'text-primary'; $bg = 'bg-primary-subtle';
-                                            $title = 'Wedstrijd/Blok ' . $blockCounter . ' Gestart';
+                                            $bTitle = (isset($shifts_data) && isset($shifts_data[$blockCounter - 1])) ? $shifts_data[$blockCounter - 1]['title'] : 'Blok ' . $blockCounter;
+                                            $title = 'Start ' . $bTitle;
+                                            if ($ev['parent_email'] === 'auto@systeem') $title .= ' (auto)';
                                             $desc = 'De wedstrijd is afgetrapt.';
                                             break;
                                         case 'period_start':
                                             $icon = 'fa-forward-step'; $color = 'text-success'; $bg = 'bg-success-subtle';
-                                            $title = 'Wedstrijd/Blok ' . $blockCounter . ' Gestart';
+                                            $bTitle = (isset($shifts_data) && isset($shifts_data[$blockCounter - 1])) ? $shifts_data[$blockCounter - 1]['title'] : 'Blok ' . $blockCounter;
+                                            $title = 'Start ' . $bTitle;
+                                            if ($ev['parent_email'] === 'auto@systeem') $title .= ' (auto)';
                                             $desc = 'De klok loopt weer voor het nieuwe wisselblok.';
                                             break;
                                         case 'period_end':

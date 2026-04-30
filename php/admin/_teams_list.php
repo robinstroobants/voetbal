@@ -73,6 +73,7 @@
                     <table class="table table-sm table-hover align-middle mb-0">
                         <thead class="table-light">
                             <tr>
+                                <th style="width: 50px;"></th>
                                 <th>Naam</th>
                                 <th class="d-none d-md-table-cell">E-mailadres</th>
                                 <th class="text-center" title="Verbruik (Vandaag / 7 Dagen / 30 Dagen)">Load (Vand/7d/30d)</th>
@@ -86,6 +87,16 @@
                             <?php if (!empty($users[$t['id']])): ?>
                             <?php foreach ($users[$t['id']] as $user): ?>
                             <tr>
+                                <td class="text-center">
+                                    <?php if($user['role'] !== 'superadmin'): ?>
+                                    <form method="POST" action="/admin/impersonate?action=start" class="m-0">
+                                        <input type="hidden" name="target_user_id" value="<?= $user['id'] ?>">
+                                        <button type="submit" class="btn btn-sm btn-outline-primary" title="Log in als deze gebruiker">
+                                            <i class="fa-solid fa-user-secret"></i>
+                                        </button>
+                                    </form>
+                                    <?php endif; ?>
+                                </td>
                                 <td>
                                     <?= htmlspecialchars($user['first_name'] . ' ' . $user['last_name']) ?>
                                     <?php if(isset($allUserTeams[$user['id']]) && count($allUserTeams[$user['id']]) > 1): ?>
@@ -136,12 +147,6 @@
                                 <td class="text-end">
                                     <?php if($user['role'] !== 'superadmin'): ?>
                                     <div class="d-flex justify-content-end gap-1 flex-nowrap">
-                                        <form method="POST" action="/admin/impersonate?action=start" class="m-0">
-                                            <input type="hidden" name="target_user_id" value="<?= $user['id'] ?>">
-                                            <button type="submit" class="btn btn-sm btn-outline-primary" title="Log in als deze gebruiker">
-                                                <i class="fa-solid fa-user-secret"></i>
-                                            </button>
-                                        </form>
                                         <button type="button" class="btn btn-sm btn-outline-warning" onclick='openEditUserModal(<?= json_encode($user) ?>)' title="Bewerk Informatie">
                                             <i class="fa-solid fa-pen"></i>
                                         </button>
@@ -165,6 +170,7 @@
                             <?php if (!empty($teamPendingInvites)): ?>
                             <?php foreach ($teamPendingInvites as $invite): ?>
                             <tr>
+                                <td></td>
                                 <td class="text-muted fst-italic">
                                     Uitgenodigd
                                     <div class="small fw-semibold mt-1 text-warning">

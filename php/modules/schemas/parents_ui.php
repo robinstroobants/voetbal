@@ -423,6 +423,7 @@ document.addEventListener("DOMContentLoaded", function() {
     let currentAdjustedMinute = 0;
     let clockInterval = null;
     let matchEndedAtMs = <?= $matchEndedAt ? strtotime($matchEndedAt) * 1000 : 'null' ?>;
+    let autoEventTriggered = false;
 
     document.addEventListener('DOMContentLoaded', function() {
         window.scrollTo(0,0);
@@ -521,6 +522,29 @@ document.addEventListener("DOMContentLoaded", function() {
         
         const currentSeconds = (shift.start_minute * 60) + (diffMs / 1000);
         const expectedEndSeconds = (shift.start_minute + shift.duration) * 60;
+        
+        // Auto trigger events at 20% overtime
+        const overTimeThreshold = expectedEndSeconds * 1.20;
+        if (currentSeconds >= overTimeThreshold && !autoEventTriggered && !isPaused && !matchEndedAtMs) {
+            autoEventTriggered = true;
+            if (currentShiftIndex < shiftsData.length - 1) {
+                sendApiEventObject({
+                    action: 'log_event',
+                    game_id: gameId,
+                    parent_email: 'auto@systeem',
+                    event_type: 'period_end',
+                    event_minute: Math.floor(currentSeconds / 60)
+                });
+            } else {
+                sendApiEventObject({
+                    action: 'log_event',
+                    game_id: gameId,
+                    parent_email: 'auto@systeem',
+                    event_type: 'match_end',
+                    event_minute: Math.floor(currentSeconds / 60)
+                });
+            }
+        }
         
         const btn = document.getElementById('btnWissel');
         if (btn) {
@@ -800,14 +824,31 @@ document.addEventListener("DOMContentLoaded", function() {
         }
         
         // Render all events, reverse them to show newest on top
-        const visibleEvents = events.filter(e => e.event_type !== 'match_start' && e.event_type !== 'period_start' && e.event_type !== 'period_end').reverse();
+        let blockMap = {};
+        let blockCount = 0;
+        events.forEach(e => {
+            if (e.event_type === 'match_start' || e.event_type === 'period_start') {
+                blockCount++;
+                blockMap[e.id] = blockCount;
+            }
+        });
+        
+        const visibleEvents = [...events].reverse();
         
         visibleEvents.forEach(e => {
             const el = document.createElement('div');
             el.className = 'py-2 border-bottom d-flex justify-content-between align-items-center w-100 text-dark';
             el.style.fontSize = '0.9rem';
             
-            let text = e.event_minute + "' ";
+            let timeStr = '';
+            if (e.created_at) {
+                timeStr = e.created_at.substring(11, 16);
+            }
+            
+            const isStatusEvent = ['match_start', 'period_start', 'period_end', 'match_end'].includes(e.event_type);
+            
+            let text = isStatusEvent ? `<strong class="text-primary me-1">${timeStr}</strong> ` : `<strong>${e.event_minute}'</strong> `;
+            
             if (e.event_type === 'goal') {
                 text += '⚽ ' + (e.p1_first || 'Onbekend');
                 if (e.p2_first) {
@@ -818,7 +859,11 @@ document.addEventListener("DOMContentLoaded", function() {
             } else if (e.event_type === 'substitution') {
                 text += '🔄 Wissel: ' + (e.p1_first || '?') + ' IN, ' + (e.p2_first || '?') + ' UIT';
             } else if (e.event_type === 'match_end') {
-                text += '🛑 Einde Wedstrijd';
+                text += '🛑 Einde Wedstrijd' + (e.parent_email === 'auto@systeem' ? ' (auto)' : '');
+            } else if (e.event_type === 'period_end') {
+                text += '⏸ Rust / Einde Helft' + (e.parent_email === 'auto@systeem' ? ' (auto)' : '');
+            } else if (e.event_type === 'match_start' || e.event_type === 'period_start') {
+                text += `▶ Wedstrijd/Blok ${blockMap[e.id]} Gestart`;
             } else {
                 text += '[' + e.event_type + ']';
             }

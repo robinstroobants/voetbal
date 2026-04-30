@@ -330,38 +330,7 @@ require_once __DIR__ . '/../header.php';
     <?php endif; ?>
 
     <div class="row">
-        <div class="col-md-4">
-            <div class="card shadow-sm border-0 mb-4 border-top border-primary border-4">
-                <div class="card-body">
-                    <h5 class="card-title"><i class="fa-solid fa-plus-circle text-primary me-2"></i>Nieuw Team Aanmaken</h5>
-                    <form method="POST">
-                        <input type="hidden" name="action" value="create_team">
-                        <div class="mb-3">
-                            <label class="form-label">Team Naam</label>
-                            <input type="text" name="team_name" class="form-control" required placeholder="Bv. U13 Barcelona">
-                        </div>
-                        <div class="row">
-                            <div class="col-6 mb-3">
-                                <label class="form-label">Plan</label>
-                                <select name="subscription_plan" class="form-select">
-                                    <option value="trial">Trial</option>
-                                    <option value="monthly">Monthly</option>
-                                    <option value="yearly">Yearly</option>
-                                </select>
-                            </div>
-                            <div class="col-6 mb-3">
-                                <label class="form-label">Maanden Geldig</label>
-                                <input type="number" name="valid_months" class="form-control" value="1" min="1">
-                            </div>
-                        </div>
-                        <button type="submit" class="btn btn-primary w-100 fw-bold">Team Opslaan</button>
-                    </form>
-                </div>
-            </div>
-
-        </div>
-
-        <div class="col-md-8">
+        <div class="col-md-12">
             <div class="d-flex justify-content-between align-items-end mb-3">
                 <h4 class="mb-0"><i class="fa-solid fa-building me-2"></i>Huidige SaaS Tenants</h4>
                 <div style="width: 300px; position:relative;">

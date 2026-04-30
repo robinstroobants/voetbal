@@ -37,79 +37,93 @@ foreach ($events as $ev) {
                         </div>
                     <?php else: ?>
                         <div class="timeline-container" style="position: relative; border-left: 2px solid #e9ecef; margin-left: 20px; padding-left: 20px;">
-                            <?php foreach ($events as $ev): 
-                                $icon = 'fa-circle-info';
-                                $color = 'text-secondary';
-                                $bg = 'bg-light';
-                                $title = 'Onbekend: [' . htmlspecialchars($ev['event_type']) . ']';
-                                $desc = '';
-                                
-                                switch ($ev['event_type']) {
-                                    case 'match_start':
-                                        $icon = 'fa-play'; $color = 'text-primary'; $bg = 'bg-primary-subtle';
-                                        $title = 'Match Gestart';
-                                        $desc = 'De wedstrijd is afgetrapt.';
-                                        break;
-                                    case 'period_start':
-                                        $icon = 'fa-forward-step'; $color = 'text-success'; $bg = 'bg-success-subtle';
-                                        $title = 'Wisselmoment / Volgend Blok gestart';
-                                        $desc = 'De klok loopt weer voor het nieuwe wisselblok.';
-                                        break;
-                                    case 'period_end':
-                                        $icon = 'fa-pause'; $color = 'text-warning'; $bg = 'bg-warning-subtle';
-                                        $title = 'Rust / Einde Helft';
-                                        $desc = 'De wedstrijd is gepauzeerd / afgefloten.';
-                                        break;
-                                    case 'goal':
-                                        $icon = 'fa-futbol'; $color = 'text-success'; $bg = 'bg-success-subtle';
-                                        $title = 'Goal!';
-                                        $desc = 'Gescoord door <strong>' . htmlspecialchars($ev['first_name'] . ' ' . $ev['last_name']) . '</strong>';
-                                        if (!empty($ev['out_first'])) {
-                                            $desc .= ' <span class="text-muted small">(Assist: ' . htmlspecialchars($ev['out_first']) . ')</span>';
-                                        }
-                                        break;
-                                    case 'opp_goal':
-                                    case 'tegengoal':
-                                    case '':
-                                        $icon = 'fa-futbol'; $color = 'text-danger'; $bg = 'bg-danger-subtle';
-                                        $title = 'Tegendoelpunt';
-                                        $desc = 'De tegenstander heeft gescoord.';
-                                        break;
-                                    case 'substitution':
-                                        $icon = 'fa-rotate'; $color = 'text-info'; $bg = 'bg-info-subtle';
-                                        $title = 'Individuele Wissel';
-                                        $desc = '<strong class="text-success">' . htmlspecialchars($ev['first_name'] . ' ' . $ev['last_name']) . '</strong> IN, <strong class="text-danger">' . htmlspecialchars($ev['out_first'] . ' ' . $ev['out_last']) . '</strong> UIT.';
-                                        break;
-                                    case 'match_end':
-                                        $icon = 'fa-stop'; $color = 'text-danger'; $bg = 'bg-danger-subtle';
-                                        $title = 'Einde Wedstrijd';
-                                        $desc = 'De wedstrijd is definitief beëindigd.';
-                                        break;
-                                }
-                                
-                                $isConfirmed = (bool)$ev['is_confirmed'];
-                            ?>
-                            <div class="timeline-item mb-4" style="position: relative;">
-                                <div class="timeline-icon <?= $bg ?> <?= $color ?> rounded-circle d-flex align-items-center justify-content-center border border-white border-3 shadow-sm" style="width: 40px; height: 40px; position: absolute; left: -40px; top: 0; z-index: 1;">
-                                    <i class="fa-solid <?= $icon ?>"></i>
-                                </div>
-                                <div class="card border-0 <?= $isConfirmed ? 'bg-light opacity-75' : 'shadow-sm border border-warning' ?>">
-                                    <div class="card-body p-3 d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <div class="d-flex align-items-center gap-2 mb-1">
-                                                <span class="badge bg-dark"><?= $ev['event_minute'] ?>'</span>
-                                                <h6 class="mb-0 fw-bold"><?= $title ?></h6>
-                                                <?php if (!$isConfirmed): ?>
-                                                    <span class="badge bg-warning text-dark border"><i class="fa-solid fa-clock me-1"></i> Wachtkamer</span>
+                                <?php 
+                                $blockCounter = 0;
+                                foreach ($events as $ev): 
+                                    $icon = 'fa-circle-info';
+                                    $color = 'text-secondary';
+                                    $bg = 'bg-light';
+                                    $title = 'Onbekend: [' . htmlspecialchars($ev['event_type']) . ']';
+                                    $desc = '';
+                                    
+                                    if ($ev['event_type'] === 'match_start' || $ev['event_type'] === 'period_start') {
+                                        $blockCounter++;
+                                    }
+                                    
+                                    switch ($ev['event_type']) {
+                                        case 'match_start':
+                                            $icon = 'fa-play'; $color = 'text-primary'; $bg = 'bg-primary-subtle';
+                                            $title = 'Wedstrijd/Blok ' . $blockCounter . ' Gestart';
+                                            $desc = 'De wedstrijd is afgetrapt.';
+                                            break;
+                                        case 'period_start':
+                                            $icon = 'fa-forward-step'; $color = 'text-success'; $bg = 'bg-success-subtle';
+                                            $title = 'Wedstrijd/Blok ' . $blockCounter . ' Gestart';
+                                            $desc = 'De klok loopt weer voor het nieuwe wisselblok.';
+                                            break;
+                                        case 'period_end':
+                                            $icon = 'fa-pause'; $color = 'text-warning'; $bg = 'bg-warning-subtle';
+                                            $title = 'Rust / Einde Helft';
+                                            if ($ev['parent_email'] === 'auto@systeem') $title .= ' (auto)';
+                                            $desc = 'De wedstrijd is gepauzeerd / afgefloten.';
+                                            break;
+                                        case 'goal':
+                                            $icon = 'fa-futbol'; $color = 'text-success'; $bg = 'bg-success-subtle';
+                                            $title = 'Goal!';
+                                            $desc = 'Gescoord door <strong>' . htmlspecialchars($ev['first_name'] . ' ' . $ev['last_name']) . '</strong>';
+                                            if (!empty($ev['out_first'])) {
+                                                $desc .= ' <span class="text-muted small">(Assist: ' . htmlspecialchars($ev['out_first']) . ')</span>';
+                                            }
+                                            break;
+                                        case 'opp_goal':
+                                        case 'tegengoal':
+                                        case '':
+                                            $icon = 'fa-futbol'; $color = 'text-danger'; $bg = 'bg-danger-subtle';
+                                            $title = 'Tegendoelpunt';
+                                            $desc = 'De tegenstander heeft gescoord.';
+                                            break;
+                                        case 'substitution':
+                                            $icon = 'fa-rotate'; $color = 'text-info'; $bg = 'bg-info-subtle';
+                                            $title = 'Individuele Wissel';
+                                            $desc = '<strong class="text-success">' . htmlspecialchars($ev['first_name'] . ' ' . $ev['last_name']) . '</strong> IN, <strong class="text-danger">' . htmlspecialchars($ev['out_first'] . ' ' . $ev['out_last']) . '</strong> UIT.';
+                                            break;
+                                        case 'match_end':
+                                            $icon = 'fa-stop'; $color = 'text-danger'; $bg = 'bg-danger-subtle';
+                                            $title = 'Einde Wedstrijd';
+                                            if ($ev['parent_email'] === 'auto@systeem') $title .= ' (auto)';
+                                            $desc = 'De wedstrijd is definitief beëindigd.';
+                                            break;
+                                    }
+                                    
+                                    $isConfirmed = (bool)$ev['is_confirmed'];
+                                    $timeStr = date('H:i', strtotime($ev['created_at']));
+                                    $isStatusEvent = in_array($ev['event_type'], ['match_start', 'period_start', 'period_end', 'match_end']);
+                                ?>
+                                <div class="timeline-item mb-4" style="position: relative;">
+                                    <div class="timeline-icon <?= $bg ?> <?= $color ?> rounded-circle d-flex align-items-center justify-content-center border border-white border-3 shadow-sm" style="width: 40px; height: 40px; position: absolute; left: -40px; top: 0; z-index: 1;">
+                                        <i class="fa-solid <?= $icon ?>"></i>
+                                    </div>
+                                    <div class="card border-0 <?= $isConfirmed ? 'bg-light opacity-75' : 'shadow-sm border border-warning' ?>">
+                                        <div class="card-body p-3 d-flex justify-content-between align-items-center">
+                                            <div>
+                                                <div class="d-flex align-items-center gap-2 mb-1">
+                                                    <?php if ($isStatusEvent): ?>
+                                                        <span class="badge bg-dark"><?= $timeStr ?></span>
+                                                    <?php else: ?>
+                                                        <span class="badge bg-dark"><?= $ev['event_minute'] ?>'</span>
+                                                    <?php endif; ?>
+                                                    <h6 class="mb-0 fw-bold"><?= $title ?></h6>
+                                                    <?php if (!$isConfirmed): ?>
+                                                        <span class="badge bg-warning text-dark border"><i class="fa-solid fa-clock me-1"></i> Wachtkamer</span>
+                                                    <?php endif; ?>
+                                                </div>
+                                                <div class="small text-muted mb-1"><?= $desc ?></div>
+                                                <?php if (!empty($ev['parent_email'])): ?>
+                                                    <div class="small text-secondary" style="font-size: 0.7rem;"><i class="fa-regular fa-user me-1"></i> Gemeld door: <?= htmlspecialchars($ev['parent_email']) ?></div>
+                                                <?php else: ?>
+                                                    <div class="small text-secondary" style="font-size: 0.7rem;"><i class="fa-solid fa-user-tie me-1"></i> Gemeld door coach</div>
                                                 <?php endif; ?>
                                             </div>
-                                            <div class="small text-muted mb-1"><?= $desc ?></div>
-                                            <?php if (!empty($ev['parent_email'])): ?>
-                                                <div class="small text-secondary" style="font-size: 0.7rem;"><i class="fa-regular fa-user me-1"></i> Gemeld door: <?= htmlspecialchars($ev['parent_email']) ?></div>
-                                            <?php else: ?>
-                                                <div class="small text-secondary" style="font-size: 0.7rem;"><i class="fa-solid fa-user-tie me-1"></i> Gemeld door coach</div>
-                                            <?php endif; ?>
-                                        </div>
                                         
                                         <div class="d-flex flex-column gap-2">
                                             <?php if (!$isConfirmed): ?>

@@ -106,6 +106,7 @@ if (isset($lineup) && isset($lineup->events)) {
         $shifts_data[] = [
             'index' => $idx + 1,
             'title' => $title,
+            'game_counter' => $current_game_counter,
             'duration' => $duration_minutes,
             'start_minute' => $start_minute,
             'bench' => array_values($ev['bench'] ?? []),
@@ -123,6 +124,7 @@ if (isset($lineup) && isset($lineup->events)) {
     $shifts_data[] = [
         'index' => 1,
         'title' => 'Wedstrijd 1',
+        'game_counter' => 1,
         'duration' => 45,
         'start_minute' => 0,
         'bench' => [],
@@ -567,13 +569,28 @@ document.addEventListener("DOMContentLoaded", function() {
         if (currentSeconds >= overTimeThreshold && !autoEventTriggered && !isPaused && !matchEndedAtMs) {
             autoEventTriggered = true;
             if (currentShiftIndex < shiftsData.length - 1) {
-                sendApiEventObject({
-                    action: 'log_event',
-                    game_id: gameId,
-                    parent_email: 'auto@systeem',
-                    event_type: 'period_end',
-                    event_minute: Math.floor(currentSeconds / 60) + 1
-                });
+                const currentShift = shiftsData[currentShiftIndex];
+                const nextShift = shiftsData[currentShiftIndex + 1];
+                
+                if (currentShift.game_counter === nextShift.game_counter) {
+                    // Auto-wissel (same game, just switch half) - Timer continues natively by period_start
+                    sendApiEventObject({
+                        action: 'log_event',
+                        game_id: gameId,
+                        parent_email: 'auto@systeem',
+                        event_type: 'period_start',
+                        event_minute: Math.floor(nextShift.start_minute)
+                    });
+                } else {
+                    // Auto-pauze (different game, break) - Timer pauses
+                    sendApiEventObject({
+                        action: 'log_event',
+                        game_id: gameId,
+                        parent_email: 'auto@systeem',
+                        event_type: 'period_end',
+                        event_minute: Math.floor(currentSeconds / 60) + 1
+                    });
+                }
             } else {
                 sendApiEventObject({
                     action: 'log_event',
@@ -838,6 +855,21 @@ document.addEventListener("DOMContentLoaded", function() {
     }
 
     function renderLiveEvents(events) {
+        // Sync state: reload if block changed or paused state changed
+        let serverBlockStarts = events.filter(e => e.event_type === 'match_start' || e.event_type === 'period_start');
+        let serverBlockCount = serverBlockStarts.length;
+        let lastPeriodStart = serverBlockStarts[serverBlockStarts.length - 1];
+        let lastPeriodEnd = events.filter(e => e.event_type === 'period_end').pop();
+        
+        if (serverBlockCount > 0 && serverBlockCount - 1 > currentShiftIndex) {
+            location.reload();
+            return;
+        }
+        if (lastPeriodEnd && (!lastPeriodStart || lastPeriodEnd.id > lastPeriodStart.id) && !isPaused) {
+            location.reload();
+            return;
+        }
+
         const feed = document.getElementById('liveEventsFeed');
         feed.innerHTML = '';
         
@@ -856,6 +888,10 @@ document.addEventListener("DOMContentLoaded", function() {
             }
             
             if (e.event_type === 'match_start' || e.event_type === 'period_start') {
+                if (window.startEventPerBlock[currentBlockIndex]) {
+                    // Previous block never logged an end, so we increment now
+                    currentBlockIndex++;
+                }
                 window.startEventPerBlock[currentBlockIndex] = e;
                 e._blockIndex = currentBlockIndex;
             } else if (e.event_type === 'match_end' || e.event_type === 'period_end') {

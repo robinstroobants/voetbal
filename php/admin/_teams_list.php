@@ -76,10 +76,9 @@
                                 <th style="width: 50px;"></th>
                                 <th>Naam</th>
                                 <th class="d-none d-md-table-cell">E-mailadres</th>
-                                <th class="text-center" title="Verbruik (Vandaag / 7 Dagen / 30 Dagen)">Load (Vand/7d/30d)</th>
-                                <th>Laatst Actief</th>
-                                <th>Rechten Rol</th>
-                                <th class="text-center d-none d-md-table-cell">BETA Access</th>
+                                <th class="text-center" title="Verbruik (Vandaag / 7 Dagen / 30 Dagen)">Load</th>
+                                <th>Actief</th>
+                                <th>Rol</th>
                                 <th class="text-end">Acties</th>
                             </tr>
                         </thead>
@@ -133,17 +132,6 @@
                                     ?>
                                     <span class="badge <?= $badge ?>"><?= htmlspecialchars($user['role']) ?></span>
                                 </td>
-                                <td class="text-center d-none d-md-table-cell">
-                                    <form method="POST" style="display:inline;">
-                                        <input type="hidden" name="action" value="toggle_beta">
-                                        <input type="hidden" name="user_id" value="<?= $user['id'] ?>">
-                                        <input type="hidden" name="current_beta" value="<?= $user['is_beta_user'] ?>">
-                                        <button type="submit" class="btn btn-sm <?= $user['is_beta_user'] ? 'btn-warning text-dark fw-bold' : 'btn-outline-secondary' ?>">
-                                            <i class="fa-solid <?= $user['is_beta_user'] ? 'fa-toggle-on' : 'fa-toggle-off' ?>"></i> 
-                                            <?= $user['is_beta_user'] ? 'BETA AAN' : 'UIT' ?>
-                                        </button>
-                                    </form>
-                                </td>
                                 <td class="text-end">
                                     <?php if($user['role'] !== 'superadmin'): ?>
                                     <div class="d-flex justify-content-end gap-1 flex-nowrap">
@@ -181,9 +169,6 @@
                                 <td class="text-center">-</td>
                                 <td>
                                     <span class="badge bg-warning text-dark">Invited</span>
-                                </td>
-                                <td class="text-center d-none d-md-table-cell">
-                                    -
                                 </td>
                                 <td class="text-end">
                                     <div class="d-flex justify-content-end flex-nowrap">

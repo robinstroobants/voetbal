@@ -131,6 +131,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         echo json_encode(['status' => 'success']);
         exit;
     }
+
+    if ($action === 'update_event_time') {
+        $eventId = (int)($data['event_id'] ?? 0);
+        $newTime = $data['new_time'] ?? ''; // HH:MM
+        
+        if ($eventId && preg_match('/^([01]?[0-9]|2[0-3]):[0-5][0-9]$/', $newTime)) {
+            $stmt = $pdo->prepare("UPDATE game_events SET created_at = CONCAT(DATE(created_at), ' ', ?, ':00') WHERE id = ?");
+            $stmt->execute([$newTime, $eventId]);
+        }
+        echo json_encode(['status' => 'success']);
+        exit;
+    }
 }
 
 http_response_code(405);

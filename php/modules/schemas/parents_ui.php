@@ -264,9 +264,18 @@ if ($matchStarted) {
                 <button class="btn btn-primary fw-bold shadow-sm flex-fill" onclick="openEventModal('goal')">⚽ Goal</button>
                 <button class="btn btn-danger fw-bold shadow-sm flex-fill" onclick="openEventModal('opp_goal')">🥅 Tegengoal</button>
             </div>
-            <hr class="w-100 my-1 text-muted">
+            
+            <!-- Notice Block for Time -->
+            <div id="timeNoticeBlock" class="w-100 mt-2" style="display:none;">
+                <div class="alert alert-warning text-center p-2 mb-0 shadow-sm border-warning">
+                    <p class="mb-1 fw-bold text-dark" id="timeNoticeText">Tijd voor wissel!</p>
+                    <button class="btn btn-warning btn-sm fw-bold px-4 text-dark" id="timeNoticeBtn">Actie</button>
+                </div>
+            </div>
+
+            <hr class="w-100 my-2 text-muted">
             <h6 class="text-start fw-bold text-muted w-100 mb-0" style="font-size: 0.85rem;"><i class="fa-solid fa-list-check me-1"></i> Wedstrijdverloop</h6>
-            <div id="liveEventsFeed" class="w-100 pb-1"></div>
+            <div id="liveEventsFeed" class="w-100 pb-1 mt-1"></div>
         </div>
         
     </div>
@@ -403,6 +412,33 @@ document.addEventListener("DOMContentLoaded", function() {
       <div class="modal-footer bg-light border-0">
         <button type="button" class="btn btn-secondary text-dark bg-white border" data-bs-dismiss="modal">Annuleren</button>
         <button type="button" class="btn btn-warning fw-bold" id="btnSaveEvent" onclick="submitEvent()">Opslaan</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Tijdstip Aanpassen -->
+<div class="modal fade" id="editTimeModal" tabindex="-1">
+  <div class="modal-dialog modal-sm modal-dialog-centered">
+    <div class="modal-content border-0 shadow">
+      <div class="modal-header bg-light border-bottom-0">
+        <h5 class="modal-title fs-6 fw-bold"><i class="fa-regular fa-clock text-primary me-1"></i> Tijdstip Aanpassen</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body text-center">
+         <input type="hidden" id="editTimeEventId">
+         <div class="d-flex justify-content-center align-items-center gap-3 mb-3">
+            <button class="btn btn-outline-secondary rounded-circle" style="width:40px;height:40px;" onclick="adjustEditTime(-1)"><i class="fa-solid fa-minus"></i></button>
+            <h2 id="editTimeDisplay" class="mb-0 fw-bold text-dark" style="font-family: monospace;">00:00</h2>
+            <button class="btn btn-outline-secondary rounded-circle" style="width:40px;height:40px;" onclick="adjustEditTime(1)"><i class="fa-solid fa-plus"></i></button>
+         </div>
+         <div id="editTimeSuggestionContainer" class="mt-4" style="display:none;">
+            <p class="small text-muted mb-2"><i class="fa-solid fa-wand-magic-sparkles me-1"></i>Suggestie obv startuur & duur:</p>
+            <button class="btn btn-sm btn-info text-dark fw-bold w-100 rounded-pill" id="editTimeSuggestionBtn" onclick="applySuggestedTime()">Suggestie (00:00)</button>
+         </div>
+      </div>
+      <div class="modal-footer p-2 bg-light border-top-0">
+         <button class="btn btn-primary w-100 fw-bold rounded-pill" onclick="saveEditTime()"><i class="fa-solid fa-save me-1"></i> Opslaan</button>
       </div>
     </div>
   </div>
@@ -548,22 +584,22 @@ document.addEventListener("DOMContentLoaded", function() {
                 });
             }
         }
+        const noticeBlock = document.getElementById('timeNoticeBlock');
+        const noticeText = document.getElementById('timeNoticeText');
+        const noticeBtn = document.getElementById('timeNoticeBtn');
         
-        const btn = document.getElementById('btnWissel');
-        if (btn) {
-            // Check if we are past the expected duration
-            if (currentSeconds >= expectedEndSeconds) {
+        if (noticeBlock) {
+            if (currentSeconds >= expectedEndSeconds && !isMatchEnded() && matchStarted) {
+                noticeBlock.style.display = 'block';
                 if (currentShiftIndex < shiftsData.length - 1) {
-                    btn.classList.add('btn-wissel-due');
-                    btn.classList.remove('btn-danger');
                     let nShift = shiftsData[currentShiftIndex + 1];
-                    btn.innerHTML = '🔄 ' + (nShift.title || 'Wissel?');
-                    btn.onclick = () => openEventModal('wissel');
+                    noticeText.innerHTML = 'Tijd voor <strong>' + (nShift.title || ('Blok ' + (nShift.index))) + '</strong>!';
+                    noticeBtn.innerHTML = '▶ Start Blok';
+                    noticeBtn.onclick = () => submitNextBlock();
                 } else {
-                    btn.classList.add('btn-wissel-due');
-                    btn.classList.replace('btn-secondary', 'btn-danger');
-                    btn.innerHTML = '🛑 Einde Match?';
-                    btn.onclick = () => {
+                    noticeText.innerHTML = 'De reguliere speeltijd zit erop!';
+                    noticeBtn.innerHTML = '🛑 Einde Match';
+                    noticeBtn.onclick = () => {
                         if (confirm("Is de wedstrijd definitief afgelopen?")) {
                             sendApiEventObject({
                                 action: 'log_event',
@@ -576,11 +612,7 @@ document.addEventListener("DOMContentLoaded", function() {
                     };
                 }
             } else {
-                btn.classList.remove('btn-wissel-due');
-                btn.classList.remove('btn-danger');
-                if (!btn.classList.contains('btn-secondary')) btn.classList.add('btn-secondary');
-                btn.innerHTML = '🔄 Wissel';
-                btn.onclick = () => openEventModal('wissel');
+                noticeBlock.style.display = 'none';
             }
         }
     }
@@ -812,12 +844,25 @@ document.addEventListener("DOMContentLoaded", function() {
         let homeScore = 0;
         let awayScore = 0;
         
-        // Calculate score
+        let currentBlockIndex = 1;
+        window.startEventPerBlock = {};
+        
+        // Calculate score and assign blocks
         events.forEach(e => {
             if (e.event_type === 'goal') {
                 homeScore++;
             } else if (e.event_type === 'opp_goal' || e.event_type === 'tegengoal' || !e.event_type || e.event_type.trim() === '') {
                 awayScore++;
+            }
+            
+            if (e.event_type === 'match_start' || e.event_type === 'period_start') {
+                window.startEventPerBlock[currentBlockIndex] = e;
+                e._blockIndex = currentBlockIndex;
+            } else if (e.event_type === 'match_end' || e.event_type === 'period_end') {
+                e._blockIndex = currentBlockIndex;
+                currentBlockIndex++;
+            } else {
+                e._blockIndex = currentBlockIndex;
             }
         });
         
@@ -825,16 +870,6 @@ document.addEventListener("DOMContentLoaded", function() {
         if (scoreDisplay) {
             scoreDisplay.innerText = homeScore + ' - ' + awayScore;
         }
-        
-        // Render all events, reverse them to show newest on top
-        let blockMap = {};
-        let blockCount = 0;
-        events.forEach(e => {
-            if (e.event_type === 'match_start' || e.event_type === 'period_start') {
-                blockCount++;
-                blockMap[e.id] = blockCount;
-            }
-        });
         
         const visibleEvents = [...events].reverse();
         
@@ -850,7 +885,7 @@ document.addEventListener("DOMContentLoaded", function() {
             
             const isStatusEvent = ['match_start', 'period_start', 'period_end', 'match_end'].includes(e.event_type);
             
-            let text = isStatusEvent ? `<strong class="text-primary me-1">${timeStr}</strong> ` : `<strong>${e.event_minute}'</strong> `;
+            let text = isStatusEvent ? `<strong class="text-primary me-1" style="cursor:pointer;" onclick="openEditTimeModal(${e.id}, '${timeStr}', '${e.event_type}', ${e._blockIndex})">${timeStr} <i class="fa-solid fa-pen text-muted ms-1" style="font-size:0.7rem;"></i></strong> ` : `<strong>${e.event_minute}'</strong> `;
             
             if (e.event_type === 'goal') {
                 text += '⚽ ' + (e.p1_first || 'Onbekend');
@@ -866,7 +901,7 @@ document.addEventListener("DOMContentLoaded", function() {
             } else if (e.event_type === 'period_end') {
                 text += '⏸ Rust / Einde Helft' + (e.parent_email === 'auto@systeem' ? ' (auto)' : '');
             } else if (e.event_type === 'match_start' || e.event_type === 'period_start') {
-                text += `▶ Wedstrijd/Blok ${blockMap[e.id]} Gestart`;
+                text += `▶ Wedstrijd/Blok ${e._blockIndex} Gestart`;
             } else {
                 text += '[' + e.event_type + ']';
             }
@@ -909,4 +944,80 @@ document.addEventListener("DOMContentLoaded", function() {
         fetchLiveEvents();
         setInterval(fetchLiveEvents, 30000); // Check every 30 seconds
     }
+
+    let currentEditTimeStr = '';
+    
+    function parseTimeToMins(str) {
+        if (!str) return 0;
+        let parts = str.split(':');
+        return parseInt(parts[0]) * 60 + parseInt(parts[1]);
+    }
+    
+    function formatMinsToTime(mins) {
+        let h = Math.floor(mins / 60);
+        let m = mins % 60;
+        return String(h).padStart(2, '0') + ':' + String(m).padStart(2, '0');
+    }
+
+    function adjustEditTime(delta) {
+        let mins = parseTimeToMins(currentEditTimeStr) + delta;
+        if (mins < 0) mins = 0;
+        currentEditTimeStr = formatMinsToTime(mins);
+        document.getElementById('editTimeDisplay').innerText = currentEditTimeStr;
+    }
+
+    function applySuggestedTime() {
+        currentEditTimeStr = document.getElementById('editTimeSuggestionBtn').dataset.time;
+        document.getElementById('editTimeDisplay').innerText = currentEditTimeStr;
+    }
+
+    function openEditTimeModal(eventId, timeStr, eventType, blockIndex) {
+        document.getElementById('editTimeEventId').value = eventId;
+        currentEditTimeStr = timeStr;
+        document.getElementById('editTimeDisplay').innerText = currentEditTimeStr;
+        
+        let sugContainer = document.getElementById('editTimeSuggestionContainer');
+        sugContainer.style.display = 'none';
+        
+        if (eventType === 'period_end' || eventType === 'match_end') {
+            if (window.startEventPerBlock && window.startEventPerBlock[blockIndex]) {
+                let startStr = window.startEventPerBlock[blockIndex].created_at.substring(11, 16);
+                let shiftData = shiftsData[blockIndex - 1]; // blockIndex is 1-based
+                if (shiftData && shiftData.duration) {
+                    let endMins = parseTimeToMins(startStr) + parseInt(shiftData.duration);
+                    let suggestedTime = formatMinsToTime(endMins);
+                    
+                    let sugBtn = document.getElementById('editTimeSuggestionBtn');
+                    sugBtn.dataset.time = suggestedTime;
+                    sugBtn.innerHTML = 'Suggestie (' + suggestedTime + ')';
+                    sugContainer.style.display = 'block';
+                }
+            }
+        }
+        
+        new bootstrap.Modal(document.getElementById('editTimeModal')).show();
+    }
+
+    function saveEditTime() {
+        let eid = document.getElementById('editTimeEventId').value;
+        fetch('/api/api_game_events.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                action: 'update_event_time',
+                event_id: eid,
+                new_time: currentEditTimeStr
+            })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if(data.status === 'success') {
+                bootstrap.Modal.getInstance(document.getElementById('editTimeModal')).hide();
+                fetchLiveEvents();
+            } else {
+                alert("Er liep iets mis bij het opslaan.");
+            }
+        });
+    }
+
 </script>

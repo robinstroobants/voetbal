@@ -22,6 +22,14 @@ CREATE TABLE IF NOT EXISTS game_events (
 );
 ");
 
+// Temporary workaround to convert the ENUM to VARCHAR in the live DB
+try {
+    $pdo->exec("ALTER TABLE game_events MODIFY event_type VARCHAR(50) NOT NULL;");
+} catch (\Exception $e) {
+    // Ignore errors if it already is varchar or fails
+}
+
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $input = file_get_contents('php://input');
     $data = json_decode($input, true) ?: $_POST;

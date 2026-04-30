@@ -359,22 +359,13 @@ document.addEventListener("DOMContentLoaded", function() {
         <!-- Wissel Menu -->
         <div id="wisselMenu" class="mb-3" style="display:none;">
             
-            <?php if ($currentShiftIndex < $totalBlocksCount - 1): ?>
-            <div class="card mb-3 border-success">
-                <div class="card-body p-3 text-center">
-                    <h6 class="fw-bold mb-1">Wisselmoment Beheren</h6>
-                    <?php if ($isPaused): ?>
-                        <p class="small text-muted mb-2">De wedstrijd is gepauzeerd. Bevestig dat het volgende blok (<span id="modalNextBlockName">Blok <?= $currentShiftIndex + 2 ?></span>) is gestart.</p>
-                        <button class="btn btn-success btn-sm fw-bold w-100" onclick="submitNextBlock()">▶ Start <span id="modalNextBlockBtnName">Blok <?= $currentShiftIndex + 2 ?></span></button>
-                    <?php else: ?>
-                        <p class="small text-muted mb-2">Is het huidige deel afgelopen? Fluit af voor rust/pauze, of start direct het nieuwe blok (<span id="modalNextBlockName">Blok <?= $currentShiftIndex + 2 ?></span>).</p>
-                        <button class="btn btn-warning btn-sm fw-bold w-100 mb-2" onclick="submitPauseBlock()">⏹ Fluit af (Pauze / Einde Helft)</button>
-                        <button class="btn btn-success btn-sm fw-bold w-100" onclick="submitNextBlock()">▶ Start <span id="modalNextBlockBtnName">Blok <?= $currentShiftIndex + 2 ?></span> direct</button>
-                    <?php endif; ?>
+            <div id="wisselBlockActionsContainer" class="card mb-3 border-success">
+                <div class="card-body p-3 text-center" id="wisselBlockActionsBody">
+                    <!-- JS vult dit -->
                 </div>
             </div>
+
             <div class="text-center text-muted small fw-bold mb-3">- OF INDIVIDUELE WISSEL (UITZONDERING) -</div>
-            <?php endif; ?>
 
             <div class="card bg-light border-0">
                 <div class="card-body p-3">
@@ -609,24 +600,33 @@ document.addEventListener("DOMContentLoaded", function() {
             if (currentSeconds >= expectedEndSeconds && !isMatchEnded() && matchStarted) {
                 noticeBlock.style.display = 'block';
                 if (currentShiftIndex < shiftsData.length - 1) {
+                    let cShift = shiftsData[currentShiftIndex];
                     let nShift = shiftsData[currentShiftIndex + 1];
-                    noticeText.innerHTML = 'Tijd voor <strong>' + (nShift.title || ('Blok ' + (nShift.index))) + '</strong>!';
-                    noticeBtn.innerHTML = '▶ Start Blok';
-                    noticeBtn.onclick = () => submitNextBlock();
+                    let shiftTitle = nShift.title || ('Blok ' + nShift.index);
+                    
+                    if (isPaused) {
+                        noticeText.innerHTML = 'Klaar voor <strong>' + shiftTitle + '</strong>?';
+                        noticeBtn.innerHTML = '▶ Start';
+                        noticeBtn.onclick = () => submitNextBlock();
+                        noticeBtn.className = 'btn btn-success btn-sm fw-bold px-4 text-white';
+                    } else {
+                        if (cShift.game_counter === nShift.game_counter) {
+                            noticeText.innerHTML = 'Tijd voor <strong>' + shiftTitle + '</strong>!';
+                            noticeBtn.innerHTML = '▶ Start (Vliegende Wissel)';
+                            noticeBtn.onclick = () => submitNextBlock();
+                            noticeBtn.className = 'btn btn-success btn-sm fw-bold px-4 text-white';
+                        } else {
+                            noticeText.innerHTML = 'Tijd voor <strong>Rust / Einde Wedstrijdje</strong>!';
+                            noticeBtn.innerHTML = '⏹ Fluit af';
+                            noticeBtn.onclick = () => submitPauseBlock();
+                            noticeBtn.className = 'btn btn-warning btn-sm fw-bold px-4 text-dark';
+                        }
+                    }
                 } else {
                     noticeText.innerHTML = 'De reguliere speeltijd zit erop!';
                     noticeBtn.innerHTML = '🛑 Einde Match';
-                    noticeBtn.onclick = () => {
-                        if (confirm("Is de wedstrijd definitief afgelopen?")) {
-                            sendApiEventObject({
-                                action: 'log_event',
-                                game_id: gameId,
-                                parent_email: getParentEmail(),
-                                event_type: 'match_end',
-                                event_minute: Math.floor(currentSeconds / 60) + 1
-                            });
-                        }
-                    };
+                    noticeBtn.onclick = () => submitMatchEnd();
+                    noticeBtn.className = 'btn btn-danger btn-sm fw-bold px-4 text-white';
                 }
             } else {
                 noticeBlock.style.display = 'none';
@@ -695,6 +695,13 @@ document.addEventListener("DOMContentLoaded", function() {
         sendApiEvent('period_end', calculateElapsedMinutes());
     }
 
+    function submitMatchEnd() {
+        if (!matchStarted) return;
+        if (!confirm("Is de wedstrijd definitief afgelopen?")) return;
+        
+        sendApiEvent('match_end', calculateElapsedMinutes());
+    }
+
     function openEventModal(type) {
         const email = getParentEmail();
         if (!email) {
@@ -727,21 +734,42 @@ document.addEventListener("DOMContentLoaded", function() {
             document.getElementById('goalPlayerSelect').style.display = 'none';
             document.getElementById('wisselMenu').style.display = 'block';
             
-            // Update next block label in the modal
+            const wisselBody = document.getElementById('wisselBlockActionsBody');
+            wisselBody.innerHTML = '';
+            
             if (currentShiftIndex < shiftsData.length - 1) {
+                document.getElementById('wisselBlockActionsContainer').style.display = 'block';
+                const cShift = shiftsData[currentShiftIndex];
                 const nShift = shiftsData[currentShiftIndex + 1];
-                const shiftTitle = nShift.title || ('Blok ' + (nShift.index));
-                const el1 = document.getElementById('modalNextBlockName');
-                if (el1) el1.innerText = shiftTitle;
-                const el2 = document.getElementById('modalNextBlockBtnName');
-                if (el2) el2.innerText = shiftTitle;
+                const shiftTitle = nShift.title || ('Blok ' + nShift.index);
+                
+                wisselBody.innerHTML = `<h6 class="fw-bold mb-1">Schema Opvolgen</h6>`;
+                
+                if (isPaused) {
+                    wisselBody.innerHTML += `<p class="small text-muted mb-2">De wedstrijd is gepauzeerd. Bevestig dat het volgende deel gestart is.</p>`;
+                    wisselBody.innerHTML += `<button class="btn btn-success btn-sm fw-bold w-100" onclick="submitNextBlock()">▶ Start ${shiftTitle}</button>`;
+                } else {
+                    if (cShift.game_counter === nShift.game_counter) {
+                        wisselBody.innerHTML += `<p class="small text-muted mb-2">Wissels doorgevoerd? Bevestig de start van de volgende shift (vliegende wissel).</p>`;
+                        wisselBody.innerHTML += `<button class="btn btn-success btn-sm fw-bold w-100" onclick="submitNextBlock()">▶ Start ${shiftTitle}</button>`;
+                    } else {
+                        wisselBody.innerHTML += `<p class="small text-muted mb-2">Het huidige wedstrijdje zit erop. Fluit af voor de rust/nieuwe opstelling.</p>`;
+                        wisselBody.innerHTML += `<button class="btn btn-warning btn-sm fw-bold w-100 mb-2 text-dark" onclick="submitPauseBlock()">⏹ Fluit af (Pauzeer Timer)</button>`;
+                    }
+                }
+            } else {
+                document.getElementById('wisselBlockActionsContainer').style.display = 'block';
+                wisselBody.innerHTML = `<h6 class="fw-bold mb-1">Einde Wedstrijd</h6>`;
+                if (!isMatchEnded()) {
+                    wisselBody.innerHTML += `<p class="small text-muted mb-2">Zit de laatste wedstrijd er helemaal op?</p>`;
+                    wisselBody.innerHTML += `<button class="btn btn-danger btn-sm fw-bold w-100" onclick="submitMatchEnd()">🛑 Fluit definitief af</button>`;
+                } else {
+                    wisselBody.innerHTML += `<p class="small text-muted mb-0">De wedstrijd is afgerond.</p>`;
+                }
             }
             
             populateDropdown('wisselPlayerInId', shift.bench, false);
             populateDropdown('wisselPlayerOutId', shift.pitch, true);
-            
-            // Als we wissel openen, verberg de algemene opslaan knop om verwarring te voorkomen, tenzij ze manueel kiezen.
-            // Eigenlijk laten we hem gewoon staan voor de individuele wissel.
         }
 
         currentCalculatedMinute = calculateElapsedMinutes();

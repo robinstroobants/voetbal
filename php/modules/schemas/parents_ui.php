@@ -918,14 +918,30 @@ document.addEventListener("DOMContentLoaded", function() {
         const feed = document.getElementById('liveEventsFeed');
         feed.innerHTML = '';
         
+        let isTournament = <?= $isTournament ? 'true' : 'false' ?>;
         let homeScore = 0;
         let awayScore = 0;
         
         let currentBlockIndex = 1;
+        let activeGameCounter = 1;
         window.startEventPerBlock = {};
         
         // Calculate score and assign blocks
         events.forEach(e => {
+            let tempBlockIndex = currentBlockIndex;
+            if (e.event_type === 'match_start' || e.event_type === 'period_start') {
+                if (window.startEventPerBlock[currentBlockIndex]) tempBlockIndex++;
+            }
+            
+            let shiftData = shiftsData[tempBlockIndex - 1];
+            let blockGameCounter = shiftData ? shiftData.game_counter : 1;
+            
+            if (isTournament && blockGameCounter !== activeGameCounter) {
+                homeScore = 0;
+                awayScore = 0;
+                activeGameCounter = blockGameCounter;
+            }
+            
             if (e.event_type === 'goal') {
                 homeScore++;
             } else if (e.event_type === 'opp_goal' || e.event_type === 'tegengoal' || !e.event_type || e.event_type.trim() === '') {
@@ -934,7 +950,6 @@ document.addEventListener("DOMContentLoaded", function() {
             
             if (e.event_type === 'match_start' || e.event_type === 'period_start') {
                 if (window.startEventPerBlock[currentBlockIndex]) {
-                    // Previous block never logged an end, so we increment now
                     currentBlockIndex++;
                 }
                 window.startEventPerBlock[currentBlockIndex] = e;
@@ -945,6 +960,9 @@ document.addEventListener("DOMContentLoaded", function() {
             } else {
                 e._blockIndex = currentBlockIndex;
             }
+            
+            e._homeScore = homeScore;
+            e._awayScore = awayScore;
         });
         
         const scoreDisplay = document.getElementById('liveScoreDisplay');
@@ -978,9 +996,16 @@ document.addEventListener("DOMContentLoaded", function() {
             } else if (e.event_type === 'substitution') {
                 text += '🔄 Wissel: ' + (e.p1_first || '?') + ' IN, ' + (e.p2_first || '?') + ' UIT';
             } else if (e.event_type === 'match_end') {
-                text += '🛑 Einde Wedstrijd' + (e.parent_email === 'auto@systeem' ? ' (auto)' : '');
+                text += '🛑 Einde Wedstrijd' + (e.parent_email === 'auto@systeem' ? ' (auto)' : '') + (isTournament ? ` (Eindstand: ${e._homeScore}-${e._awayScore})` : '');
             } else if (e.event_type === 'period_end') {
-                text += '⏸ Rust / Einde Helft' + (e.parent_email === 'auto@systeem' ? ' (auto)' : '');
+                let nShift = shiftsData[e._blockIndex];
+                let cShift = shiftsData[e._blockIndex - 1];
+                let isMatchSwitch = nShift && cShift && nShift.game_counter !== cShift.game_counter;
+                if (isTournament && isMatchSwitch) {
+                    text += '🏁 Einde Wedstrijdje' + (e.parent_email === 'auto@systeem' ? ' (auto)' : '') + ` (Eindstand: ${e._homeScore}-${e._awayScore})`;
+                } else {
+                    text += '⏸ Rust / Einde Helft' + (e.parent_email === 'auto@systeem' ? ' (auto)' : '') + (isTournament ? ` (Tussenstand: ${e._homeScore}-${e._awayScore})` : '');
+                }
             } else if (e.event_type === 'match_start' || e.event_type === 'period_start') {
                 let shiftData = shiftsData[e._blockIndex - 1];
                 let blockTitle = shiftData ? shiftData.title : `Blok ${e._blockIndex}`;

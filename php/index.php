@@ -428,15 +428,13 @@ require_once __DIR__ . '/header.php';
                                 $selection_icon = $has_selection ? 'fa-pen-to-square' : 'fa-plus';
                             ?>
                             <div class="d-flex flex-wrap justify-content-center gap-2 mt-3 mb-2">
-                                <a href="/games/<?= $next_game['id'] ?>/selection" class="text-decoration-none d-inline-flex align-items-center bg-white bg-opacity-10 rounded px-3 py-2 transition-transform shadow-sm border border-white border-opacity-10" style="transition: transform 0.2s; cursor: pointer;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
-                                    <i class="fa-solid <?= $selection_icon ?> text-<?= $selection_color ?> me-2"></i>
-                                    <div class="fw-bold text-white small">Selectie (<?= $has_selection ? $next_game['selection_count'] : '0' ?>)</div>
+                                <?php if ($next_game['is_final']): ?>
+                                <a href="/games/<?= $next_game['id'] ?>/selection" class="btn bg-white bg-opacity-10 border border-white border-opacity-10 text-white fw-bold rounded px-3 py-2 shadow-sm d-inline-flex align-items-center transition-transform" style="transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'" title="Selectie (<?= $has_selection ? $next_game['selection_count'] : '0' ?>)">
+                                    <i class="fa-solid fa-users text-<?= $selection_color ?>"></i>
                                 </a>
 
-                                <?php if ($next_game['is_final']): ?>
-                                <a href="/games/<?= $next_game['id'] ?>/lineup" class="btn btn-success text-white fw-bold rounded px-3 py-2 shadow-sm d-inline-flex align-items-center transition-transform" style="transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
-                                    <i class="fa-solid fa-eye me-2"></i>
-                                    <div class="fw-bold text-white small">Opstelling</div>
+                                <a href="/games/<?= $next_game['id'] ?>/lineup" class="btn btn-success text-white fw-bold rounded px-3 py-2 shadow-sm d-inline-flex align-items-center transition-transform" style="transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'" title="Opstelling">
+                                    <i class="fa-solid fa-file-chart-column"></i>
                                 </a>
                                 <?php 
                                     $match_datetime = strtotime($next_game['match_date'] . ' ' . $next_game['time']);
@@ -450,6 +448,11 @@ require_once __DIR__ . '/header.php';
                                     <i class="fa-solid fa-share-nodes"></i>
                                 </button>
                                 <?php else: ?>
+                                <a href="/games/<?= $next_game['id'] ?>/selection" class="text-decoration-none d-inline-flex align-items-center bg-white bg-opacity-10 rounded px-3 py-2 transition-transform shadow-sm border border-white border-opacity-10" style="transition: transform 0.2s; cursor: pointer;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
+                                    <i class="fa-solid <?= $selection_icon ?> text-<?= $selection_color ?> me-2"></i>
+                                    <div class="fw-bold text-white small">Selectie (<?= $has_selection ? $next_game['selection_count'] : '0' ?>)</div>
+                                </a>
+
                                 <a href="/games/<?= $next_game['id'] ?>/schema" class="btn <?= $next_game['selection_count'] > 0 ? 'btn-warning text-dark' : 'btn-outline-light disabled' ?> fw-bold rounded px-3 py-2 shadow-sm d-inline-flex align-items-center transition-transform" style="transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
                                     <i class="fa-solid fa-trowel-bricks me-2"></i>
                                     <div class="fw-bold text-dark small">Opstelling</div>

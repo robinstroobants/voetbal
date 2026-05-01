@@ -222,6 +222,9 @@ if ($onboarding_complete) {
     $stmtPast = $pdo->prepare("
         SELECT g.*, 
             (SELECT COUNT(*) FROM game_selections gs WHERE gs.game_id = g.id) as selection_count,
+            (SELECT COUNT(*) FROM game_selections gs 
+                JOIN players p ON gs.player_id = p.id 
+                WHERE gs.game_id = g.id AND p.is_goalkeeper = 1) as gk_count,
             (SELECT COUNT(*) FROM game_events ge WHERE ge.game_id = g.id) as events_count,
             u.first_name as coach_name
         FROM games g 
@@ -549,11 +552,9 @@ require_once __DIR__ . '/header.php';
         </div>
 
         <div class="row mb-4">
-                
 
-
-            <!-- Linker Kolom: Historiek Tabel -->
-            <div class="col-12 col-lg-8 mb-4 mb-lg-0">
+            <!-- Historiek Tabel: full width -->
+            <div class="col-12 mb-4">
                 <!-- Historiek Tabel -->
                 <h5 class="fw-bold text-dark mb-3"><i class="fa-solid fa-clock-rotate-left text-muted me-2"></i>Historiek & Binnenkort</h5>
                 <div class="card shadow-sm border-0 stat-card mb-4 mb-lg-0">
@@ -565,23 +566,32 @@ require_once __DIR__ . '/header.php';
                                         <th class="ps-4">Datum</th>
                                         <th>Tegenstander</th>
                                         <th>Coach</th>
+                                        <th>Selectie</th>
                                         <th class="text-end pe-4">Acties</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     <?php if(empty($past_games)): ?>
                                         <tr>
-                                            <td colspan="4" class="text-center py-4 text-muted">
+                                            <td colspan="5" class="text-center py-4 text-muted">
                                                 Nog geen wedstrijden gespeeld in het verleden.
                                             </td>
                                         </tr>
                                     <?php endif; ?>
                                     
-                                    <?php foreach($past_games as $game): ?>
-                                     <tr>
-                                        <td class="ps-4 fw-medium text-secondary small"><?= date('d/m/Y', strtotime($game['game_date'])) ?></td>
+                                    <?php foreach($past_games as $game): 
+                                        $isFuture = strtotime($game['game_date']) >= strtotime(date('Y-m-d'));
+                                    ?>
+                                     <tr class="<?= $isFuture ? 'table-info' : '' ?>">
+                                        <td class="ps-4 fw-medium text-secondary small">
+                                            <?= date('d/m/Y', strtotime($game['game_date'])) ?>
+                                            <?php if ($isFuture): ?><span class="badge bg-info text-dark ms-1" style="font-size:0.65rem;">binnenkort</span><?php endif; ?>
+                                        </td>
                                         <td class="fw-bold">
                                             <?= htmlspecialchars($game['opponent']) ?>
+                                            <?php if (!empty($game['format'])): ?>
+                                                <span class="badge bg-light text-dark border ms-1" style="font-size:0.7rem;"><?= htmlspecialchars($game['format']) ?></span>
+                                            <?php endif; ?>
                                         </td>
                                         <td>
                                             <?php if($game['coach_name']): 
@@ -591,6 +601,22 @@ require_once __DIR__ . '/header.php';
                                                 <span class="badge <?= $cColor ?> rounded-pill"><?= htmlspecialchars($game['coach_name']) ?></span>
                                             <?php else: ?>
                                                 <span class="text-muted small italic">Geen</span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td>
+                                            <?php if ($game['selection_count'] > 0): ?>
+                                            <a href="/games/<?= $game['id'] ?>/selection" class="text-decoration-none" title="Bekijk selectie">
+                                                <span class="badge bg-primary bg-opacity-10 text-primary border border-primary border-opacity-25 me-1">
+                                                    <i class="fa-solid fa-users me-1"></i><?= $game['selection_count'] ?>
+                                                </span>
+                                            </a>
+                                            <?php if (!empty($game['gk_count']) && $game['gk_count'] > 0): ?>
+                                                <span class="badge bg-warning bg-opacity-20 text-dark border border-warning border-opacity-25">
+                                                    <?= $game['gk_count'] ?> <i class="fa-solid fa-hands"></i>
+                                                </span>
+                                            <?php endif; ?>
+                                            <?php else: ?>
+                                                <span class="text-muted small">—</span>
                                             <?php endif; ?>
                                         </td>
                                         <td class="text-end pe-4 text-nowrap">
@@ -625,8 +651,7 @@ require_once __DIR__ . '/header.php';
 
             </div>
 
-            <!-- Rechter Kolom: Widgets & Spelers -->
-            <div class="col-12 col-lg-4">
+            <!-- Widgets & Spelers -->\n            <div class="col-12">
                 <!-- Reminder Widget -->
                 <?php if ($missing_matrix_count > 0 && strpos($default_format, '11v11') === false): ?>
                 <div class="card stat-card border-danger border-opacity-25 shadow-sm mb-4" style="background-color: #fffafb;">

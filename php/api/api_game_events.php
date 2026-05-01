@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS game_events (
     id INT AUTO_INCREMENT PRIMARY KEY,
     game_id INT NOT NULL,
     parent_email VARCHAR(255) NULL,
+    parent_name VARCHAR(100) NULL,
     event_type VARCHAR(50) NOT NULL,
     player_id INT NULL,
     player_out_id INT NULL,
@@ -29,6 +30,13 @@ try {
     // Ignore errors if it already is varchar or fails
 }
 
+// Add parent_name column if missing (idempotent migration)
+try {
+    $pdo->exec("ALTER TABLE game_events ADD COLUMN parent_name VARCHAR(100) NULL AFTER parent_email;");
+} catch (\Exception $e) {
+    // Already exists - fine
+}
+
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $input = file_get_contents('php://input');
@@ -39,6 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'log_event') {
         $gameId = (int)($data['game_id'] ?? 0);
         $parentEmail = $data['parent_email'] ?? null;
+        $parentName = isset($data['parent_name']) ? substr(trim($data['parent_name']), 0, 100) : null;
         $eventType = $data['event_type'] ?? '';
         $playerId = !empty($data['player_id']) ? (int)$data['player_id'] : null;
         $playerOutId = !empty($data['player_out_id']) ? (int)$data['player_out_id'] : null;
@@ -61,20 +70,52 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
 
-        // Deduplicatie logica (bij "goal" of "assist")
-        if (in_array($eventType, ['goal', 'assist']) && $playerId) {
-            // Check voor bestaande zelfde event in zelfde minuut
-            $stmt = $pdo->prepare("SELECT id, parent_email FROM game_events WHERE game_id = ? AND event_type = ? AND player_id = ? AND event_minute = ? AND is_deleted = 0");
-            $stmt->execute([$gameId, $eventType, $playerId, $eventMinute]);
-            $existing = $stmt->fetch(PDO::FETCH_ASSOC);
-
-            if ($existing) {
-                if ($existing['parent_email'] !== $parentEmail) {
-                    // Gegroepeerde melding van 2 verschillende ouders -> we loggen geen nieuwe, we doen niks extra
-                    echo json_encode(['status' => 'success', 'message' => 'Deduplicated (Other parent)']);
+        $force = !empty($data['force']);
+        if (!$force) {
+            if ($eventType === 'goal' && $playerId) {
+                // Check within 120 seconds
+                $stmt = $pdo->prepare("
+                    SELECT e.parent_email, e.event_minute, p.first_name, p.last_name 
+                    FROM game_events e
+                    LEFT JOIN players p ON e.player_id = p.id
+                    WHERE e.game_id = ? AND e.event_type = 'goal' AND e.player_id = ? AND e.created_at > DATE_SUB(NOW(), INTERVAL 120 SECOND) AND e.is_deleted = 0
+                    ORDER BY e.created_at DESC LIMIT 1
+                ");
+                $stmt->execute([$gameId, $playerId]);
+                $existing = $stmt->fetch(PDO::FETCH_ASSOC);
+                
+                if ($existing) {
+                    $playerName = trim(($existing['first_name'] ?? '') . ' ' . ($existing['last_name'] ?? ''));
+                    if (!$playerName) $playerName = 'deze speler';
+                    
+                    $doorWie = ($existing['parent_email'] === $parentEmail)
+                        ? 'jou'
+                        : ($existing['parent_name'] ? htmlspecialchars($existing['parent_name']) : explode('@', $existing['parent_email'])[0]);
+                    $warningText = "Er werd zojuist al een doelpunt gelogd voor " . htmlspecialchars($playerName) . " door " . $doorWie . " (in minuut " . $existing['event_minute'] . "). Wil je dit doelpunt toch extra toevoegen?";
+                    
+                    echo json_encode(['status' => 'warning', 'message' => 'duplicate_warning', 'warning_text' => $warningText]);
                     exit;
                 }
-                // Zelfde ouder? Mag wel (Robin scoort echt 2 keer in 1 minuut)
+            } elseif (in_array($eventType, ['opp_goal', 'tegengoal'])) {
+                // Check within 90 seconds
+                $stmt = $pdo->prepare("
+                    SELECT parent_email, event_minute 
+                    FROM game_events 
+                    WHERE game_id = ? AND event_type IN ('opp_goal', 'tegengoal') AND created_at > DATE_SUB(NOW(), INTERVAL 90 SECOND) AND is_deleted = 0
+                    ORDER BY created_at DESC LIMIT 1
+                ");
+                $stmt->execute([$gameId]);
+                $existing = $stmt->fetch(PDO::FETCH_ASSOC);
+                
+                if ($existing) {
+                    $doorWie = ($existing['parent_email'] === $parentEmail)
+                        ? 'jou'
+                        : ($existing['parent_name'] ? htmlspecialchars($existing['parent_name']) : explode('@', $existing['parent_email'])[0]);
+                    $warningText = "Er werd zojuist al een tegendoelpunt gelogd door " . $doorWie . " (in minuut " . $existing['event_minute'] . "). Wil je dit doelpunt toch extra toevoegen?";
+                    
+                    echo json_encode(['status' => 'warning', 'message' => 'duplicate_warning', 'warning_text' => $warningText]);
+                    exit;
+                }
             }
         }
 
@@ -89,8 +130,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
-        $stmt = $pdo->prepare("INSERT INTO game_events (game_id, parent_email, event_type, player_id, player_out_id, event_minute, is_confirmed, user_agent, ip_address) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
-        $success = $stmt->execute([$gameId, $parentEmail, $eventType, $playerId, $playerOutId, $eventMinute, $isCoach, $userAgent, $ipAddress]);
+        $stmt = $pdo->prepare("INSERT INTO game_events (game_id, parent_email, parent_name, event_type, player_id, player_out_id, event_minute, is_confirmed, user_agent, ip_address) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        $success = $stmt->execute([$gameId, $parentEmail, $parentName, $eventType, $playerId, $playerOutId, $eventMinute, $isCoach, $userAgent, $ipAddress]);
         
         if (!$success) {
             $err = $stmt->errorInfo();

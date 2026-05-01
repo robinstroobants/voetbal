@@ -399,8 +399,8 @@ require_once __DIR__ . '/header.php';
                     
                     <div class="row align-items-center">
                         <div class="col-12 text-start">
-                            <h2 class="fw-bold mb-1 text-truncate" title="<?= htmlspecialchars($next_game['opponent']) ?>"><?= htmlspecialchars($next_game['opponent']) ?></h2>
-                            <p class="mb-2 small opacity-75">
+                            <h2 class="fw-bold mb-1 text-truncate text-white" title="<?= htmlspecialchars($next_game['opponent']) ?>"><?= htmlspecialchars($next_game['opponent']) ?></h2>
+                            <p class="mb-2 small text-white text-opacity-75">
                                 <i class="fa-regular fa-clock me-1"></i> 
                                 <?php 
                                     $ts = strtotime($next_game['game_date']);
@@ -414,10 +414,10 @@ require_once __DIR__ . '/header.php';
                                         echo $dStr;
                                     }
                                 ?>
-                                <span class="badge bg-black bg-opacity-25 border border-white border-opacity-25 ms-1" style="font-size: 0.65em; vertical-align: middle; padding: 0.3em 0.5em;"><?= htmlspecialchars($next_game['format']) ?></span>
+                                <span class="badge bg-black bg-opacity-25 border border-white border-opacity-25 ms-1 text-white" style="font-size: 0.65em; vertical-align: middle; padding: 0.3em 0.5em;"><?= htmlspecialchars($next_game['format']) ?></span>
                                 <?php if (!empty($next_game['coach_name'])): ?>
-                                    <span class="mx-2">•</span> 
-                                    <span class="badge bg-primary bg-opacity-50 border border-white border-opacity-25"><i class="fa-solid fa-user-tie me-1"></i><?= htmlspecialchars($next_game['coach_name']) ?></span>
+                                    <span class="mx-2 text-white">•</span> 
+                                    <span class="badge bg-primary bg-opacity-50 border border-white border-opacity-25 text-white"><i class="fa-solid fa-user-tie me-1"></i><?= htmlspecialchars($next_game['coach_name']) ?></span>
                                 <?php endif; ?>
                             </p>
                             
@@ -434,7 +434,7 @@ require_once __DIR__ . '/header.php';
                                 </a>
 
                                 <a href="/games/<?= $next_game['id'] ?>/lineup" class="btn btn-success text-white fw-bold rounded px-3 py-2 shadow-sm d-inline-flex align-items-center transition-transform" style="transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'" title="Opstelling">
-                                    <i class="fa-solid fa-file-chart-column"></i>
+                                    <i class="fa-solid fa-table-list"></i>
                                 </a>
                                 <?php 
                                     $match_datetime = strtotime($next_game['match_date'] . ' ' . $next_game['time']);

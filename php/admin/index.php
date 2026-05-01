@@ -240,7 +240,10 @@ $admin_stats = $pdo->query("
         (SELECT COUNT(*) FROM users WHERE created_at > DATE_SUB(NOW(), INTERVAL 7 DAY)) as new_users_7d,
         (SELECT COUNT(*) FROM team_invitations WHERE status = 'pending') as invites_pending,
         (SELECT COUNT(*) FROM team_invitations WHERE status = 'accepted') as invites_accepted,
-        (SELECT COUNT(*) FROM users WHERE account_status = 'pending') as waitlist_pending
+        (SELECT COUNT(*) FROM users WHERE account_status = 'pending') as waitlist_pending,
+        (SELECT SUM(cost_weight) FROM usage_logs WHERE created_at >= CURDATE()) as total_usage_today,
+        (SELECT COUNT(*) FROM client_telemetry WHERE created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)) as telemetry_24h,
+        (SELECT COUNT(*) FROM user_feedback WHERE status = 'open') as open_feedback
 ")->fetch(PDO::FETCH_ASSOC);
 
 // Als het een Ajax verzoek is, onderbreek the HTML rest render en spuug enkel the partial uit
@@ -284,43 +287,60 @@ require_once __DIR__ . '/../header.php';
     <?php endif; ?>
 
     <div class="row mb-4">
-        <div class="col-md-4 mb-2">
-            <div class="card shadow-sm border-0 bg-primary text-white h-100 position-relative" style="transition: transform 0.2s; cursor: pointer;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
-                <div class="card-body d-flex align-items-center">
-                    <i class="fa-solid fa-user-plus fa-2x opacity-50 me-3"></i>
-                    <div>
-                        <h6 class="mb-1 opacity-75 fw-normal">Nieuwe Gebruikers (7d)</h6>
-                        <h3 class="mb-0 fw-bold"><?= $admin_stats['new_users_7d'] ?></h3>
-                    </div>
+        <div class="col-md-2 col-6 mb-2">
+            <div class="card shadow-sm border-0 bg-primary text-white h-100 position-relative" title="Nieuwe Gebruikers (7d)" data-bs-toggle="tooltip" data-bs-placement="top" style="transition: transform 0.2s; cursor: pointer;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                <div class="card-body d-flex align-items-center justify-content-center flex-column py-3">
+                    <i class="fa-solid fa-user-plus fa-2x opacity-50 mb-2"></i>
+                    <h3 class="mb-0 fw-bold"><?= $admin_stats['new_users_7d'] ?></h3>
                 </div>
                 <a href="#superadminSearch" class="stretched-link" onclick="setTimeout(() => document.getElementById('superadminSearch').focus(), 100);"></a>
             </div>
         </div>
-        <div class="col-md-4 mb-2">
-            <div class="card shadow-sm border-0 bg-warning text-dark h-100 position-relative" style="transition: transform 0.2s; cursor: pointer;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
-                <div class="card-body d-flex align-items-center">
-                    <i class="fa-solid fa-hourglass-half fa-2x opacity-50 me-3"></i>
-                    <div>
-                        <h6 class="mb-1 opacity-75 fw-normal">Wachtlijst (Pending)</h6>
-                        <h3 class="mb-0 fw-bold"><?= $admin_stats['waitlist_pending'] ?></h3>
-                    </div>
+        <div class="col-md-2 col-6 mb-2">
+            <div class="card shadow-sm border-0 bg-warning text-dark h-100 position-relative" title="Wachtlijst (Pending)" data-bs-toggle="tooltip" data-bs-placement="top" style="transition: transform 0.2s; cursor: pointer;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                <div class="card-body d-flex align-items-center justify-content-center flex-column py-3">
+                    <i class="fa-solid fa-hourglass-half fa-2x opacity-50 mb-2"></i>
+                    <h3 class="mb-0 fw-bold"><?= $admin_stats['waitlist_pending'] ?></h3>
                 </div>
                 <a href="/admin/users?q=&filter=pending" class="stretched-link"></a>
             </div>
         </div>
-        <div class="col-md-4 mb-2">
-            <div class="card shadow-sm border-0 bg-success text-white h-100">
-                <div class="card-body d-flex align-items-center">
-                    <i class="fa-solid fa-envelope-circle-check fa-2x opacity-50 me-3"></i>
-                    <div>
-                        <h6 class="mb-1 opacity-75 fw-normal">Team Invitaties</h6>
-                        <h4 class="mb-0 fw-bold">
-                            <span title="Geaccepteerd"><?= $admin_stats['invites_accepted'] ?> <i class="fa-solid fa-check small opacity-75"></i></span> 
-                            <span class="opacity-50 mx-2">|</span> 
-                            <span title="Openstaand"><?= $admin_stats['invites_pending'] ?> <i class="fa-solid fa-clock small opacity-75"></i></span>
-                        </h4>
-                    </div>
+        <div class="col-md-2 col-6 mb-2">
+            <div class="card shadow-sm border-0 bg-success text-white h-100 position-relative" title="Team Invitaties" data-bs-toggle="tooltip" data-bs-placement="top" style="transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                <div class="card-body d-flex align-items-center justify-content-center flex-column py-3">
+                    <i class="fa-solid fa-share fa-2x opacity-50 mb-2"></i>
+                    <h5 class="mb-0 fw-bold">
+                        <span title="Geaccepteerd"><?= $admin_stats['invites_accepted'] ?> <i class="fa-solid fa-check small opacity-75"></i></span> 
+                        <span class="opacity-50 mx-1">|</span> 
+                        <span title="Openstaand"><?= $admin_stats['invites_pending'] ?> <i class="fa-solid fa-clock small opacity-75"></i></span>
+                    </h5>
                 </div>
+            </div>
+        </div>
+        <div class="col-md-2 col-6 mb-2">
+            <div class="card shadow-sm border-0 bg-info text-white h-100 position-relative" title="Client Telemetry (Laatste 24u)" data-bs-toggle="tooltip" data-bs-placement="top" style="transition: transform 0.2s; cursor: pointer;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                <div class="card-body d-flex align-items-center justify-content-center flex-column py-3">
+                    <i class="fa-solid fa-mobile-screen fa-2x opacity-50 mb-2"></i>
+                    <h3 class="mb-0 fw-bold"><?= $admin_stats['telemetry_24h'] ?? 0 ?></h3>
+                </div>
+                <a href="/admin/performance_clients.php" class="stretched-link"></a>
+            </div>
+        </div>
+        <div class="col-md-2 col-6 mb-2">
+            <div class="card shadow-sm border-0 bg-secondary text-white h-100 position-relative" title="Compute Load (Vandaag)" data-bs-toggle="tooltip" data-bs-placement="top" style="transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                <div class="card-body d-flex align-items-center justify-content-center flex-column py-3">
+                    <i class="fa-solid fa-server fa-2x opacity-50 mb-2"></i>
+                    <h3 class="mb-0 fw-bold"><?= $admin_stats['total_usage_today'] ?? 0 ?></h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2 col-6 mb-2">
+            <div class="card shadow-sm border-0 bg-danger text-white h-100 position-relative" title="Openstaande Bugs & Feedback" data-bs-toggle="tooltip" data-bs-placement="top" style="transition: transform 0.2s; cursor: pointer;" onmouseover="this.style.transform='scale(1.05)'" onmouseout="this.style.transform='scale(1)'">
+                <div class="card-body d-flex align-items-center justify-content-center flex-column py-3">
+                    <i class="fa-solid fa-bug fa-2x opacity-50 mb-2"></i>
+                    <h3 class="mb-0 fw-bold"><?= $admin_stats['open_feedback'] ?></h3>
+                </div>
+                <a href="/admin/feedback" class="stretched-link"></a>
             </div>
         </div>
     </div>
@@ -495,6 +515,10 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     restoreState();
+
+    // Initialize tooltips
+    const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+    [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl));
 });
 </script>
 

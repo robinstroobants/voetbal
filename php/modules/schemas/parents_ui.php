@@ -236,7 +236,7 @@ if ($matchStarted) {
   </ul>
   
   <div class="tab-content" id="parentsTabsContent">
-    <div class="tab-pane fade show active d-flex flex-column align-items-center" id="tab-tracker" role="tabpanel">
+    <div class="tab-pane fade show active" id="tab-tracker" role="tabpanel">
        
         <div class="parents-bottom-bar w-100">
             <div id="liveClockContainer" class="parents-clock-container w-100 d-flex justify-content-center flex-column align-items-center">
@@ -254,8 +254,14 @@ if ($matchStarted) {
                             <div class="parents-clock text-primary border-primary bg-white" id="liveScoreDisplay">0 - 0</div>
                         </div>
                         <div class="d-flex flex-column align-items-center flex-grow-1" style="flex-basis: 33%;">
-                            <div class="parents-block-label">Wissel</div>
-                            <button id="btnWissel" class="btn btn-secondary shadow-sm w-100" style="padding: 3px 8px; font-weight: bold; height: 32px;" onclick="openEventModal('wissel')">🔄 Wissel</button>
+                            <div class="parents-block-label" id="lblActionBtn">Actie</div>
+                            <!-- Contextual action buttons - shown/hidden by updateWisselHint() -->
+                            <div id="actionBtnsContainer" class="d-flex flex-column gap-1 w-100">
+                                <button id="btnStartVolgende" class="btn btn-success shadow-sm w-100 fw-bold d-none" style="padding: 3px 6px; font-size: 0.78rem; height: auto;"></button>
+                                <button id="btnFluitAf" class="btn btn-warning shadow-sm w-100 fw-bold d-none" style="padding: 3px 6px; font-size: 0.78rem; height: auto;"></button>
+                                <button id="btnEindeMatch" class="btn btn-danger shadow-sm w-100 fw-bold d-none" style="padding: 3px 6px; font-size: 0.78rem; height: auto;"></button>
+                                <button id="btnUitzonderingWissel" class="btn btn-outline-secondary shadow-sm w-100 d-none" style="padding: 3px 6px; font-size: 0.78rem; height: auto;" onclick="openEventModal('wissel')">🔄 Uitzondering</button>
+                            </div>
                         </div>
                     </div>
                 <?php else: ?>
@@ -265,14 +271,6 @@ if ($matchStarted) {
             <div class="d-flex gap-2 w-100 justify-content-center mt-1">
                 <button class="btn btn-primary fw-bold shadow-sm flex-fill" onclick="openEventModal('goal')">⚽ Goal</button>
                 <button class="btn btn-danger fw-bold shadow-sm flex-fill" onclick="openEventModal('opp_goal')">🥅 Tegengoal</button>
-            </div>
-            
-            <!-- Notice Block for Time -->
-            <div id="timeNoticeBlock" class="w-100 mt-2" style="display:none;">
-                <div class="alert alert-warning text-center p-2 mb-0 shadow-sm border-warning">
-                    <p class="mb-1 fw-bold text-dark" id="timeNoticeText">Tijd voor wissel!</p>
-                    <button class="btn btn-warning btn-sm fw-bold px-4 text-dark" id="timeNoticeBtn">Actie</button>
-                </div>
             </div>
 
             <hr class="w-100 my-2 text-muted">
@@ -318,6 +316,8 @@ document.addEventListener("DOMContentLoaded", function() {
       <div class="modal-body">
         <p class="small text-muted mb-3">Wil je graag updates zoals goals en wissels kunnen doorgeven? Vul even je gegevens in zodat we (en de coach) weten wie wat doorgeeft.</p>
         <div class="mb-3">
+            <label class="form-label fw-bold small">Jouw naam <span class="text-muted">(bv. "Jan - papa van Raf")</span></label>
+            <input type="text" class="form-control mb-2" id="parentNameInput" placeholder="Jouw naam..." maxlength="100">
             <label class="form-label fw-bold small">Jouw E-mailadres</label>
             <input type="email" class="form-control" id="parentEmailInput" placeholder="naam@voorbeeld.com">
         </div>
@@ -475,8 +475,10 @@ document.addEventListener("DOMContentLoaded", function() {
 
     function saveIdentity() {
         const email = document.getElementById('parentEmailInput').value.trim();
+        const name = document.getElementById('parentNameInput').value.trim();
         if (email) {
             localStorage.setItem('parent_email', email);
+            if (name) localStorage.setItem('parent_name', name);
             bootstrap.Modal.getInstance(document.getElementById('parentIdentityModal')).hide();
         } else {
             alert('Vul een geldig e-mailadres in of kies voor "Kijken".');
@@ -490,6 +492,10 @@ document.addEventListener("DOMContentLoaded", function() {
 
     function getParentEmail() {
         return localStorage.getItem('parent_email') || '';
+    }
+
+    function getParentName() {
+        return localStorage.getItem('parent_name') || '';
     }
 
     function getActiveShift() {
@@ -555,8 +561,8 @@ document.addEventListener("DOMContentLoaded", function() {
         const currentSeconds = (shift.start_minute * 60) + (diffMs / 1000);
         const expectedEndSeconds = (shift.start_minute + shift.duration) * 60;
         
-        // Auto trigger events at 20% overtime
-        const overTimeThreshold = expectedEndSeconds * 1.20;
+        // Auto trigger events at 20% overtime (only apply 20% to the duration itself)
+        const overTimeThreshold = (shift.start_minute * 60) + (shift.duration * 60 * 1.20);
         if (currentSeconds >= overTimeThreshold && !autoEventTriggered && !isPaused && !matchEndedAtMs) {
             autoEventTriggered = true;
             if (currentShiftIndex < shiftsData.length - 1) {
@@ -592,45 +598,67 @@ document.addEventListener("DOMContentLoaded", function() {
                 });
             }
         }
-        const noticeBlock = document.getElementById('timeNoticeBlock');
-        const noticeText = document.getElementById('timeNoticeText');
-        const noticeBtn = document.getElementById('timeNoticeBtn');
-        
-        if (noticeBlock) {
-            if (currentSeconds >= expectedEndSeconds && !isMatchEnded() && matchStarted) {
-                noticeBlock.style.display = 'block';
-                if (currentShiftIndex < shiftsData.length - 1) {
-                    let cShift = shiftsData[currentShiftIndex];
-                    let nShift = shiftsData[currentShiftIndex + 1];
-                    let shiftTitle = nShift.title || ('Blok ' + nShift.index);
-                    
-                    if (isPaused) {
-                        noticeText.innerHTML = 'Klaar voor <strong>' + shiftTitle + '</strong>?';
-                        noticeBtn.innerHTML = '▶ Start';
-                        noticeBtn.onclick = () => submitNextBlock();
-                        noticeBtn.className = 'btn btn-success btn-sm fw-bold px-4 text-white';
-                    } else {
-                        if (cShift.game_counter === nShift.game_counter) {
-                            noticeText.innerHTML = 'Tijd voor <strong>' + shiftTitle + '</strong>!';
-                            noticeBtn.innerHTML = '▶ Start (Vliegende Wissel)';
-                            noticeBtn.onclick = () => submitNextBlock();
-                            noticeBtn.className = 'btn btn-success btn-sm fw-bold px-4 text-white';
-                        } else {
-                            noticeText.innerHTML = 'Tijd voor <strong>Rust / Einde Wedstrijdje</strong>!';
-                            noticeBtn.innerHTML = '⏹ Fluit af';
-                            noticeBtn.onclick = () => submitPauseBlock();
-                            noticeBtn.className = 'btn btn-warning btn-sm fw-bold px-4 text-dark';
-                        }
-                    }
-                } else {
-                    noticeText.innerHTML = 'De reguliere speeltijd zit erop!';
-                    noticeBtn.innerHTML = '🛑 Einde Match';
-                    noticeBtn.onclick = () => submitMatchEnd();
-                    noticeBtn.className = 'btn btn-danger btn-sm fw-bold px-4 text-white';
-                }
+        const btnStartVolgende = document.getElementById('btnStartVolgende');
+        const btnFluitAf = document.getElementById('btnFluitAf');
+        const btnEindeMatch = document.getElementById('btnEindeMatch');
+        const btnUitzonderingWissel = document.getElementById('btnUitzonderingWissel');
+        const lbl = document.getElementById('lblActionBtn');
+
+        // Helper to hide all action btns
+        const hideAll = () => {
+            [btnStartVolgende, btnFluitAf, btnEindeMatch, btnUitzonderingWissel].forEach(b => b && b.classList.add('d-none'));
+        };
+
+        if (!matchStarted || matchEndedAtMs) {
+            hideAll();
+            return;
+        }
+
+        hideAll();
+
+        if (currentShiftIndex < shiftsData.length - 1) {
+            const cShift = shiftsData[currentShiftIndex];
+            const nShift = shiftsData[currentShiftIndex + 1];
+            const shiftTitle = nShift.title || ('Blok ' + nShift.index);
+
+            if (isPaused) {
+                // Paused: only show start next
+                if (lbl) lbl.innerText = 'Volgende';
+                btnStartVolgende.innerHTML = '▶ Start ' + shiftTitle;
+                btnStartVolgende.className = 'btn btn-success shadow-sm w-100 fw-bold btn-wissel-due';
+                btnStartVolgende.style = 'padding: 3px 6px; font-size: 0.78rem;';
+                btnStartVolgende.onclick = () => submitNextBlock();
+                btnStartVolgende.classList.remove('d-none');
+            } else if (cShift.game_counter !== nShift.game_counter) {
+                // Different sub-game: show 'fluit af', also show wissel as exception
+                if (lbl) lbl.innerText = 'Einde';
+                btnFluitAf.innerHTML = '⏹ Fluit af';
+                btnFluitAf.className = 'btn btn-warning shadow-sm w-100 fw-bold' + (currentSeconds >= expectedEndSeconds ? ' btn-wissel-due' : '');
+                btnFluitAf.style = 'padding: 3px 6px; font-size: 0.78rem;';
+                btnFluitAf.onclick = () => submitPauseBlock();
+                btnFluitAf.classList.remove('d-none');
+                btnUitzonderingWissel.classList.remove('d-none');
             } else {
-                noticeBlock.style.display = 'none';
+                // Same sub-game: show start next when time is up, show exception always
+                if (lbl) lbl.innerText = currentSeconds >= expectedEndSeconds ? 'Wissel!' : 'Wissel';
+                if (currentSeconds >= expectedEndSeconds) {
+                    btnStartVolgende.innerHTML = '🔄 Start ' + shiftTitle;
+                    btnStartVolgende.className = 'btn btn-success shadow-sm w-100 fw-bold btn-wissel-due';
+                    btnStartVolgende.style = 'padding: 3px 6px; font-size: 0.78rem;';
+                    btnStartVolgende.onclick = () => submitNextBlock();
+                    btnStartVolgende.classList.remove('d-none');
+                }
+                btnUitzonderingWissel.classList.remove('d-none');
             }
+        } else {
+            // Last block
+            if (lbl) lbl.innerText = 'Einde';
+            btnEindeMatch.innerHTML = '🛑 Einde Match';
+            btnEindeMatch.className = 'btn btn-danger shadow-sm w-100 fw-bold' + (currentSeconds >= expectedEndSeconds ? ' btn-wissel-due' : ' btn-outline-danger');
+            btnEindeMatch.style = 'padding: 3px 6px; font-size: 0.78rem;';
+            btnEindeMatch.onclick = () => submitMatchEnd();
+            btnEindeMatch.classList.remove('d-none');
+            btnUitzonderingWissel.classList.remove('d-none');
         }
     }
 
@@ -835,10 +863,12 @@ document.addEventListener("DOMContentLoaded", function() {
 
     function sendApiEvent(eventType, eventMinute, playerId = null, playerOutId = null) {
         const email = getParentEmail();
-        let payload = {
+        const name = getParentName();
+        const payload = {
             action: 'log_event',
             game_id: gameId,
             parent_email: email,
+            parent_name: name || null,
             event_type: eventType,
             event_minute: eventMinute
         };
@@ -847,7 +877,30 @@ document.addEventListener("DOMContentLoaded", function() {
         sendApiEventObject(payload);
     }
 
+    function btnLoading(btn) {
+        if (!btn || !btn.classList) return;
+        btn.disabled = true;
+        if (!btn.hasAttribute('data-original-text')) {
+            btn.setAttribute('data-original-text', btn.innerHTML);
+        }
+        btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+        setTimeout(() => {
+            if(btn && btn.hasAttribute('data-original-text')) { 
+                btn.disabled = false; 
+                btn.innerHTML = btn.getAttribute('data-original-text'); 
+            }
+        }, 5000);
+    }
+
     function sendApiEventObject(payload) {
+        // Always include parent_name if we have it and it's not already set
+        if (!payload.parent_name) {
+            const name = getParentName();
+            if (name) payload.parent_name = name;
+        }
+        if (document.activeElement && document.activeElement.tagName === 'BUTTON') {
+            btnLoading(document.activeElement);
+        }
         fetch('/api/api_game_events.php', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -860,6 +913,13 @@ document.addEventListener("DOMContentLoaded", function() {
                     if (modalInst) modalInst.hide();
                 }
                 location.reload(); // Herlaad om de nieuwe shifts en timer direct correct te zetten
+            } else if (data.status === 'warning') {
+                if (confirm(data.warning_text)) {
+                    payload.force = true;
+                    sendApiEventObject(payload);
+                } else {
+                    location.reload();
+                }
             } else {
                 alert("Fout bij opslaan: " + (data.message || ''));
             }
@@ -894,7 +954,7 @@ document.addEventListener("DOMContentLoaded", function() {
         
         let lastReload = sessionStorage.getItem('last_sync_reload_' + gameId);
         let now = Date.now();
-        let canReload = !lastReload || (now - parseInt(lastReload) > 3000);
+        let canReload = !lastReload || (now - parseInt(lastReload) > 10000); // min 10s between reloads
         
         if (serverBlockCount > 0 && serverBlockCount - 1 > currentShiftIndex) {
             if (canReload) {
@@ -986,13 +1046,21 @@ document.addEventListener("DOMContentLoaded", function() {
             
             let text = isStatusEvent ? `<strong class="text-primary me-1" style="cursor:pointer;" onclick="openEditTimeModal(${e.id}, '${timeStr}', '${e.event_type}', ${e._blockIndex})">${timeStr} <i class="fa-solid fa-pen text-muted ms-1" style="font-size:0.7rem;"></i></strong> ` : `<strong>${e.event_minute}'</strong> `;
             
+            let byWho = '';
+            if (!isStatusEvent && e.parent_name) {
+                byWho = `<span class="text-muted" style="font-size:0.75rem;"> — ${e.parent_name}</span>`;
+            } else if (!isStatusEvent && e.parent_email && e.parent_email !== 'auto@systeem') {
+                byWho = `<span class="text-muted" style="font-size:0.75rem;"> — ${e.parent_email.split('@')[0]}</span>`;
+            }
+
             if (e.event_type === 'goal') {
                 text += '⚽ ' + (e.p1_first || 'Onbekend');
                 if (e.p2_first) {
                     text += ' (' + e.p2_first + ')';
                 }
+                text += byWho;
             } else if (e.event_type === 'opp_goal' || e.event_type === 'tegengoal' || !e.event_type || e.event_type.trim() === '') {
-                text += '🥅 Tegendoelpunt';
+                text += '🥅 Tegendoelpunt' + byWho;
             } else if (e.event_type === 'substitution') {
                 text += '🔄 Wissel: ' + (e.p1_first || '?') + ' IN, ' + (e.p2_first || '?') + ' UIT';
             } else if (e.event_type === 'match_end') {

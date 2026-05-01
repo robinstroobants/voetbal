@@ -91,7 +91,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
 
         $stmt = $pdo->prepare("INSERT INTO game_events (game_id, parent_email, event_type, player_id, player_out_id, event_minute, is_confirmed, user_agent, ip_address) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)");
-        $stmt->execute([$gameId, $parentEmail, $eventType, $playerId, $playerOutId, $eventMinute, $isCoach, $userAgent, $ipAddress]);
+        $success = $stmt->execute([$gameId, $parentEmail, $eventType, $playerId, $playerOutId, $eventMinute, $isCoach, $userAgent, $ipAddress]);
+        
+        if (!$success) {
+            $err = $stmt->errorInfo();
+            file_put_contents(__DIR__ . '/debug_events.log', date('Y-m-d H:i:s') . " - DB ERROR: " . print_r($err, true) . "\n", FILE_APPEND);
+        }
 
         echo json_encode(['status' => 'success', 'event_id' => $pdo->lastInsertId()]);
         exit;

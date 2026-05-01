@@ -148,9 +148,9 @@ if ($currentShiftIndex >= count($shifts_data)) {
     $currentShiftIndex = count($shifts_data) - 1; // Cap op laatste blok
 }
 
-$stmtPeriodEnd = $pdo->prepare("SELECT created_at FROM game_events WHERE game_id = ? AND event_type = 'period_end' AND is_deleted = 0 ORDER BY created_at DESC LIMIT 1");
-$stmtPeriodEnd->execute([$gameId]);
-$lastPeriodEndAt = $stmtPeriodEnd->fetchColumn();
+$stmtLastStatus = $pdo->prepare("SELECT event_type, created_at FROM game_events WHERE game_id = ? AND event_type IN ('match_start', 'period_start', 'period_end') AND is_deleted = 0 ORDER BY id DESC LIMIT 1");
+$stmtLastStatus->execute([$gameId]);
+$lastStatusEvent = $stmtLastStatus->fetch(PDO::FETCH_ASSOC);
 
 $activeBlockEventTimeMs = 'null';
 $isPaused = false;
@@ -159,9 +159,9 @@ if ($matchStarted) {
     // Tijdstip van de start van het huidige blok
     $activeBlockEventTimeMs = strtotime($blockEvents[$currentShiftIndex]) * 1000;
     
-    if ($lastPeriodEndAt && strtotime($lastPeriodEndAt) > strtotime($blockEvents[$currentShiftIndex])) {
+    if ($lastStatusEvent && $lastStatusEvent['event_type'] === 'period_end') {
         $isPaused = true;
-        $pausedAtMs = strtotime($lastPeriodEndAt) * 1000;
+        $pausedAtMs = strtotime($lastStatusEvent['created_at']) * 1000;
     }
 }
 ?>
@@ -891,11 +891,13 @@ document.addEventListener("DOMContentLoaded", function() {
         let lastPeriodStart = serverBlockStarts[serverBlockStarts.length - 1];
         let lastPeriodEnd = events.filter(e => e.event_type === 'period_end').pop();
         
+        let isServerPaused = !!(lastPeriodEnd && (!lastPeriodStart || lastPeriodEnd.id > lastPeriodStart.id));
+        
         if (serverBlockCount > 0 && serverBlockCount - 1 > currentShiftIndex) {
             location.reload();
             return;
         }
-        if (lastPeriodEnd && (!lastPeriodStart || lastPeriodEnd.id > lastPeriodStart.id) && !isPaused) {
+        if (isServerPaused !== isPaused) {
             location.reload();
             return;
         }

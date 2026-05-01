@@ -891,7 +891,7 @@ document.addEventListener("DOMContentLoaded", function() {
         let lastPeriodStart = serverBlockStarts[serverBlockStarts.length - 1];
         let lastPeriodEnd = events.filter(e => e.event_type === 'period_end').pop();
         
-        let isServerPaused = !!(lastPeriodEnd && (!lastPeriodStart || lastPeriodEnd.id > lastPeriodStart.id));
+        let isServerPaused = !!(lastPeriodEnd && (!lastPeriodStart || parseInt(lastPeriodEnd.id) > parseInt(lastPeriodStart.id)));
         
         if (serverBlockCount > 0 && serverBlockCount - 1 > currentShiftIndex) {
             location.reload();

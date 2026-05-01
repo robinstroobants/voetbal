@@ -104,7 +104,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                                LEFT JOIN players p1 ON e.player_id = p1.id
                                LEFT JOIN players p2 ON e.player_out_id = p2.id
                                WHERE e.game_id = ? AND e.is_deleted = 0 
-                               ORDER BY e.created_at ASC");
+                               ORDER BY e.created_at ASC, e.id ASC");
         $stmt->execute([$gameId]);
         echo json_encode(['status' => 'success', 'events' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
         exit;

@@ -402,9 +402,17 @@ require_once __DIR__ . '/header.php';
                                 <i class="fa-regular fa-clock me-1"></i> 
                                 <?php 
                                     $ts = strtotime($next_game['game_date']);
-                                    echo (date('H:i', $ts) === '00:00') ? date('d/m/Y', $ts) : date('d/m/Y \o\m H:i', $ts);
+                                    $maanden = [1=>'jan',2=>'feb',3=>'mrt',4=>'apr',5=>'mei',6=>'jun',7=>'jul',8=>'aug',9=>'sep',10=>'okt',11=>'nov',12=>'dec'];
+                                    $dStr = date('j', $ts) . ' ' . $maanden[(int)date('n', $ts)];
+                                    if (date('H:i', $ts) !== '00:00') {
+                                        $tStr = date('G', $ts) . 'u' . date('i', $ts);
+                                        if (substr($tStr, -2) === '00') $tStr = substr($tStr, 0, -2);
+                                        echo $dStr . ' ' . $tStr;
+                                    } else {
+                                        echo $dStr;
+                                    }
                                 ?>
-                                <span class="badge bg-black bg-opacity-25 border border-white border-opacity-25"><?= htmlspecialchars($next_game['format']) ?></span>
+                                <span class="badge bg-black bg-opacity-25 border border-white border-opacity-25 ms-1" style="font-size: 0.65em; vertical-align: middle; padding: 0.3em 0.5em;"><?= htmlspecialchars($next_game['format']) ?></span>
                                 <?php if (!empty($next_game['coach_name'])): ?>
                                     <span class="mx-2">•</span> 
                                     <span class="badge bg-primary bg-opacity-50 border border-white border-opacity-25"><i class="fa-solid fa-user-tie me-1"></i><?= htmlspecialchars($next_game['coach_name']) ?></span>

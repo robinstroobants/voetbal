@@ -1309,13 +1309,22 @@
             });
         });
         
-        // Restore active tab
-        var activeTab = localStorage.getItem('activeLineupTab_<?= $gameId ?>');
-        if (activeTab) {
-            var tabBtn = document.querySelector("#lineupTabs button[data-bs-target='" + activeTab + "']");
-            if (tabBtn) {
-                var bsTab = new bootstrap.Tab(tabBtn);
-                bsTab.show();
+        // Restore active tab (skip when in print mode)
+        var isPrintMode = <?= isset($_GET['print']) && $_GET['print'] == 1 ? 'true' : 'false' ?>;
+        if (!isPrintMode) {
+            var activeTab = localStorage.getItem('activeLineupTab_<?= $gameId ?>');
+            if (activeTab) {
+                var tabBtn = document.querySelector("#lineupTabs button[data-bs-target='" + activeTab + "']");
+                if (tabBtn) {
+                    var bsTab = new bootstrap.Tab(tabBtn);
+                    bsTab.show();
+                }
+            }
+        } else {
+            // Print mode: altijd eerste lineup tab tonen
+            var firstTab = document.querySelector("#lineupTabs button[data-bs-toggle='tab']");
+            if (firstTab) {
+                new bootstrap.Tab(firstTab).show();
             }
         }
     });

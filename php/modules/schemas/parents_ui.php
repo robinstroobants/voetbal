@@ -886,6 +886,8 @@ document.addEventListener("DOMContentLoaded", function() {
         // Sync state: reload if block changed or paused state changed
         let serverBlockStarts = events.filter(e => e.event_type === 'match_start' || e.event_type === 'period_start');
         let serverBlockCount = serverBlockStarts.length;
+        if (serverBlockCount > shiftsData.length) serverBlockCount = shiftsData.length;
+        
         let lastPeriodStart = serverBlockStarts[serverBlockStarts.length - 1];
         let lastPeriodEnd = events.filter(e => e.event_type === 'period_end').pop();
         
@@ -1006,9 +1008,16 @@ document.addEventListener("DOMContentLoaded", function() {
         });
     }
 
+    let fetchIntervalId = null;
     if (matchStarted) {
         fetchLiveEvents();
-        setInterval(fetchLiveEvents, 30000); // Check every 30 seconds
+        fetchIntervalId = setInterval(() => {
+            if (isMatchEnded()) {
+                clearInterval(fetchIntervalId);
+            } else {
+                fetchLiveEvents();
+            }
+        }, 30000); // Check every 30 seconds as long as match is active
     }
 
     let currentEditTimeStr = '';

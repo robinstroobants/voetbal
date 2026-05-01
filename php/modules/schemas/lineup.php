@@ -79,7 +79,7 @@
           <h5 class="mb-0 flex-grow-1" id="dynamic-page-title">
               <i class="fa-solid fa-futbol me-2 text-primary"></i> <?= htmlspecialchars($matchData['game']['opponent'] ?? 'Opstelling') ?>
           </h5>
-          <a href="/games/<?= $gameId ?>/schema" class="btn btn-outline-secondary btn-sm">
+          <a href="/" class="btn btn-outline-secondary btn-sm">
               <i class="fa-solid fa-arrow-left me-1"></i> Terug naar Dashboard
           </a>
       </div>

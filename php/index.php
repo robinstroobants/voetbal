@@ -48,6 +48,7 @@ if ($onboarding_complete) {
     $stmtNext = $pdo->prepare("
         SELECT g.*, 
             (SELECT COUNT(*) FROM game_selections gs WHERE gs.game_id = g.id) as selection_count,
+            (SELECT COUNT(*) FROM game_events ge WHERE ge.game_id = g.id) as events_count,
             u.first_name as coach_name
         FROM games g 
         LEFT JOIN users u ON g.coach_id = u.id
@@ -221,6 +222,7 @@ if ($onboarding_complete) {
     $stmtPast = $pdo->prepare("
         SELECT g.*, 
             (SELECT COUNT(*) FROM game_selections gs WHERE gs.game_id = g.id) as selection_count,
+            (SELECT COUNT(*) FROM game_events ge WHERE ge.game_id = g.id) as events_count,
             u.first_name as coach_name
         FROM games g 
         LEFT JOIN users u ON g.coach_id = u.id
@@ -398,7 +400,7 @@ require_once __DIR__ . '/header.php';
                     <div class="row align-items-center">
                         <div class="col-12 text-start">
                             <h2 class="fw-bold mb-1 text-truncate" title="<?= htmlspecialchars($next_game['opponent']) ?>"><?= htmlspecialchars($next_game['opponent']) ?></h2>
-                            <p class="mb-2 fs-5 opacity-75">
+                            <p class="mb-2 small opacity-75">
                                 <i class="fa-regular fa-clock me-1"></i> 
                                 <?php 
                                     $ts = strtotime($next_game['game_date']);
@@ -458,6 +460,12 @@ require_once __DIR__ . '/header.php';
                                 <button type="button" class="btn btn-success fw-bold rounded px-3 py-2 shadow-sm d-inline-flex align-items-center transition-transform" style="transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'" title="Kopieer selectie bericht" data-msg="<?= htmlspecialchars(json_encode($next_game['whatsapp_msg_raw']), ENT_QUOTES, 'UTF-8') ?>" onclick="copyToClipboard(this)">
                                     <i class="fa-brands fa-whatsapp"></i>
                                 </button>
+                                <?php endif; ?>
+                                
+                                <?php if ($next_game['events_count'] > 0): ?>
+                                <a href="/games/<?= $next_game['id'] ?>/events" class="btn bg-white bg-opacity-10 border border-white border-opacity-10 text-white fw-bold rounded px-3 py-2 shadow-sm d-inline-flex align-items-center transition-transform" style="transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'" title="Bekijk Wedstrijd Events">
+                                    <i class="fa-solid fa-list-ol"></i>
+                                </a>
                                 <?php endif; ?>
                             </div>
                             
@@ -584,9 +592,14 @@ require_once __DIR__ . '/header.php';
                                             <a href="/games/<?= $game['id'] ?>/duplicate" class="btn btn-sm btn-light text-warning fw-bold rounded-pill shadow-sm me-1" title="Dupliceer Wedstrijd">
                                                 <i class="fa-solid fa-copy me-1 mt-1 mb-1"></i> Dupliceer
                                             </a>
-                                            <a href="/games/<?= $game['id'] ?>/schema" class="btn btn-sm btn-light text-primary fw-bold rounded-pill shadow-sm" title="Bekijk Opstelling">
+                                            <a href="/games/<?= $game['id'] ?>/schema" class="btn btn-sm btn-light text-primary fw-bold rounded-pill shadow-sm me-1" title="Bekijk Opstelling">
                                                 <i class="fa-solid fa-eye me-1 mt-1 mb-1"></i> Detail
                                             </a>
+                                            <?php if ($game['events_count'] > 0): ?>
+                                            <a href="/games/<?= $game['id'] ?>/events" class="btn btn-sm btn-light text-success fw-bold rounded-pill shadow-sm" title="Wedstrijd Events">
+                                                <i class="fa-solid fa-list-ol mt-1 mb-1"></i>
+                                            </a>
+                                            <?php endif; ?>
                                         </td>
                                     </tr>
                                     <?php endforeach; ?>

@@ -423,30 +423,83 @@ require_once __DIR__ . '/header.php';
                                 <?php endif; ?>
                             </p>
                             
-                            <?php 
+                            <?php
                                 $has_selection = $next_game['selection_count'] > 0;
-                                $is_selection_ready = $next_game['selection_count'] >= $required_players; 
+                                $is_selection_ready = $next_game['selection_count'] >= $required_players;
                                 $selection_color = $is_selection_ready ? 'success' : 'warning';
                                 $selection_icon = $has_selection ? 'fa-pen-to-square' : 'fa-plus';
+
+                                // Selectie popover HTML
+                                $sel_tooltip = '';
+                                if ($has_selection && !empty($next_game['players'])) {
+                                    $active_players = array_filter($next_game['players'], fn($p) => $p['status_id'] != 1);
+                                    $absent_players  = array_filter($next_game['players'], fn($p) => $p['status_id'] == 1);
+                                    $sel_tooltip .= '<div style="max-height:220px;overflow-y:auto;min-width:180px;">';
+                                    $sel_tooltip .= '<div class="fw-bold mb-1 small text-uppercase text-muted">Aanwezig (' . count($active_players) . ')</div>';
+                                    foreach ($active_players as $p) {
+                                        $gkBadge = $p['is_goalkeeper'] ? ' <span class="badge bg-warning text-dark" style="font-size:0.6rem;">K</span>' : '';
+                                        $pt = $next_game['playtimes'][$p['id']] ?? 0;
+                                        $ptBadge = ($next_game['is_final'] && $pt > 0) ? ' <span class="text-muted" style="font-size:0.75rem;">' . round($pt/60) . 'm</span>' : '';
+                                        $sel_tooltip .= '<div class="py-1 border-bottom">' . htmlspecialchars(trim($p['first_name'].' '.$p['last_name'])) . $gkBadge . $ptBadge . '</div>';
+                                    }
+                                    if (!empty($absent_players)) {
+                                        $sel_tooltip .= '<div class="fw-bold mt-2 mb-1 small text-uppercase text-danger">Afwezig</div>';
+                                        foreach ($absent_players as $p) {
+                                            $sel_tooltip .= '<div class="py-1 text-danger text-decoration-line-through small">' . htmlspecialchars(trim($p['first_name'].' '.$p['last_name'])) . '</div>';
+                                        }
+                                    }
+                                    $sel_tooltip .= '</div>';
+                                } else {
+                                    $sel_tooltip = 'Nog geen spelers geselecteerd.';
+                                }
+
+                                // WhatsApp preview (vóór spelerlijst)
+                                $wa_raw = $next_game['whatsapp_msg_raw'] ?? '';
+                                $wa_preview = 'Klik om te kopiëren.';
+                                if ($wa_raw) {
+                                    $cutPos = strpos($wa_raw, '*Selectie:*');
+                                    $wa_intro = $cutPos !== false ? substr($wa_raw, 0, $cutPos) : $wa_raw;
+                                    $wa_preview = '<div style="min-width:220px;white-space:pre-wrap;font-size:0.85rem;">' . htmlspecialchars(trim($wa_intro)) . '</div><div class="text-muted small mt-1">Klik om volledig bericht te kopi&euml;ren &rarr;</div>';
+                                }
                             ?>
                             <div class="d-flex flex-wrap justify-content-center gap-2 mt-3 mb-2">
                                 <?php if ($next_game['is_final']): ?>
-                                <a href="/games/<?= $next_game['id'] ?>/selection" class="btn bg-white bg-opacity-10 border border-white border-opacity-10 text-white fw-bold rounded px-3 py-2 shadow-sm d-inline-flex align-items-center transition-transform" style="transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'" title="Selectie (<?= $has_selection ? $next_game['selection_count'] : '0' ?>)">
+                                <a href="/games/<?= $next_game['id'] ?>/selection"
+                                   class="btn bg-white bg-opacity-10 border border-white border-opacity-10 text-white fw-bold rounded px-3 py-2 shadow-sm d-inline-flex align-items-center transition-transform"
+                                   style="transition: transform 0.2s;"
+                                   onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'"
+                                   data-bs-toggle="popover" data-bs-trigger="hover" data-bs-placement="top" data-bs-html="true"
+                                   data-bs-title="Selectie (<?= $next_game['selection_count'] ?>)"
+                                   data-bs-content="<?= htmlspecialchars($sel_tooltip, ENT_QUOTES) ?>">
                                     <i class="fa-solid fa-users text-<?= $selection_color ?>"></i>
                                 </a>
 
-                                <a href="/games/<?= $next_game['id'] ?>/lineup" class="btn btn-success text-white fw-bold rounded px-3 py-2 shadow-sm d-inline-flex align-items-center transition-transform" style="transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'" title="Opstelling">
+                                <a href="/games/<?= $next_game['id'] ?>/lineup"
+                                   class="btn btn-success text-white fw-bold rounded px-3 py-2 shadow-sm d-inline-flex align-items-center transition-transform"
+                                   style="transition: transform 0.2s;"
+                                   onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'"
+                                   data-bs-toggle="popover" data-bs-trigger="hover" data-bs-placement="top" data-bs-html="true"
+                                   data-bs-title="Opstelling" data-bs-content="Bekijk de definitieve opstelling en speelschema.">
                                     <i class="fa-solid fa-table-list"></i>
                                 </a>
-                                <?php 
+                                <?php
                                     $match_datetime = strtotime($next_game['match_date'] . ' ' . $next_game['time']);
                                     $hours_until_match = max(0, ($match_datetime - time()) / 3600);
                                     $needed_hours = ceil($hours_until_match + 4);
                                     if ($needed_hours <= 24) $needed_hours = 24;
                                     elseif ($needed_hours <= 48) $needed_hours = 48;
                                     else $needed_hours = ceil($needed_hours/24)*24;
+                                    $share_days = round($needed_hours / 24);
+                                    $share_tip = 'Link is <strong>' . $share_days . ' dag' . ($share_days != 1 ? 'en' : '') . '</strong> geldig na aanmaken.<br><small class="text-muted">Klik om de link te kopi&euml;ren voor ouders.</small>';
                                 ?>
-                                <button type="button" class="btn bg-white bg-opacity-10 border border-white border-opacity-10 text-white fw-bold rounded px-3 py-2 shadow-sm d-inline-flex align-items-center transition-transform" style="transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'" title="Kopieer Share Link" onclick="copyShareLink(<?= $next_game['id'] ?>, <?= $needed_hours ?>, this)">
+                                <button type="button"
+                                   class="btn bg-white bg-opacity-10 border border-white border-opacity-10 text-white fw-bold rounded px-3 py-2 shadow-sm d-inline-flex align-items-center transition-transform"
+                                   style="transition: transform 0.2s;"
+                                   onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'"
+                                   data-bs-toggle="popover" data-bs-trigger="hover" data-bs-placement="top" data-bs-html="true"
+                                   data-bs-title="Share Link"
+                                   data-bs-content="<?= htmlspecialchars($share_tip, ENT_QUOTES) ?>"
+                                   onclick="copyShareLink(<?= $next_game['id'] ?>, <?= $needed_hours ?>, this)">
                                     <i class="fa-solid fa-share-nodes"></i>
                                 </button>
                                 <?php else: ?>
@@ -462,7 +515,15 @@ require_once __DIR__ . '/header.php';
                                 <?php endif; ?>
 
                                 <?php if ($next_game['selection_count'] > 0): ?>
-                                <button type="button" class="btn btn-success fw-bold rounded px-3 py-2 shadow-sm d-inline-flex align-items-center transition-transform" style="transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'" title="Kopieer selectie bericht" data-msg="<?= htmlspecialchars(json_encode($next_game['whatsapp_msg_raw']), ENT_QUOTES, 'UTF-8') ?>" onclick="copyToClipboard(this)">
+                                <button type="button"
+                                   class="btn btn-success fw-bold rounded px-3 py-2 shadow-sm d-inline-flex align-items-center transition-transform"
+                                   style="transition: transform 0.2s;"
+                                   onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'"
+                                   data-bs-toggle="popover" data-bs-trigger="hover" data-bs-placement="top" data-bs-html="true"
+                                   data-bs-title="WhatsApp Bericht"
+                                   data-bs-content="<?= htmlspecialchars($wa_preview, ENT_QUOTES) ?>"
+                                   data-msg="<?= htmlspecialchars(json_encode($next_game['whatsapp_msg_raw']), ENT_QUOTES, 'UTF-8') ?>"
+                                   onclick="copyToClipboard(this)">
                                     <i class="fa-brands fa-whatsapp"></i>
                                 </button>
                                 <?php endif; ?>
@@ -862,6 +923,11 @@ function submitApicall(formId) {
 }
 
 function copyShareLink(gameId, hours, btn) {
+    // Dismiss the hover popover before acting
+    const popoverInst = bootstrap.Popover.getInstance(btn);
+    if (popoverInst) popoverInst.hide();
+
+    const days = Math.round(hours / 24);
     let fd = new FormData();
     fd.append('game_id', gameId);
     fd.append('expires_in', hours);
@@ -871,8 +937,14 @@ function copyShareLink(gameId, hours, btn) {
         if (data.success) {
             navigator.clipboard.writeText(data.link).then(() => {
                 const oldHtml = btn.innerHTML;
-                btn.innerHTML = '<i class="fa-solid fa-check text-success me-2"></i> Gekopieerd!';
-                setTimeout(() => btn.innerHTML = oldHtml, 2000);
+                btn.innerHTML = '<i class="fa-solid fa-check text-success me-1"></i> Gekopieerd!';
+                // Toast met geldigheidsduur
+                const toast = document.createElement('div');
+                toast.className = 'position-fixed bottom-0 end-0 p-3';
+                toast.style.zIndex = '1050';
+                toast.innerHTML = `<div class="toast show align-items-center text-bg-primary border-0 shadow" role="alert"><div class="d-flex px-2 py-2"><div class="toast-body fw-bold"><i class="fa-solid fa-link me-2"></i>Share link gekopieerd! Geldig voor <strong>${days} dag${days !== 1 ? 'en' : ''}</strong>.</div><button type="button" class="btn-close btn-close-white me-2 m-auto" onclick="this.closest('.position-fixed').remove()"></button></div></div>`;
+                document.body.appendChild(toast);
+                setTimeout(() => { toast.remove(); btn.innerHTML = oldHtml; }, 3500);
             });
         } else {
             alert(data.error);
@@ -925,6 +997,15 @@ function copyToClipboard(button) {
         console.error('Failed to parse text: ', e);
     }
 }
+</script>
+
+<script>
+// Init Bootstrap Popovers
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('[data-bs-toggle="popover"]').forEach(el => {
+        new bootstrap.Popover(el, { sanitize: false });
+    });
+});
 </script>
 
 <?php require_once __DIR__ . '/footer.php'; ?>

@@ -80,10 +80,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // Deduplication for auto@systeem
         if ($parentEmail === 'auto@systeem' && in_array($eventType, ['period_start', 'period_end', 'match_end'])) {
-            // We check if the same type of event was created by the auto system for this exact minute, or within the last few seconds.
-            // Since event_minute is tracked, deduplicating on event_minute + event_type is sufficient.
-            $stmt = $pdo->prepare("SELECT id FROM game_events WHERE game_id = ? AND parent_email = ? AND event_type = ? AND event_minute = ? AND is_deleted = 0");
-            $stmt->execute([$gameId, $parentEmail, $eventType, $eventMinute]);
+            // Check if the same event was created by the system within the last 1 minute
+            $stmt = $pdo->prepare("SELECT id FROM game_events WHERE game_id = ? AND parent_email = ? AND event_type = ? AND created_at > DATE_SUB(NOW(), INTERVAL 1 MINUTE) AND is_deleted = 0");
+            $stmt->execute([$gameId, $parentEmail, $eventType]);
             if ($stmt->fetch(PDO::FETCH_ASSOC)) {
                 echo json_encode(['status' => 'success', 'message' => 'Deduplicated auto event']);
                 exit;

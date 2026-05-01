@@ -1116,18 +1116,24 @@ document.addEventListener("DOMContentLoaded", function() {
         });
     }
 
-    // Telemetry - Monitor Memory & DOM usage
+    // Telemetry - Monitor Memory, DOM & Page Load
+    // page_load_ms via PerformanceNavigationTiming: works in ALL browsers (Chrome, Firefox, Safari)
+    // js_heap_mb via performance.memory: Chromium only (returns 0 in Firefox/Safari — that's fine)
     setInterval(() => {
         let jsHeapMb = 0;
         if (performance && performance.memory) {
             jsHeapMb = Math.round(performance.memory.usedJSHeapSize / 1024 / 1024 * 100) / 100;
         }
+
+        let pageLoadMs = 0;
+        try {
+            const nav = performance.getEntriesByType('navigation')[0];
+            if (nav) pageLoadMs = Math.round(nav.loadEventEnd - nav.startTime);
+        } catch(e) {}
+
         let domNodes = document.getElementsByTagName('*').length;
-        let isCoach = <?= isset($_SESSION['user_id']) ? 'true' : 'false' ?>;
-        let isParent = <?= !empty($_SESSION['parent_email']) ? 'true' : 'false' ?>;
         let uType = 'guest';
-        if (isCoach) uType = 'coach';
-        else if (isParent) uType = 'parent';
+        <?php if (isset($_SESSION['user_id'])): ?>uType = 'coach';<?php elseif (!empty($_SESSION['parent_email'])): ?>uType = 'parent';<?php endif; ?>
 
         fetch('/api/api_telemetry.php', {
             method: 'POST',
@@ -1138,10 +1144,12 @@ document.addEventListener("DOMContentLoaded", function() {
                 user_type: uType,
                 identifier: parentEmail || 'guest',
                 js_heap_mb: jsHeapMb,
-                dom_nodes: domNodes
+                dom_nodes: domNodes,
+                page_load_ms: pageLoadMs,
+                page: 'share/<?= $game_id ?? '' ?>'
             })
-        }).catch(e => console.error("Telemetry error", e));
-    }, 60000); // Check every minute
+        }).catch(() => {}); // Silent fail - telemetry is non-critical
+    }, 60000); // Elke minuut
 
     let fetchIntervalId = null;
     if (matchStarted) {

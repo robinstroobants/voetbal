@@ -1,51 +1,105 @@
 <?php
+/**
+ * api_telemetry.php — Server-side telemetry receiver
+ *
+ * Security:
+ *  - All inputs sanitized / cast before INSERT
+ *  - Prepared statements only (no string interpolation in SQL)
+ *  - Rate-limited: max 1 insert per IP per game per 30 seconds
+ *  - No sensitive data stored (email truncated to prefix only)
+ *
+ * Server-side metrics added here:
+ *  - php_memory_mb: memory_get_peak_usage() / 1024 / 1024
+ *  - php_time_ms: time since REQUEST_TIME_FLOAT
+ */
+
+// Measure PHP execution time ASAP
+$php_time_ms = isset($_SERVER['REQUEST_TIME_FLOAT'])
+    ? round((microtime(true) - $_SERVER['REQUEST_TIME_FLOAT']) * 1000, 1)
+    : 0;
+$php_memory_mb = round(memory_get_peak_usage(true) / 1024 / 1024, 2);
+
 require_once dirname(__DIR__) . '/core/getconn.php';
 
+header('Content-Type: application/json');
+header('Cache-Control: no-store');
+
+// --- Only accept POST with JSON body ---
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);
+    echo json_encode(['status' => 'error', 'message' => 'Method not allowed']);
     exit;
 }
 
-$data = json_decode(file_get_contents('php://input'), true);
+$raw = file_get_contents('php://input');
+$data = json_decode($raw, true);
 
-if (!$data || !isset($data['action']) || $data['action'] !== 'log_telemetry') {
-    echo json_encode(['status' => 'error', 'message' => 'Invalid payload']);
+if (!$data || ($data['action'] ?? '') !== 'log_telemetry') {
+    http_response_code(400);
+    echo json_encode(['status' => 'error', 'message' => 'Bad request']);
     exit;
 }
 
-try {
-    // Create table if not exists
-    $pdo->exec("
-    CREATE TABLE IF NOT EXISTS client_telemetry (
-        id INT AUTO_INCREMENT PRIMARY KEY,
-        game_id INT NULL,
-        user_type VARCHAR(50) NOT NULL,
-        identifier VARCHAR(255) NULL,
-        js_heap_mb FLOAT DEFAULT 0,
-        dom_nodes INT DEFAULT 0,
-        user_agent VARCHAR(512),
-        ip_address VARCHAR(45) NULL,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )");
+// --- Sanitize inputs ---
+$game_id     = isset($data['game_id']) ? (int)$data['game_id'] : null;
+$user_type   = in_array($data['user_type'] ?? '', ['coach', 'parent', 'guest'])
+               ? $data['user_type'] : 'guest';
 
-    $gameId = !empty($data['game_id']) ? (int)$data['game_id'] : null;
-    $userType = $data['user_type'] ?? 'unknown';
-    $identifier = $data['identifier'] ?? null;
-    $jsHeapMb = isset($data['js_heap_mb']) ? (float)$data['js_heap_mb'] : 0;
-    $domNodes = isset($data['dom_nodes']) ? (int)$data['dom_nodes'] : 0;
-    
-    $userAgent = substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 500);
-    $ipAddress = $_SERVER['HTTP_CF_CONNECTING_IP'] ?? $_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? null;
-    if ($ipAddress) {
-        $ipAddress = explode(',', $ipAddress)[0];
+// Never store full email — store only the prefix (before @)
+$raw_id      = (string)($data['identifier'] ?? 'guest');
+$identifier  = substr($raw_id, 0, strpos($raw_id, '@') ?: strlen($raw_id)); // prefix only
+$identifier  = substr(preg_replace('/[^a-zA-Z0-9._\-]/', '', $identifier), 0, 100);
+
+$js_heap_mb  = max(0, min(9999, (float)($data['js_heap_mb']  ?? 0)));
+$dom_nodes   = max(0, min(99999, (int)($data['dom_nodes']    ?? 0)));
+$page_load_ms= max(0, min(99999, (int)($data['page_load_ms'] ?? 0)));
+$page        = substr(preg_replace('/[^a-zA-Z0-9\/_\-.]/', '', (string)($data['page'] ?? '')), 0, 100);
+
+$ip          = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? '';
+$ip          = substr(explode(',', $ip)[0], 0, 45); // take first IP if behind proxy
+$user_agent  = substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 512);
+
+// --- Rate limiting: max 1 row per IP+game_id per 30 seconds ---
+if ($game_id) {
+    $stmtRate = $pdo->prepare("
+        SELECT COUNT(*) FROM client_telemetry
+        WHERE ip_address = ? AND game_id = ? AND created_at > DATE_SUB(NOW(), INTERVAL 30 SECOND)
+    ");
+    $stmtRate->execute([$ip, $game_id]);
+    if ($stmtRate->fetchColumn() > 0) {
+        echo json_encode(['status' => 'throttled']);
+        exit;
     }
-
-    $stmt = $pdo->prepare("INSERT INTO client_telemetry (game_id, user_type, identifier, js_heap_mb, dom_nodes, user_agent, ip_address) VALUES (?, ?, ?, ?, ?, ?, ?)");
-    $stmt->execute([$gameId, $userType, $identifier, $jsHeapMb, $domNodes, $userAgent, $ipAddress]);
-
-    echo json_encode(['status' => 'success']);
-
-} catch (\Exception $e) {
-    http_response_code(500);
-    echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
 }
+
+// --- Ensure schema is up to date (idempotent) ---
+$pdo->exec("
+    ALTER TABLE client_telemetry
+        ADD COLUMN IF NOT EXISTS page VARCHAR(100) NULL AFTER dom_nodes,
+        ADD COLUMN IF NOT EXISTS page_load_ms INT DEFAULT 0 AFTER page,
+        ADD COLUMN IF NOT EXISTS php_time_ms FLOAT DEFAULT 0 AFTER page_load_ms,
+        ADD COLUMN IF NOT EXISTS php_memory_mb FLOAT DEFAULT 0 AFTER php_time_ms
+");
+
+// --- Insert ---
+$stmt = $pdo->prepare("
+    INSERT INTO client_telemetry
+        (game_id, user_type, identifier, js_heap_mb, dom_nodes, page, page_load_ms, php_time_ms, php_memory_mb, ip_address, user_agent)
+    VALUES
+        (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+");
+$stmt->execute([
+    $game_id ?: null,
+    $user_type,
+    $identifier,
+    $js_heap_mb,
+    $dom_nodes,
+    $page ?: null,
+    $page_load_ms,
+    $php_time_ms,
+    $php_memory_mb,
+    $ip,
+    $user_agent
+]);
+
+echo json_encode(['status' => 'ok']);

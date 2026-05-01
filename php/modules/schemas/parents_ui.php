@@ -890,15 +890,28 @@ document.addEventListener("DOMContentLoaded", function() {
         
         let lastPeriodStart = serverBlockStarts[serverBlockStarts.length - 1];
         let lastPeriodEnd = events.filter(e => e.event_type === 'period_end').pop();
-        
         let isServerPaused = !!(lastPeriodEnd && (!lastPeriodStart || parseInt(lastPeriodEnd.id) > parseInt(lastPeriodStart.id)));
         
+        let lastReload = sessionStorage.getItem('last_sync_reload_' + gameId);
+        let now = Date.now();
+        let canReload = !lastReload || (now - parseInt(lastReload) > 3000);
+        
         if (serverBlockCount > 0 && serverBlockCount - 1 > currentShiftIndex) {
-            location.reload();
+            if (canReload) {
+                sessionStorage.setItem('last_sync_reload_' + gameId, now);
+                location.reload();
+            } else {
+                console.warn("Prevented infinite reload (BlockCount mismatch).", serverBlockCount, currentShiftIndex);
+            }
             return;
         }
         if (isServerPaused !== isPaused) {
-            location.reload();
+            if (canReload) {
+                sessionStorage.setItem('last_sync_reload_' + gameId, now);
+                location.reload();
+            } else {
+                console.warn("Prevented infinite reload (Paused mismatch). server:", isServerPaused, "local:", isPaused, "lastStart:", lastPeriodStart?.id, "lastEnd:", lastPeriodEnd?.id);
+            }
             return;
         }
 

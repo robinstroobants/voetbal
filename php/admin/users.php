@@ -7,6 +7,27 @@ $page_title = 'Gebruikersbeheer';
 $success = '';
 $error = '';
 
+function formatLastActive($datetimeStr) {
+    if (!$datetimeStr) return '<span class="text-muted small"><i>Nooit</i></span>';
+    
+    $la = strtotime($datetimeStr);
+    $diff = time() - $la;
+    
+    if ($diff < 60) {
+        return '<span class="badge bg-success"><i class="fa-solid fa-circle-dot fa-fade me-1"></i> ' . max(0, $diff) . ' sec</span>';
+    } elseif ($diff < 3600) {
+        return '<span class="badge bg-success bg-opacity-75"><i class="fa-solid fa-circle-dot me-1"></i> ' . floor($diff / 60) . ' min</span>';
+    } elseif ($diff < 86400) {
+        return '<span class="text-muted small fw-bold">' . date('H:i', $la) . '</span>';
+    } elseif ($diff < 30 * 86400) {
+        return '<span class="text-muted small">' . date('d/m H:i', $la) . '</span>';
+    } elseif (date('Y', $la) == date('Y')) {
+        return '<span class="text-muted small">' . date('d/m', $la) . '</span>';
+    } else {
+        return '<span class="text-muted small">' . date('Y-m-d', $la) . '</span>';
+    }
+}
+
 // Acties verwerken
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $action = $_POST['action'] ?? '';
@@ -291,18 +312,7 @@ require_once __DIR__ . '/../header.php';
                                     </div>
                                 </td>
                                 <td>
-                                    <?php 
-                                    if ($u['last_activity']) {
-                                        $la = strtotime($u['last_activity']);
-                                        if (time() - $la < 600) {
-                                            echo '<span class="badge bg-success"><i class="fa-solid fa-circle-dot fa-fade me-1"></i> Online</span>';
-                                        } else {
-                                            echo '<span class="text-muted small">' . date('d/m/Y H:i', $la) . '</span>';
-                                        }
-                                    } else {
-                                        echo '<span class="text-muted small"><i>Nooit</i></span>';
-                                    }
-                                    ?>
+                                    <?= formatLastActive($u['last_activity']) ?>
                                 </td>
                                 <td class="text-end pe-4">
                                     <div class="dropdown">

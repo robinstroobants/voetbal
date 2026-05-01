@@ -579,17 +579,25 @@ require_once __DIR__ . '/header.php';
                                     <?php endif; ?>
                                     
                                     <?php foreach($past_games as $game): 
-                                        $isFuture = strtotime($game['game_date']) >= strtotime(date('Y-m-d'));
+                                        $gameTimestamp = strtotime($game['game_date']);
+                                        $todayTimestamp = strtotime(date('Y-m-d'));
+                                        $isToday = $gameTimestamp === $todayTimestamp;
+                                        $isFuture = $gameTimestamp > $todayTimestamp;
                                     ?>
-                                     <tr class="<?= $isFuture ? 'table-info' : '' ?>">
+                                     <tr class="<?= ($isToday || $isFuture) ? 'table-info' : '' ?>">
                                         <td class="ps-4 fw-medium text-secondary small">
                                             <?= date('d/m/Y', strtotime($game['game_date'])) ?>
-                                            <?php if ($isFuture): ?><span class="badge bg-info text-dark ms-1" style="font-size:0.65rem;">binnenkort</span><?php endif; ?>
+                                            <?php if ($isToday): ?><span class="badge bg-success text-white ms-1" style="font-size:0.65rem;">vandaag</span>
+                                            <?php elseif ($isFuture): ?><span class="badge bg-info text-dark ms-1" style="font-size:0.65rem;">binnenkort</span><?php endif; ?>
                                         </td>
                                         <td class="fw-bold">
                                             <?= htmlspecialchars($game['opponent']) ?>
-                                            <?php if (!empty($game['format'])): ?>
-                                                <span class="badge bg-light text-dark border ms-1" style="font-size:0.7rem;"><?= htmlspecialchars($game['format']) ?></span>
+                                            <?php if (!empty($game['format'])): 
+                                                $fmtColors = ['bg-primary', 'bg-success', 'bg-danger', 'bg-warning', 'bg-info', 'bg-secondary', 'bg-dark'];
+                                                $fmtTextColors = ['text-white', 'text-white', 'text-white', 'text-dark', 'text-dark', 'text-white', 'text-white'];
+                                                $fmtIdx = abs(crc32($game['format'])) % count($fmtColors);
+                                            ?>
+                                                <span class="badge <?= $fmtColors[$fmtIdx] ?> <?= $fmtTextColors[$fmtIdx] ?> ms-1" style="font-size:0.7rem;"><?= htmlspecialchars($game['format']) ?></span>
                                             <?php endif; ?>
                                         </td>
                                         <td>
@@ -650,7 +658,8 @@ require_once __DIR__ . '/header.php';
 
             </div>
 
-            <!-- Widgets & Spelers -->\n            <div class="col-12">
+            <!-- Widgets & Spelers -->
+            <div class="col-12">
                 <!-- Reminder Widget -->
                 <?php if ($missing_matrix_count > 0 && strpos($default_format, '11v11') === false): ?>
                 <div class="card stat-card border-danger border-opacity-25 shadow-sm mb-4" style="background-color: #fffafb;">

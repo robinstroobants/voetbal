@@ -71,17 +71,16 @@ if ($game_id) {
     }
 }
 
-// --- Ensure schema is up to date (BEFORE any INSERT) ---
-try {
-    $pdo->exec("
-        ALTER TABLE client_telemetry
-            ADD COLUMN IF NOT EXISTS page VARCHAR(100) NULL AFTER dom_nodes,
-            ADD COLUMN IF NOT EXISTS page_load_ms INT DEFAULT 0 AFTER page,
-            ADD COLUMN IF NOT EXISTS php_time_ms FLOAT DEFAULT 0 AFTER page_load_ms,
-            ADD COLUMN IF NOT EXISTS php_memory_mb FLOAT DEFAULT 0 AFTER php_time_ms,
-            ADD COLUMN IF NOT EXISTS identifier_full VARCHAR(255) NULL AFTER identifier
-    ");
-} catch (Exception $e) {}
+// --- Ensure schema is up to date (elk apart om blokkering te vermijden) ---
+foreach ([
+    "ALTER TABLE client_telemetry ADD COLUMN IF NOT EXISTS page VARCHAR(100) NULL",
+    "ALTER TABLE client_telemetry ADD COLUMN IF NOT EXISTS page_load_ms INT DEFAULT 0",
+    "ALTER TABLE client_telemetry ADD COLUMN IF NOT EXISTS php_time_ms FLOAT DEFAULT 0",
+    "ALTER TABLE client_telemetry ADD COLUMN IF NOT EXISTS php_memory_mb FLOAT DEFAULT 0",
+    "ALTER TABLE client_telemetry ADD COLUMN IF NOT EXISTS identifier_full VARCHAR(255) NULL",
+] as $sql) {
+    try { $pdo->exec($sql); } catch (Exception $e) {}
+}
 
 // --- Insert ---
 $stmt = $pdo->prepare("

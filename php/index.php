@@ -218,7 +218,7 @@ if ($onboarding_complete) {
     }
     unset($next_game);
 
-    // 2. Historiek (Laatste gespeelde wedstrijden)
+    // 2. Historiek + Binnenkort (afgelopen + komende 7 dagen)
     $stmtPast = $pdo->prepare("
         SELECT g.*, 
             (SELECT COUNT(*) FROM game_selections gs WHERE gs.game_id = g.id) as selection_count,
@@ -226,7 +226,7 @@ if ($onboarding_complete) {
             u.first_name as coach_name
         FROM games g 
         LEFT JOIN users u ON g.coach_id = u.id
-        WHERE g.team_id = ? AND g.game_date < CURDATE()
+        WHERE g.team_id = ? AND g.game_date < DATE_ADD(CURDATE(), INTERVAL 7 DAY)
         ORDER BY g.game_date DESC
         LIMIT 10
     ");
@@ -470,6 +470,11 @@ require_once __DIR__ . '/header.php';
                                     <i class="fa-solid fa-list-ol"></i>
                                 </a>
                                 <?php endif; ?>
+                                <?php if ($next_game['is_final']): ?>
+                                <a href="/games/<?= $next_game['id'] ?>/lineup?print=1" target="_blank" class="btn bg-white bg-opacity-10 border border-white border-opacity-10 text-white fw-bold rounded px-3 py-2 shadow-sm d-inline-flex align-items-center transition-transform" style="transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'" title="PDF / Afdrukken">
+                                    <i class="fa-solid fa-file-pdf"></i>
+                                </a>
+                                <?php endif; ?>
                             </div>
                             
                             <?php if ($has_selection && !empty($next_game['players'])): ?>
@@ -550,7 +555,7 @@ require_once __DIR__ . '/header.php';
             <!-- Linker Kolom: Historiek Tabel -->
             <div class="col-12 col-lg-8 mb-4 mb-lg-0">
                 <!-- Historiek Tabel -->
-                <h5 class="fw-bold text-dark mb-3"><i class="fa-solid fa-clock-rotate-left text-muted me-2"></i>Recente Historiek</h5>
+                <h5 class="fw-bold text-dark mb-3"><i class="fa-solid fa-clock-rotate-left text-muted me-2"></i>Historiek & Binnenkort</h5>
                 <div class="card shadow-sm border-0 stat-card mb-4 mb-lg-0">
                     <div class="card-body p-0">
                         <div class="table-responsive">
@@ -599,8 +604,13 @@ require_once __DIR__ . '/header.php';
                                                 <i class="fa-solid fa-eye me-1 mt-1 mb-1"></i> Detail
                                             </a>
                                             <?php if ($game['events_count'] > 0): ?>
-                                            <a href="/games/<?= $game['id'] ?>/events" class="btn btn-sm btn-light text-success fw-bold rounded-pill shadow-sm" title="Wedstrijd Events">
+                                            <a href="/games/<?= $game['id'] ?>/events" class="btn btn-sm btn-light text-success fw-bold rounded-pill shadow-sm me-1" title="Wedstrijd Events">
                                                 <i class="fa-solid fa-list-ol mt-1 mb-1"></i>
+                                            </a>
+                                            <?php endif; ?>
+                                            <?php if (!empty($game['is_final'])): ?>
+                                            <a href="/games/<?= $game['id'] ?>/lineup?print=1" target="_blank" class="btn btn-sm btn-light text-danger fw-bold rounded-pill shadow-sm" title="PDF / Afdrukken">
+                                                <i class="fa-solid fa-file-pdf mt-1 mb-1"></i>
                                             </a>
                                             <?php endif; ?>
                                         </td>

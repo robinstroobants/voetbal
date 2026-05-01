@@ -255,6 +255,9 @@ require_once __DIR__ . '/../header.php';
 <div class="container mt-4 mb-5">
     <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom border-dark">
         <h2><i class="fa-solid fa-server text-warning me-2"></i> SaaS Tenant & Abonnementen Beheer</h2>
+        <div>
+            <a href="/admin/performance_clients.php" class="btn btn-outline-info btn-sm"><i class="fa-solid fa-chart-line me-1"></i> Telemetry & Prestaties</a>
+        </div>
     </div>
 
     <!-- Systeem Alerts / Revisor Dummies -->

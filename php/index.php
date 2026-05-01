@@ -223,8 +223,7 @@ if ($onboarding_complete) {
         SELECT g.*, 
             (SELECT COUNT(*) FROM game_selections gs WHERE gs.game_id = g.id) as selection_count,
             (SELECT COUNT(*) FROM game_selections gs 
-                JOIN players p ON gs.player_id = p.id 
-                WHERE gs.game_id = g.id AND p.is_goalkeeper = 1) as gk_count,
+                WHERE gs.game_id = g.id AND gs.is_goalkeeper = 1) as gk_count,
             (SELECT COUNT(*) FROM game_events ge WHERE ge.game_id = g.id) as events_count,
             u.first_name as coach_name
         FROM games g 

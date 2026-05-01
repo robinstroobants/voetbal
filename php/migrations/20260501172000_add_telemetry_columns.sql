@@ -1,0 +1,5 @@
+ALTER TABLE client_telemetry ADD COLUMN IF NOT EXISTS page VARCHAR(100) NULL;
+ALTER TABLE client_telemetry ADD COLUMN IF NOT EXISTS page_load_ms INT DEFAULT 0;
+ALTER TABLE client_telemetry ADD COLUMN IF NOT EXISTS php_time_ms FLOAT DEFAULT 0;
+ALTER TABLE client_telemetry ADD COLUMN IF NOT EXISTS php_memory_mb FLOAT DEFAULT 0;
+ALTER TABLE client_telemetry ADD COLUMN IF NOT EXISTS identifier_full VARCHAR(255) NULL;

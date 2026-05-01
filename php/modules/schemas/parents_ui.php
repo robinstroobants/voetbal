@@ -1023,6 +1023,33 @@ document.addEventListener("DOMContentLoaded", function() {
         });
     }
 
+    // Telemetry - Monitor Memory & DOM usage
+    setInterval(() => {
+        let jsHeapMb = 0;
+        if (performance && performance.memory) {
+            jsHeapMb = Math.round(performance.memory.usedJSHeapSize / 1024 / 1024 * 100) / 100;
+        }
+        let domNodes = document.getElementsByTagName('*').length;
+        let isCoach = <?= isset($_SESSION['user_id']) ? 'true' : 'false' ?>;
+        let isParent = <?= !empty($_SESSION['parent_email']) ? 'true' : 'false' ?>;
+        let uType = 'guest';
+        if (isCoach) uType = 'coach';
+        else if (isParent) uType = 'parent';
+
+        fetch('/api/api_telemetry.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                action: 'log_telemetry',
+                game_id: gameId,
+                user_type: uType,
+                identifier: parentEmail || 'guest',
+                js_heap_mb: jsHeapMb,
+                dom_nodes: domNodes
+            })
+        }).catch(e => console.error("Telemetry error", e));
+    }, 60000); // Check every minute
+
     let fetchIntervalId = null;
     if (matchStarted) {
         fetchLiveEvents();

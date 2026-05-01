@@ -48,7 +48,7 @@ if ($onboarding_complete) {
     $stmtNext = $pdo->prepare("
         SELECT g.*, 
             (SELECT COUNT(*) FROM game_selections gs WHERE gs.game_id = g.id) as selection_count,
-            CONCAT(u.first_name, ' ', u.last_name) as coach_name
+            u.first_name as coach_name
         FROM games g 
         LEFT JOIN users u ON g.coach_id = u.id
         WHERE g.team_id = ? AND g.game_date >= CURDATE()
@@ -221,7 +221,7 @@ if ($onboarding_complete) {
     $stmtPast = $pdo->prepare("
         SELECT g.*, 
             (SELECT COUNT(*) FROM game_selections gs WHERE gs.game_id = g.id) as selection_count,
-            CONCAT(u.first_name, ' ', u.last_name) as coach_name
+            u.first_name as coach_name
         FROM games g 
         LEFT JOIN users u ON g.coach_id = u.id
         WHERE g.team_id = ? AND g.game_date < CURDATE()

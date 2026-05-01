@@ -419,14 +419,14 @@ require_once __DIR__ . '/header.php';
                             ?>
                             <div class="d-flex flex-wrap justify-content-center gap-2 mt-3 mb-2">
                                 <a href="/games/<?= $next_game['id'] ?>/selection" class="text-decoration-none d-inline-flex align-items-center bg-white bg-opacity-10 rounded px-3 py-2 transition-transform shadow-sm border border-white border-opacity-10" style="transition: transform 0.2s; cursor: pointer;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
-                                    <i class="fa-solid <?= $selection_icon ?> text-<?= $selection_color ?> fs-5 me-2"></i>
-                                    <div class="fw-bold text-white">Selectie (<?= $has_selection ? $next_game['selection_count'] : '0' ?>)</div>
+                                    <i class="fa-solid <?= $selection_icon ?> text-<?= $selection_color ?> me-2"></i>
+                                    <div class="fw-bold text-white small">Selectie (<?= $has_selection ? $next_game['selection_count'] : '0' ?>)</div>
                                 </a>
 
                                 <?php if ($next_game['is_final']): ?>
                                 <a href="/games/<?= $next_game['id'] ?>/lineup" class="btn btn-success text-white fw-bold rounded px-3 py-2 shadow-sm d-inline-flex align-items-center transition-transform" style="transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
-                                    <i class="fa-solid fa-eye me-2 fs-5"></i>
-                                    <div class="fw-bold text-white">Opstelling</div>
+                                    <i class="fa-solid fa-eye me-2"></i>
+                                    <div class="fw-bold text-white small">Opstelling</div>
                                 </a>
                                 <?php 
                                     $match_datetime = strtotime($next_game['match_date'] . ' ' . $next_game['time']);
@@ -437,18 +437,18 @@ require_once __DIR__ . '/header.php';
                                     else $needed_hours = ceil($needed_hours/24)*24;
                                 ?>
                                 <button type="button" class="btn bg-white bg-opacity-10 border border-white border-opacity-10 text-white fw-bold rounded px-3 py-2 shadow-sm d-inline-flex align-items-center transition-transform" style="transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'" title="Kopieer Share Link" onclick="copyShareLink(<?= $next_game['id'] ?>, <?= $needed_hours ?>, this)">
-                                    <i class="fa-solid fa-share-nodes me-2"></i> Share Link
+                                    <i class="fa-solid fa-share-nodes"></i>
                                 </button>
                                 <?php else: ?>
                                 <a href="/games/<?= $next_game['id'] ?>/schema" class="btn <?= $next_game['selection_count'] > 0 ? 'btn-warning text-dark' : 'btn-outline-light disabled' ?> fw-bold rounded px-3 py-2 shadow-sm d-inline-flex align-items-center transition-transform" style="transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'">
-                                    <i class="fa-solid fa-trowel-bricks me-2 fs-5"></i>
-                                    <div class="fw-bold text-dark">Opstelling</div>
+                                    <i class="fa-solid fa-trowel-bricks me-2"></i>
+                                    <div class="fw-bold text-dark small">Opstelling</div>
                                 </a>
                                 <?php endif; ?>
 
                                 <?php if ($next_game['selection_count'] > 0): ?>
                                 <button type="button" class="btn btn-success fw-bold rounded px-3 py-2 shadow-sm d-inline-flex align-items-center transition-transform" style="transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform='translateY(0)'" title="Kopieer selectie bericht" data-msg="<?= htmlspecialchars(json_encode($next_game['whatsapp_msg_raw']), ENT_QUOTES, 'UTF-8') ?>" onclick="copyToClipboard(this)">
-                                    <i class="fa-brands fa-whatsapp fs-5"></i>
+                                    <i class="fa-brands fa-whatsapp"></i>
                                 </button>
                                 <?php endif; ?>
                             </div>

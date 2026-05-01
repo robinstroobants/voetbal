@@ -3,14 +3,15 @@ require_once dirname(__DIR__) . '/core/getconn.php';
 
 $page_title = "Client Telemetry Dashboard";
 
-// Idempotent: voeg nieuwe kolommen toe als ze er nog niet zijn
+// Zorg eerst dat schema up-to-date is VOOR de SELECTs
 try {
     $pdo->exec("
         ALTER TABLE client_telemetry
             ADD COLUMN IF NOT EXISTS page VARCHAR(100) NULL AFTER dom_nodes,
             ADD COLUMN IF NOT EXISTS page_load_ms INT DEFAULT 0 AFTER page,
             ADD COLUMN IF NOT EXISTS php_time_ms FLOAT DEFAULT 0 AFTER page_load_ms,
-            ADD COLUMN IF NOT EXISTS php_memory_mb FLOAT DEFAULT 0 AFTER php_time_ms
+            ADD COLUMN IF NOT EXISTS php_memory_mb FLOAT DEFAULT 0 AFTER php_time_ms,
+            ADD COLUMN IF NOT EXISTS identifier_full VARCHAR(255) NULL AFTER identifier
     ");
 } catch (Exception $e) {}
 

@@ -45,10 +45,9 @@ $game_id     = isset($data['game_id']) ? (int)$data['game_id'] : null;
 $user_type   = in_array($data['user_type'] ?? '', ['coach', 'parent', 'guest'])
                ? $data['user_type'] : 'guest';
 
-// Never store full email — store only the prefix (before @)
+// Store full email (max 255 chars, safe characters only)
 $raw_id      = (string)($data['identifier'] ?? 'guest');
-$identifier  = substr($raw_id, 0, strpos($raw_id, '@') ?: strlen($raw_id)); // prefix only
-$identifier  = substr(preg_replace('/[^a-zA-Z0-9._\-]/', '', $identifier), 0, 100);
+$identifier  = substr(preg_replace('/[^a-zA-Z0-9._\-@+]/', '', $raw_id), 0, 255);
 
 $js_heap_mb  = max(0, min(9999, (float)($data['js_heap_mb']  ?? 0)));
 $dom_nodes   = max(0, min(99999, (int)($data['dom_nodes']    ?? 0)));
@@ -72,14 +71,17 @@ if ($game_id) {
     }
 }
 
-// --- Ensure schema is up to date (idempotent) ---
-$pdo->exec("
-    ALTER TABLE client_telemetry
-        ADD COLUMN IF NOT EXISTS page VARCHAR(100) NULL AFTER dom_nodes,
-        ADD COLUMN IF NOT EXISTS page_load_ms INT DEFAULT 0 AFTER page,
-        ADD COLUMN IF NOT EXISTS php_time_ms FLOAT DEFAULT 0 AFTER page_load_ms,
-        ADD COLUMN IF NOT EXISTS php_memory_mb FLOAT DEFAULT 0 AFTER php_time_ms
-");
+// --- Ensure schema is up to date (BEFORE any INSERT) ---
+try {
+    $pdo->exec("
+        ALTER TABLE client_telemetry
+            ADD COLUMN IF NOT EXISTS page VARCHAR(100) NULL AFTER dom_nodes,
+            ADD COLUMN IF NOT EXISTS page_load_ms INT DEFAULT 0 AFTER page,
+            ADD COLUMN IF NOT EXISTS php_time_ms FLOAT DEFAULT 0 AFTER page_load_ms,
+            ADD COLUMN IF NOT EXISTS php_memory_mb FLOAT DEFAULT 0 AFTER php_time_ms,
+            ADD COLUMN IF NOT EXISTS identifier_full VARCHAR(255) NULL AFTER identifier
+    ");
+} catch (Exception $e) {}
 
 // --- Insert ---
 $stmt = $pdo->prepare("

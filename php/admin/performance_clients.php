@@ -1,7 +1,5 @@
 <?php
 require_once dirname(__DIR__) . '/core/getconn.php';
-require_once dirname(__DIR__) . '/core/auth.php';
-requireLogin();
 
 $page_title = "Client Telemetry Dashboard";
 

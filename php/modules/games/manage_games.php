@@ -26,6 +26,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $baseFormat = $_POST['format'];
         $gameParts = $_POST['game_parts'];
+        // Laat custom parts (NxM) toe — enkel het aantal blokken en duur verandert
+        if ($gameParts === 'custom') {
+            $customParts = preg_replace('/[^0-9xX]/', '', trim($_POST['custom_parts'] ?? ''));
+            $gameParts = strtolower($customParts) ?: '4x15';
+        }
         $format = $baseFormat . '_' . $gameParts;
         
         $minPos = isset($_POST['min_pos']) ? (int)$_POST['min_pos'] : 0;
@@ -617,6 +622,10 @@ require_once dirname(__DIR__, 2) . '/header.php';
                       <select class="form-select" name="game_parts" id="modal_game_parts" required>
                           <!-- Options dynamically loaded by JS -->
                       </select>
+                      <!-- Zichtbaar bij 'Aangepast': vrij veld voor NxM -->
+                      <input type="text" class="form-control mt-2 d-none" name="custom_parts" id="modal_custom_parts"
+                             placeholder="bv. 4x12 of 3x20" pattern="[0-9]+[xX][0-9]+"
+                             title="Aantal blokken x minuten per blok (bv. 4x12)">
                   </div>
               </div>
               
@@ -679,39 +688,62 @@ document.addEventListener("DOMContentLoaded", function() {
     const availableParts = <?= $json_available_parts ?>;
     
     window.updateGameParts = function(preselectPart = null) {
-        const formatSelect = document.getElementById('modal_format');
-        const partsSelect = document.getElementById('modal_game_parts');
+        const formatSelect   = document.getElementById('modal_format');
+        const partsSelect    = document.getElementById('modal_game_parts');
+        const customPartsIn  = document.getElementById('modal_custom_parts');
         const selectedFormat = formatSelect.value;
+
         partsSelect.innerHTML = '';
-        
+
         const standardParts = {
             '11v11': ['2x45', '2x40', '2x35'],
-            '8v8': ['4x15', '5x15', '6x15', '7x15', '4x20', '5x20', '6x20', '7x20'],
-            '5v5': ['4x15', '5x15', '6x15', '7x15', '8x15'],
-            '3v3': ['6x10'],
-            '2v2': ['6x10']
+            '8v8':   ['4x15', '5x15', '6x15', '7x15', '4x20', '5x20', '6x20', '7x20'],
+            '5v5':   ['4x15', '5x15', '6x15', '7x15', '8x15'],
+            '3v3':   ['6x10'],
+            '2v2':   ['6x10']
         };
-        
+
         let parts = Array.from(new Set([
             ...(availableParts[selectedFormat] || []),
             ...(standardParts[selectedFormat] || ['4x15'])
         ]));
 
+        // Voeg 'Aangepast...' optie toe onderaan
         parts.forEach(part => {
             const option = document.createElement('option');
             option.value = part;
             option.textContent = part;
-            if (preselectPart && part === preselectPart) {
-                option.selected = true;
-            }
+            if (preselectPart && part === preselectPart) option.selected = true;
             partsSelect.appendChild(option);
         });
-        
-        // Update tournament labels if active
-        if (window.updateTournamentLabels) {
-            window.updateTournamentLabels();
-        }
+
+        // 'Aangepast' optie
+        const customOpt = document.createElement('option');
+        customOpt.value = 'custom';
+        customOpt.textContent = '✏️ Aangepast...';
+        if (preselectPart === 'custom') customOpt.selected = true;
+        partsSelect.appendChild(customOpt);
+
+        // Toon/verberg custom input
+        const isCustomParts = partsSelect.value === 'custom';
+        customPartsIn.classList.toggle('d-none', !isCustomParts);
+        customPartsIn.required = isCustomParts;
+
+        if (window.updateTournamentLabels) window.updateTournamentLabels();
     };
+
+    document.getElementById('modal_game_parts').addEventListener('change', function() {
+        const customPartsIn = document.getElementById('modal_custom_parts');
+        const isCustom = this.value === 'custom';
+        customPartsIn.classList.toggle('d-none', !isCustom);
+        customPartsIn.required = isCustom;
+        if (window.updateTournamentLabels) window.updateTournamentLabels();
+    });
+
+    // Bij custom_parts input: sync tournament labels
+    document.getElementById('modal_custom_parts').addEventListener('input', function() {
+        if (window.updateTournamentLabels) window.updateTournamentLabels();
+    });
 
     document.getElementById('modal_format').addEventListener('change', () => window.updateGameParts(null));
     
@@ -734,9 +766,11 @@ document.addEventListener("DOMContentLoaded", function() {
         
         tournamentLabelsContainer.innerHTML = '';
         
-        const formatSelect = document.getElementById('modal_game_parts');
-        const partsStr = formatSelect.value || '4x15';
-        const numBlocks = parseInt(partsStr.split('x')[0]);
+        const isCustomFmt = document.getElementById('modal_game_parts').value === 'custom';
+        const partsStr = isCustomFmt
+            ? (document.getElementById('modal_custom_parts').value || '4x15')
+            : (document.getElementById('modal_game_parts').value || '4x15');
+        const numBlocks = parseInt(partsStr.split(/[xX]/)[0]) || 4;
         
         let labelsRow = document.createElement('div');
         labelsRow.className = 'row g-2';
@@ -865,7 +899,7 @@ function openGameModal(game = null, isDuplicate = false) {
             }
         }
         document.getElementById('modal_format').value = formatBase;
-        
+
         // Tournament vlag laden op basis van is_tournament kolom
         document.getElementById('modal_is_tournament').checked = !!parseInt(game.is_tournament || 0);
         if (game.is_tournament && game.block_labels && game.block_labels !== 'null') {
@@ -877,8 +911,18 @@ function openGameModal(game = null, isDuplicate = false) {
         } else {
             window.existingTournamentLabels = null;
         }
-        
+
         updateGameParts(formatParts);
+        // Als de duur niet in de standaard dropdown staat: selecteer 'custom' en vul vrij veld in
+        const partsEl = document.getElementById('modal_game_parts');
+        if (partsEl.value !== formatParts) {
+            partsEl.value = 'custom';
+            const customPartsIn = document.getElementById('modal_custom_parts');
+            customPartsIn.value = formatParts;
+            customPartsIn.classList.remove('d-none');
+            customPartsIn.required = true;
+            if (window.updateTournamentLabels) window.updateTournamentLabels();
+        }
     } else {
         let nextSat = new Date();
         let daysToSat = 6 - nextSat.getDay();
@@ -912,7 +956,7 @@ function openGameModal(game = null, isDuplicate = false) {
                 }
             }
             document.getElementById('modal_format').value = formatBase;
-            
+
             // Tournament vlag laden op basis van is_tournament kolom (bij duplicaat)
             document.getElementById('modal_is_tournament').checked = !!parseInt(game.is_tournament || 0);
             if (game.is_tournament && game.block_labels && game.block_labels !== 'null') {
@@ -924,8 +968,18 @@ function openGameModal(game = null, isDuplicate = false) {
             } else {
                 window.existingTournamentLabels = null;
             }
-            
+
             updateGameParts(formatParts);
+            // Als de duur niet in de standaard dropdown staat: selecteer 'custom' en vul vrij veld in
+            const partsEl2 = document.getElementById('modal_game_parts');
+            if (partsEl2.value !== formatParts) {
+                partsEl2.value = 'custom';
+                const customPartsIn2 = document.getElementById('modal_custom_parts');
+                customPartsIn2.value = formatParts;
+                customPartsIn2.classList.remove('d-none');
+                customPartsIn2.required = true;
+                if (window.updateTournamentLabels) window.updateTournamentLabels();
+            }
         } else {
             document.getElementById('gameModalLabel').innerText = 'Nieuwe Wedstrijd Plannen';
             document.getElementById('modal_game_date').value = nextSatStr;

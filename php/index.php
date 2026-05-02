@@ -485,7 +485,7 @@ require_once __DIR__ . '/header.php';
                                     <i class="fa-solid fa-table-list"></i>
                                 </a>
                                 <?php
-                                    $match_datetime = strtotime($next_game['match_date'] . ' ' . $next_game['time']);
+                                    $match_datetime = strtotime($next_game['game_date']);
                                     $hours_until_match = max(0, ($match_datetime - time()) / 3600);
                                     $needed_hours = ceil($hours_until_match + 4);
                                     if ($needed_hours <= 24) $needed_hours = 24;

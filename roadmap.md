@@ -121,22 +121,23 @@
 
 
 
-- bij feedback zou ik ook de 10 logregels willen zien, kan dat?
 
 
-https://lineup.webbit.be/admin/feedback 
-- als ik klik op opgelost krijg ik een lege pagina
-errorlog: [01-May-2026 15:41:32 UTC] PHP Fatal error:  Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'page_load_ms' in 'field list' in /home/customer/www/lineup.webbit.be/voetbal/php/admin/performance_clients.php:20
-Stack trace:
-#0 /home/customer/www/lineup.webbit.be/voetbal/php/admin/performance_clients.php(20): PDO->query('\n    SELECT use...')
-#1 /home/customer/www/lineup.webbit.be/voetbal/php/router.php(224): require_once('/home/customer/...')
-#2 {main}
-  thrown in /home/customer/www/lineup.webbit.be/voetbal/php/admin/performance_clients.php on line 20
-[01-May-2026 15:41:33 UTC] PHP Fatal error:  Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'page_load_ms' in 'field list' in /home/customer/www/lineup.webbit.be/voetbal/php/admin/performance_clients.php:20
-Stack trace:
-#0 /home/customer/www/lineup.webbit.be/voetbal/php/admin/performance_clients.php(20): PDO->query('\n    SELECT use...')
-#1 /home/customer/www/lineup.webbit.be/voetbal/php/router.php(224): require_once('/home/customer/...')
-#2 {main}
-  thrown in /home/customer/www/lineup.webbit.be/voetbal/php/admin/performance_clients.php on line 20
-[01-May-2026 15:43:52 UTC] PHP Deprecated:  number_format(): Passing null to parameter #1 ($num) of type float is deprecated in /home/customer/www/lineup.webbit.be/voetbal/php/admin/performance.php on line 77
 
+## feedback
+- bij feedback zou ik ook de 10 logregels willen zien (in een modal ofzo), kan dat?
+
+
+
+## match tracker
+### functioneel
+- event van ander ouder kwam precies niet binnen, wordt de pagina ververst? kan dat inpage zodat dit mijn google analytics views niet verstoort?
+- auto wissel moment mag ook maar max 1x afgevuurd worden. auto wissel mag ook NOOIT een blok starten want als er dan 4 ouders tegelijk bezig zijn dan gaan hun calls de wedstrijd beeindigen
+
+
+### info:
+- de helft wissel gebeurd automatisch als xxx tijd verstreken is voor een gepland wisselmoment. je kan enkel spelers aanduiden die op dat moment op het veld staat. dus als je wisselspeler in komt en dadelijk scoort kan je die in principe niet aanduiden als doelpuntenmaker
+
+
+### Wedstrijdverslag en wachtkamer:
+-- ook daar mag je de label tonen (papa van Thibo) ipv email. toon email pas tonen na een hover

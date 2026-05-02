@@ -13,3 +13,4 @@ live_export.sql
 FULL_LIVE_IMPORT_DUMP.sql
 /php/site_version.txt
 /php/api/php_errors.log
+/php/api/debug_events.log

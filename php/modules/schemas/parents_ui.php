@@ -455,7 +455,9 @@ document.addEventListener("DOMContentLoaded", function() {
     let currentAdjustedMinute = 0;
     let clockInterval = null;
     let matchEndedAtMs = <?= $matchEndedAt ? strtotime($matchEndedAt) * 1000 : 'null' ?>;
-    let autoEventTriggered = false;
+    // Als de match al gepauzeerd of beëindigd is (server zegt dit via PHP vars),
+    // dan mag de auto-trigger NIET opnieuw afvuren na een page reload.
+    let autoEventTriggered = isPaused || !!matchEndedAtMs;
 
     document.addEventListener('DOMContentLoaded', function() {
         window.scrollTo(0,0);
@@ -570,32 +572,14 @@ document.addEventListener("DOMContentLoaded", function() {
                 const nextShift = shiftsData[currentShiftIndex + 1];
                 
                 if (currentShift.game_counter === nextShift.game_counter) {
-                    // Auto-wissel (same game, just switch half) - Timer continues natively by period_start
-                    sendApiEventObject({
-                        action: 'log_event',
-                        game_id: gameId,
-                        parent_email: 'auto@systeem',
-                        event_type: 'period_start',
-                        event_minute: Math.floor(nextShift.start_minute)
-                    });
+                    // Auto-wissel (same game, just switch half)
+                    sendAutoEvent('period_start', Math.floor(nextShift.start_minute));
                 } else {
-                    // Auto-pauze (different game, break) - Timer pauses
-                    sendApiEventObject({
-                        action: 'log_event',
-                        game_id: gameId,
-                        parent_email: 'auto@systeem',
-                        event_type: 'period_end',
-                        event_minute: Math.floor(currentSeconds / 60) + 1
-                    });
+                    // Auto-pauze (different game, break)
+                    sendAutoEvent('period_end', Math.floor(currentSeconds / 60) + 1);
                 }
             } else {
-                sendApiEventObject({
-                    action: 'log_event',
-                    game_id: gameId,
-                    parent_email: 'auto@systeem',
-                    event_type: 'match_end',
-                    event_minute: Math.floor(currentSeconds / 60) + 1
-                });
+                sendAutoEvent('match_end', Math.floor(currentSeconds / 60) + 1);
             }
         }
         const btnStartVolgende = document.getElementById('btnStartVolgende');
@@ -875,6 +859,23 @@ document.addEventListener("DOMContentLoaded", function() {
         if (playerId) payload.player_id = playerId;
         if (playerOutId) payload.player_out_id = playerOutId;
         sendApiEventObject(payload);
+    }
+
+    // Fire-and-forget auto events: GEEN location.reload() — de fetchLiveEvents poll
+    // detecteert de state change en doet de reload. Zo vermijden we een infinite reload loop
+    // wanneer het auto-event wordt geduplicated door de server.
+    function sendAutoEvent(eventType, eventMinute) {
+        fetch('/api/api_game_events.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                action: 'log_event',
+                game_id: gameId,
+                parent_email: 'auto@systeem',
+                event_type: eventType,
+                event_minute: eventMinute
+            })
+        }).catch(() => {}); // Stilletjes falen is ok — poll vangt het op
     }
 
     function btnLoading(btn) {

@@ -4,14 +4,15 @@ set -e
 # === CONFIG ===
 SERVER="u17-sczofusy6qgg@c9971.sgvps.net"
 SSH_PORT="18765"
-DEPLOY_PATH="~/www/lineup.webbit.be/public_html"
 BRANCH="beta"
+VERSION_FILE="php/version.txt"
 # ==============
 
-echo "🚀 Deploying branch '$BRANCH' to UAT (lineup.webbit.be)..."
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # Zorg dat we op de juiste branch staan
-CURRENT=$(git branch --show-current)
+CURRENT=$(git -C "$REPO_ROOT" branch --show-current)
 if [ "$CURRENT" != "$BRANCH" ]; then
   echo "⚠️  Je bent niet op de '$BRANCH' branch (je zit op '$CURRENT')."
   read -p "Toch doorgaan? (yes/no): " confirm
@@ -21,9 +22,21 @@ if [ "$CURRENT" != "$BRANCH" ]; then
   fi
 fi
 
-# Push de branch
-git push origin "$BRANCH"
+# --- Automatische patch bump ---
+CURRENT_VERSION=$(cat "$REPO_ROOT/$VERSION_FILE" | tr -d '\n\r ')
+IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+PATCH=$((PATCH + 1))
+NEW_VERSION="$MAJOR.$MINOR.$PATCH"
 
+echo "📦 Versie: $CURRENT_VERSION → $NEW_VERSION"
+echo "$NEW_VERSION" > "$REPO_ROOT/$VERSION_FILE"
+git -C "$REPO_ROOT" add "$VERSION_FILE"
+git -C "$REPO_ROOT" commit -m "chore: bump version to $NEW_VERSION"
+
+echo "🚀 Deploying branch '$BRANCH' to UAT (lineup.webbit.be)..."
+
+# Push de branch
+git -C "$REPO_ROOT" push origin "$BRANCH"
 
 # SSH in en deploy
 ssh -p "$SSH_PORT" "$SERVER" bash << 'ENDSSH'
@@ -40,10 +53,10 @@ ssh -p "$SSH_PORT" "$SERVER" bash << 'ENDSSH'
   echo "✅ Versie: ${BASE_VERSION}-beta"
 ENDSSH
 
-# Run migrations via HTTP (credentials worden correct geladen via Apache/.htaccess)
+# Run migrations via HTTP
 echo "🔄 Migrations uitvoeren via HTTP..."
 MIGRATION_OUTPUT=$(curl -s "https://lineup.webbit.be/run_migrations.php?token=super_secret_deploy_key_2026")
 echo "$MIGRATION_OUTPUT" | sed 's/<[^>]*>//g' | grep -v '^$' || true
 
 echo ""
-echo "✅ UAT deploy klaar → https://lineup.webbit.be"
+echo "✅ UAT deploy klaar → https://lineup.webbit.be (v$NEW_VERSION-beta)"

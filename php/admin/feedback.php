@@ -26,7 +26,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
             $stmt->execute([$status, $id]);
 
             // Stuur mail bij resolved, als er een email is en het nog niet resolved was
+            $mailSent = false;
             if ($status === 'resolved' && ($old['status'] ?? '') !== 'resolved' && !empty($old['email'])) {
+                $mailSent = true;
                 $firstName  = htmlspecialchars($old['first_name'] ?? 'Coach');
                 $type       = $old['feedback_type'] ?? 'Feedback';
                 $isIdea     = strtolower($type) === 'idee';
@@ -65,6 +67,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
                 ";
 
                 Mailer::send($old['email'], $subject, $body, true, ADMIN_BCC);
+                $_SESSION['feedback_flash'] = 'Mail verstuurd naar ' . htmlspecialchars($old['email']) . '.';
             }
         }
     } elseif ($_POST['action'] === 'delete' && $id > 0) {
@@ -89,11 +92,26 @@ $stmt = $pdo->query("
 ");
 $feedback_items = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+// Flash notice
+$flash = null;
+if (!empty($_SESSION['feedback_flash'])) {
+    $flash = $_SESSION['feedback_flash'];
+    unset($_SESSION['feedback_flash']);
+}
+
 ?>
 <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2><i class="fa-solid fa-bug text-warning me-2"></i>Feedback & Bug Reports</h2>
     </div>
+
+    <?php if ($flash): ?>
+    <div class="alert alert-success alert-dismissible fade show d-flex align-items-center gap-2" role="alert">
+        <i class="fa-solid fa-envelope-circle-check"></i>
+        <span><?= htmlspecialchars($flash) ?></span>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    <?php endif; ?>
 
     <div class="card shadow-sm border-0">
         <div class="card-body p-0">
@@ -193,6 +211,13 @@ $feedback_items = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                                 <i class="fa-solid fa-trash"></i>
                                             </button>
                                         </form>
+                                        <?php if (!empty($item['error_log'])): ?>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary" title="Bekijk error log"
+                                            data-log="<?= htmlspecialchars($item['error_log'], ENT_QUOTES) ?>"
+                                            onclick="showLog(this.dataset.log)">
+                                            <i class="fa-solid fa-terminal"></i>
+                                        </button>
+                                        <?php endif; ?>
                                     </div>
                                 </td>
                             </tr>
@@ -204,5 +229,27 @@ $feedback_items = $stmt->fetchAll(PDO::FETCH_ASSOC);
         </div>
     </div>
 </div>
+
+<!-- Error Log Modal -->
+<div class="modal fade" id="logModal" tabindex="-1" aria-labelledby="logModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header bg-dark text-white">
+        <h5 class="modal-title" id="logModalLabel"><i class="fa-solid fa-terminal me-2"></i>Error Log (laatste 10 regels)</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body p-0">
+        <pre id="logModalContent" style="background:#1e1e1e; color:#d4d4d4; padding:20px; margin:0; font-size:0.78rem; white-space:pre-wrap; word-break:break-all; min-height:200px;"></pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function showLog(logContent) {
+    document.getElementById('logModalContent').textContent = logContent || 'Geen log beschikbaar.';
+    new bootstrap.Modal(document.getElementById('logModal')).show();
+}
+</script>
 
 <?php require_once dirname(__DIR__) . '/footer.php'; ?>

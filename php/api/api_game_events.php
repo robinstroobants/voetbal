@@ -119,16 +119,48 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
 
-        // Deduplication for auto@systeem
-        if ($parentEmail === 'auto@systeem' && in_array($eventType, ['period_start', 'period_end', 'match_end'])) {
-            // Check if the same event was created by the system within the last 1 minute
-            $stmt = $pdo->prepare("SELECT id FROM game_events WHERE game_id = ? AND parent_email = ? AND event_type = ? AND created_at > DATE_SUB(NOW(), INTERVAL 1 MINUTE) AND is_deleted = 0");
-            $stmt->execute([$gameId, $parentEmail, $eventType]);
-            if ($stmt->fetch(PDO::FETCH_ASSOC)) {
-                echo json_encode(['status' => 'success', 'message' => 'Deduplicated auto event']);
+        // ── State-machine deduplicatie voor status events ──────────────────────────
+        // Status events zijn idempotent: we kijken naar de huidige spelstaat,
+        // niet naar wie het verstuurt. Zo kunnen meerdere browsers nooit dubbel triggeren.
+        if (in_array($eventType, ['period_start', 'period_end', 'match_end'])) {
+            // Haal de laatste status event op
+            $stmtState = $pdo->prepare("
+                SELECT event_type, id
+                FROM game_events
+                WHERE game_id = ? AND event_type IN ('match_start','period_start','period_end','match_end') AND is_deleted = 0
+                ORDER BY id DESC LIMIT 1
+            ");
+            $stmtState->execute([$gameId]);
+            $lastState = $stmtState->fetch(PDO::FETCH_ASSOC);
+            $lastStateType = $lastState['event_type'] ?? null;
+
+            $reject = false;
+            $rejectMsg = '';
+
+            if ($eventType === 'match_end') {
+                // Weiger als match al beëindigd is
+                if ($lastStateType === 'match_end') {
+                    $reject = true; $rejectMsg = 'Match is al beëindigd.';
+                }
+            } elseif ($eventType === 'period_end') {
+                // Weiger als we al gepauzeerd zijn (laatste state is period_end of match niet gestart)
+                if (!$lastStateType || $lastStateType === 'period_end' || $lastStateType === 'match_end') {
+                    $reject = true; $rejectMsg = 'Periode is al afgelopen of match niet gestart.';
+                }
+            } elseif ($eventType === 'period_start') {
+                // Weiger als we NIET gepauzeerd zijn (laatste state is al period_start of match_start)
+                if ($lastStateType === 'period_start' || $lastStateType === 'match_start') {
+                    $reject = true; $rejectMsg = 'Periode loopt al — dubbele start geweigerd.';
+                }
+            }
+
+            if ($reject) {
+                file_put_contents(__DIR__ . '/debug_events.log', date('Y-m-d H:i:s') . " - DEDUP REJECT $eventType (last=$lastStateType) by $parentEmail\n", FILE_APPEND);
+                echo json_encode(['status' => 'success', 'message' => 'Deduped: ' . $rejectMsg]);
                 exit;
             }
         }
+        // ────────────────────────────────────────────────────────────────────────────
 
         $stmt = $pdo->prepare("INSERT INTO game_events (game_id, parent_email, parent_name, event_type, player_id, player_out_id, event_minute, is_confirmed, user_agent, ip_address) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
         $success = $stmt->execute([$gameId, $parentEmail, $parentName, $eventType, $playerId, $playerOutId, $eventMinute, $isCoach, $userAgent, $ipAddress]);

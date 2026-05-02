@@ -6,6 +6,7 @@ services:
     volumes:
       - ./php:/var/www/html
       - ./.git:/var/www/html/.git:ro
+      - ./php/conf.d/error_log.ini:/usr/local/etc/php/conf.d/error_log.ini:ro
     environment:
       - DB_HOST=db
       - DB_NAME=${MYSQL_DATABASE}

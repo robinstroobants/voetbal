@@ -26,8 +26,15 @@ class MatchManager {
             return []; // Match not found
         }
         
-        // AUTO-FIX: Als de totale wedstrijdduur nog leeg is (oude database entries), bereken het eenmalig via de schemas en bewaar.
-        if (!isset($game['total_duration_minutes']) || $game['total_duration_minutes'] === null) {
+        // AUTO-FIX: Haal de juiste tijdsduur uit het format (bijv. 5x15 = 75 min) om foute 60min defaults te overschrijven
+        if (preg_match('/_(\d+)x(\d+)/', $game['format'], $m)) {
+            $berekende_duur = (int)$m[1] * (int)$m[2];
+            if (!isset($game['total_duration_minutes']) || $game['total_duration_minutes'] != $berekende_duur) {
+                $game['total_duration_minutes'] = $berekende_duur;
+                // Werk de database direct bij zodat het definitief is opgelost
+                $this->pdo->prepare("UPDATE games SET total_duration_minutes = ? WHERE id = ?")->execute([$berekende_duur, $gameId]);
+            }
+        } elseif (!isset($game['total_duration_minutes']) || $game['total_duration_minutes'] === null) {
             $game['total_duration_minutes'] = $this->fixGameDuration($gameId, $game['format']);
         }
 
@@ -307,6 +314,11 @@ class MatchManager {
             
             // DYNAMISCH OVERSCHRIJVEN VAN DE DUUR
             $game_total_minutes = $row['total_duration_minutes'];
+            // Fix voor foute historische db-waardes
+            if (preg_match('/_(\d+)x(\d+)/', $row['format'], $m)) {
+                $game_total_minutes = (int)$m[1] * (int)$m[2];
+            }
+
             if ($game_total_minutes && is_array($schema)) {
                 $num_blocks = 0;
                 foreach ($schema as $idx => $part) {
@@ -391,7 +403,7 @@ class MatchManager {
 
         // 2. Zoek de finale opstelling voor deze game
         $stmtL = $this->pdo->prepare("
-            SELECT gl.schema_id, gl.player_order, g.coach_id, g.total_duration_minutes, l.schema_data 
+            SELECT gl.schema_id, gl.player_order, g.coach_id, g.total_duration_minutes, g.format, l.schema_data 
             FROM game_lineups gl
             JOIN games g ON g.id = gl.game_id
             JOIN lineups l ON l.id = gl.schema_id
@@ -414,6 +426,11 @@ class MatchManager {
         
         // DYNAMISCH OVERSCHRIJVEN VAN DE DUUR
         $game_total_minutes = $lData['total_duration_minutes'];
+        // Fix voor foute db-waardes
+        if (preg_match('/_(\d+)x(\d+)/', $lData['format'] ?? '', $m)) {
+            $game_total_minutes = (int)$m[1] * (int)$m[2];
+        }
+
         if ($game_total_minutes) {
             $num_blocks = 0;
             foreach ($schema_data as $idx => $part) {

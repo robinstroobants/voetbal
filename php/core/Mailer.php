@@ -14,11 +14,12 @@ class Mailer {
      * @param string $body Inhoud van de mail (HTML of Plain text)
      * @return bool True bij succes, False bij mislukken
      */
-    public static function send($to, $subject, $body, $isHTML = false) {
+    public static function send($to, $subject, $body, $isHTML = false, $bcc = null) {
         $mail = new PHPMailer(true);
+        $mail->CharSet = 'UTF-8';
 
         try {
-            // Check of we lokaal draaien
+
             $is_localhost = isset($_SERVER['HTTP_HOST']) && (strpos($_SERVER['HTTP_HOST'], 'localhost') !== false || strpos($_SERVER['HTTP_HOST'], '127.0.0.1') !== false);
 
             $mail->isSMTP();
@@ -44,6 +45,9 @@ class Mailer {
             
             $mail->setFrom($fromEmail, $fromName);
             $mail->addAddress($to);
+            if ($bcc) {
+                $mail->addBCC($bcc);
+            }
 
             // Anti-Spam optimalisatie: Stuur als multipart (HTML + AltBody)
             $mail->isHTML(true);

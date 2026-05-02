@@ -1,6 +1,9 @@
 <?php
 $page_title = "Feedback & Bugs - Admin";
 require_once dirname(__DIR__) . '/core/getconn.php';
+require_once dirname(__DIR__) . '/core/Mailer.php';
+
+const ADMIN_BCC = 'robin@webbit.be';
 
 // Verwerk acties VOOR header.php (anders is output al gestuurd)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
@@ -9,8 +12,60 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     if ($_POST['action'] === 'update_status') {
         $status = $_POST['status'];
         if (in_array($status, ['open', 'resolved', 'ignored'])) {
+            // Haal huidige status + user email op vóór de update
+            $stmtOld = $pdo->prepare("
+                SELECT f.status, f.feedback_type, f.description, u.email, u.first_name
+                FROM user_feedback f
+                LEFT JOIN users u ON f.user_id = u.id
+                WHERE f.id = ?
+            ");
+            $stmtOld->execute([$id]);
+            $old = $stmtOld->fetch(PDO::FETCH_ASSOC);
+
             $stmt = $pdo->prepare("UPDATE user_feedback SET status = ? WHERE id = ?");
             $stmt->execute([$status, $id]);
+
+            // Stuur mail bij resolved, als er een email is en het nog niet resolved was
+            if ($status === 'resolved' && ($old['status'] ?? '') !== 'resolved' && !empty($old['email'])) {
+                $firstName  = htmlspecialchars($old['first_name'] ?? 'Coach');
+                $type       = $old['feedback_type'] ?? 'Feedback';
+                $isIdea     = strtolower($type) === 'idee';
+
+                $subject = $isIdea
+                    ? "Jouw idee werd uitgevoerd! 🎉"
+                    : "Jouw bug werd opgelost! ✅";
+
+                $intro = $isIdea
+                    ? "Goed nieuws — jouw idee werd geïmplementeerd in de app!"
+                    : "Goed nieuws — de bug die je meldde werd opgelost!";
+
+                $cta = $isIdea
+                    ? "Bekijk de nieuwe functionaliteit en laat ons weten wat je ervan vindt."
+                    : "Je kunt de fix uittesten en ons laten weten als alles naar behoren werkt.";
+
+                $originalText = htmlspecialchars($old['description'] ?? '');
+
+                $body = "
+                    <div style='font-family: sans-serif; max-width: 560px; margin: auto; color: #333;'>
+                        <h2 style='color: #198754;'>" . ($isIdea ? "💡 Idee uitgevoerd" : "✅ Bug opgelost") . "</h2>
+                        <p>Hallo {$firstName},</p>
+                        <p>{$intro}</p>
+                        <blockquote style='border-left: 3px solid #ccc; margin: 16px 0; padding: 8px 16px; color: #555; font-style: italic;'>
+                            {$originalText}
+                        </blockquote>
+                        <p>{$cta}</p>
+                        <p>
+                            <a href='https://lineupheroes.com' style='background: #198754; color: white; padding: 10px 20px; border-radius: 6px; text-decoration: none; display: inline-block;'>
+                                Open de app
+                            </a>
+                        </p>
+                        <hr style='margin-top: 32px; border: none; border-top: 1px solid #eee;'>
+                        <p style='font-size: 0.8rem; color: #aaa;'>Lineup Heroes — jouw voetbalplanner</p>
+                    </div>
+                ";
+
+                Mailer::send($old['email'], $subject, $body, true, ADMIN_BCC);
+            }
         }
     } elseif ($_POST['action'] === 'delete' && $id > 0) {
         $stmt = $pdo->prepare("DELETE FROM user_feedback WHERE id = ?");

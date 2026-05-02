@@ -1,20 +1,28 @@
 <?php
 $page_title = "Feedback & Bugs - Admin";
 require_once dirname(__DIR__) . '/core/getconn.php';
-require_once dirname(__DIR__) . '/header.php';
 
-// Verwerk status updates
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update_status') {
-    $id = (int)$_POST['id'];
-    $status = $_POST['status'];
-    if (in_array($status, ['open', 'resolved', 'ignored'])) {
-        $stmt = $pdo->prepare("UPDATE user_feedback SET status = ? WHERE id = ?");
-        $stmt->execute([$status, $id]);
+// Verwerk acties VOOR header.php (anders is output al gestuurd)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
+    $id = (int)($_POST['id'] ?? 0);
+
+    if ($_POST['action'] === 'update_status') {
+        $status = $_POST['status'];
+        if (in_array($status, ['open', 'resolved', 'ignored'])) {
+            $stmt = $pdo->prepare("UPDATE user_feedback SET status = ? WHERE id = ?");
+            $stmt->execute([$status, $id]);
+        }
+    } elseif ($_POST['action'] === 'delete' && $id > 0) {
+        $stmt = $pdo->prepare("DELETE FROM user_feedback WHERE id = ?");
+        $stmt->execute([$id]);
     }
+
     // Voorkom form resubmission
     header("Location: /admin/feedback");
     exit;
 }
+
+require_once dirname(__DIR__) . '/header.php';
 
 // Haal feedback op (inclusief details over team en user indien van toepassing)
 $stmt = $pdo->query("
@@ -112,15 +120,25 @@ $feedback_items = $stmt->fetchAll(PDO::FETCH_ASSOC);
                                     <?php endif; ?>
                                 </td>
                                 <td class="text-end">
-                                    <form method="POST" action="/admin/feedback" class="d-inline">
-                                        <input type="hidden" name="action" value="update_status">
-                                        <input type="hidden" name="id" value="<?= $item['id'] ?>">
-                                        <select name="status" class="form-select form-select-sm d-inline-block w-auto" onchange="this.form.submit()">
-                                            <option value="open" <?= ($item['status'] === 'open' || empty($item['status'])) ? 'selected' : '' ?>>Open</option>
-                                            <option value="resolved" <?= $item['status'] === 'resolved' ? 'selected' : '' ?>>Opgelost</option>
-                                            <option value="ignored" <?= $item['status'] === 'ignored' ? 'selected' : '' ?>>Negeren</option>
-                                        </select>
-                                    </form>
+                                    <div class="d-flex align-items-center justify-content-end gap-2">
+                                        <form method="POST" action="/admin/feedback" class="d-inline">
+                                            <input type="hidden" name="action" value="update_status">
+                                            <input type="hidden" name="id" value="<?= $item['id'] ?>">
+                                            <select name="status" class="form-select form-select-sm d-inline-block w-auto" onchange="this.form.submit()">
+                                                <option value="open" <?= ($item['status'] === 'open' || empty($item['status'])) ? 'selected' : '' ?>>Open</option>
+                                                <option value="resolved" <?= $item['status'] === 'resolved' ? 'selected' : '' ?>>Opgelost</option>
+                                                <option value="ignored" <?= $item['status'] === 'ignored' ? 'selected' : '' ?>>Negeren</option>
+                                            </select>
+                                        </form>
+                                        <form method="POST" action="/admin/feedback" class="d-inline"
+                                              onsubmit="return confirm('Verwijder deze feedback definitief?')">
+                                            <input type="hidden" name="action" value="delete">
+                                            <input type="hidden" name="id" value="<?= $item['id'] ?>">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Verwijderen">
+                                                <i class="fa-solid fa-trash"></i>
+                                            </button>
+                                        </form>
+                                    </div>
                                 </td>
                             </tr>
                             <?php endforeach; ?>

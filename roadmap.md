@@ -97,6 +97,8 @@
 ## 💡 7. Braindump & Future Modules
 *Context voor Antigravity: Ideeën voor de lange termijn. Nog niet in scope voor actieve ontwikkeling.*
 
+* als je maar 1 doelman in je selectie hebt dan heeft het weinig zin om in het overzicht op het dashboard de hand icon te tonen. 
+
 
 * **Reverse Engineer Schema (Legacy):** De mogelijkheid om via een interface (bijv. door selecties in volgorde te slepen of speelminuten in te geven) oude legacy schema id's te achterhalen (zoals id '777' van de match tegen Wellen).
 * **Legacy Database Tabellen:** Een extra tabel bouwen voor oude schema-logica, met `format`, `legacy_key`, en `new_key`.
@@ -115,4 +117,26 @@
 
 - feedback systeem bouwen
 - ouders events laten ingeven
+
+
+
+
+- bij feedback zou ik ook de 10 logregels willen zien, kan dat?
+
+
+https://lineup.webbit.be/admin/feedback 
+- als ik klik op opgelost krijg ik een lege pagina
+errorlog: [01-May-2026 15:41:32 UTC] PHP Fatal error:  Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'page_load_ms' in 'field list' in /home/customer/www/lineup.webbit.be/voetbal/php/admin/performance_clients.php:20
+Stack trace:
+#0 /home/customer/www/lineup.webbit.be/voetbal/php/admin/performance_clients.php(20): PDO->query('\n    SELECT use...')
+#1 /home/customer/www/lineup.webbit.be/voetbal/php/router.php(224): require_once('/home/customer/...')
+#2 {main}
+  thrown in /home/customer/www/lineup.webbit.be/voetbal/php/admin/performance_clients.php on line 20
+[01-May-2026 15:41:33 UTC] PHP Fatal error:  Uncaught PDOException: SQLSTATE[42S22]: Column not found: 1054 Unknown column 'page_load_ms' in 'field list' in /home/customer/www/lineup.webbit.be/voetbal/php/admin/performance_clients.php:20
+Stack trace:
+#0 /home/customer/www/lineup.webbit.be/voetbal/php/admin/performance_clients.php(20): PDO->query('\n    SELECT use...')
+#1 /home/customer/www/lineup.webbit.be/voetbal/php/router.php(224): require_once('/home/customer/...')
+#2 {main}
+  thrown in /home/customer/www/lineup.webbit.be/voetbal/php/admin/performance_clients.php on line 20
+[01-May-2026 15:43:52 UTC] PHP Deprecated:  number_format(): Passing null to parameter #1 ($num) of type float is deprecated in /home/customer/www/lineup.webbit.be/voetbal/php/admin/performance.php on line 77
 

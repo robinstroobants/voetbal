@@ -114,19 +114,38 @@ header("Expires: 0"); // Proxies blockeren
                     <?php endif; ?>
                     
                     <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'superadmin'): ?>
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle fw-bold text-success" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="fa-solid fa-user-shield me-1"></i> Admin
+                    <?php
+                        // Actieve admin-pagina detecteren voor highlight
+                        $current_path = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+                        $is_admin_dashboard = ($current_path === '/admin' || $current_path === '/admin/');
+                        $is_admin_users     = str_starts_with($current_path, '/admin/users');
+                        $is_admin_feedback  = str_starts_with($current_path, '/admin/feedback');
+                        $is_admin_beheer    = str_starts_with($current_path, '/admin') && !$is_admin_dashboard && !$is_admin_users && !$is_admin_feedback;
+                    ?>
+                    <li class="nav-item">
+                        <a class="nav-link fw-bold text-success <?= $is_admin_dashboard ? 'active' : '' ?>" href="/admin">
+                            <i class="fa-solid fa-server me-1"></i> Dashboard
                         </a>
-                        <ul class="dropdown-menu" aria-labelledby="adminDropdown">
-                            <li><a class="dropdown-item" href="/admin"><i class="fa-solid fa-server me-2"></i>Dashboard</a></li>
-                            <li><a class="dropdown-item" href="/admin/users"><i class="fa-solid fa-users text-success me-2"></i>Gebruikers</a></li>
-                            <li><a class="dropdown-item" href="/admin/schemas"><i class="fa-solid fa-sitemap text-primary me-2"></i>Schema Beheer</a></li>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link <?= $is_admin_users ? 'active' : '' ?>" href="/admin/users">
+                            <i class="fa-solid fa-users me-1"></i> Gebruikers
+                        </a>
+                    </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle <?= $is_admin_beheer ? 'active' : '' ?>" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="fa-solid fa-screwdriver-wrench me-1"></i> Beheer
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            <li><a class="dropdown-item" href="/admin/schemas"><i class="fa-solid fa-sitemap text-primary me-2"></i>Schema's</a></li>
                             <li><a class="dropdown-item" href="/admin/inspect_schema"><i class="fa-solid fa-stethoscope text-info me-2"></i>Schema Diagnose</a></li>
                             <li><a class="dropdown-item" href="/admin/performance"><i class="fa-solid fa-gauge-high text-warning me-2"></i>Performance</a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="/admin/feedback"><i class="fa-solid fa-bug text-danger me-2"></i>Feedback & Bugs</a></li>
                         </ul>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link <?= $is_admin_feedback ? 'text-danger fw-bold' : '' ?>" href="/admin/feedback">
+                            <i class="fa-solid fa-bug me-1"></i> Feedback
+                        </a>
                     </li>
                     <?php endif; ?>
 

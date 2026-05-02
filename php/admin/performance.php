@@ -2,6 +2,17 @@
 require_once dirname(__DIR__) . '/core/getconn.php';
 $page_title = "Performance Dashboard";
 
+// Verwerk purge-acties VOOR header-output
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
+    if ($_POST['action'] === 'purge_all') {
+        $pdo->exec("DELETE FROM system_logs");
+    } elseif ($_POST['action'] === 'purge_old') {
+        $pdo->exec("DELETE FROM system_logs WHERE created_at < DATE_SUB(NOW(), INTERVAL 30 DAY)");
+    }
+    header("Location: /admin/performance");
+    exit;
+}
+
 // Ophalen van stats over de afgelopen 24 uur
 $stats_stmt = $pdo->query("SELECT 
         COUNT(*) as total_runs, 
@@ -13,8 +24,17 @@ $stats_stmt = $pdo->query("SELECT
     WHERE created_at > DATE_SUB(NOW(), INTERVAL 24 HOUR)");
 $stats = $stats_stmt->fetch(PDO::FETCH_ASSOC);
 
-// Ophalen laatste 100 log regels (bewaren we voor detail view indien nodig)
-$logs_stmt = $pdo->query("SELECT * FROM system_logs ORDER BY created_at DESC LIMIT 50");
+// Ophalen laatste 50 log regels met coach- en teaminfo
+$logs_stmt = $pdo->query("
+    SELECT sl.*,
+           u.first_name, u.last_name, u.email as user_email,
+           t.name as team_name
+    FROM system_logs sl
+    LEFT JOIN users u ON sl.user_id = u.id
+    LEFT JOIN teams t ON u.team_id = t.id
+    ORDER BY sl.created_at DESC
+    LIMIT 50
+");
 $logs = $logs_stmt->fetchAll(PDO::FETCH_ASSOC);
 
 // Ophalen Zwaarste Gebruikers (Afgelopen 7 Dagen)
@@ -55,8 +75,22 @@ $heaviest_users = $heaviest_users_stmt->fetchAll(PDO::FETCH_ASSOC);
     <div class="container mt-4">
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h3><i class="fa-solid fa-gauge-high text-primary me-2"></i>Performance Dashboard</h3>
-            <div>
+            <div class="d-flex align-items-center gap-2">
                 <span class="badge bg-success" id="live-indicator"><i class="fa-solid fa-circle-dot fa-fade me-1"></i>Live Updates</span>
+                <form method="POST" class="d-inline"
+                      onsubmit="return confirm('Verwijder logs ouder dan 30 dagen?')">
+                    <input type="hidden" name="action" value="purge_old">
+                    <button type="submit" class="btn btn-sm btn-outline-warning">
+                        <i class="fa-solid fa-clock-rotate-left me-1"></i> &gt; 30 dagen
+                    </button>
+                </form>
+                <form method="POST" class="d-inline"
+                      onsubmit="return confirm('Alle logs permanent verwijderen? Dit kan niet ongedaan worden!')">
+                    <input type="hidden" name="action" value="purge_all">
+                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                        <i class="fa-solid fa-trash me-1"></i> Alles wissen
+                    </button>
+                </form>
             </div>
         </div>
 
@@ -150,6 +184,7 @@ $heaviest_users = $heaviest_users_stmt->fetchAll(PDO::FETCH_ASSOC);
                         <thead class="table-light">
                             <tr>
                                 <th>Tijdstip</th>
+                                <th>Coach / Team</th>
                                 <th>Actie / Algoritme</th>
                                 <th>Details</th>
                                 <th>Executie (ms)</th>
@@ -158,7 +193,7 @@ $heaviest_users = $heaviest_users_stmt->fetchAll(PDO::FETCH_ASSOC);
                         </thead>
                         <tbody>
                             <?php if (empty($logs)): ?>
-                                <tr><td colspan="5" class="text-muted py-4">Nog geen data beschikbaar...</td></tr>
+                                <tr><td colspan="6" class="text-muted py-4">Nog geen data beschikbaar...</td></tr>
                             <?php else: ?>
                                 <?php foreach ($logs as $log): 
                                     $timeClass = 'fast';
@@ -167,9 +202,18 @@ $heaviest_users = $heaviest_users_stmt->fetchAll(PDO::FETCH_ASSOC);
                                     
                                     $memClass = '';
                                     if ($log['memory_usage_mb'] > 10) $memClass = 'text-danger fw-bold';
+
+                                    $coachName = $log['first_name'] ? htmlspecialchars($log['first_name'] . ' ' . $log['last_name']) : '<span class="text-muted">—</span>';
+                                    $coachEmail = $log['user_email'] ? '<div class="text-muted" style="font-size:0.75rem;">' . htmlspecialchars($log['user_email']) . '</div>' : '';
+                                    $teamLabel = $log['team_name'] ? '<div><span class="badge bg-light text-dark border" style="font-size:0.7rem;">' . htmlspecialchars($log['team_name']) . '</span></div>' : '';
                                 ?>
                                 <tr>
-                                    <td class="text-muted"><?= date('d/m H:i:s', strtotime($log['created_at'])) ?></td>
+                                    <td class="text-muted" style="white-space:nowrap;"><?= date('d/m H:i:s', strtotime($log['created_at'])) ?></td>
+                                    <td class="text-start" style="min-width:140px;">
+                                        <?= $coachName ?>
+                                        <?= $coachEmail ?>
+                                        <?= $teamLabel ?>
+                                    </td>
                                     <td><span class="badge bg-secondary opacity-75"><?= htmlspecialchars($log['action_name']) ?></span></td>
                                     <td><small class="text-muted fw-semibold" style="letter-spacing:0.3px;"><?= htmlspecialchars($log['context'] ?? '--') ?></small></td>
                                     <td class="<?= $timeClass ?>"><?= number_format($log['execution_time_ms'], 1) ?> ms</td>

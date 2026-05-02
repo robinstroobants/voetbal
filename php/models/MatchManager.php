@@ -14,10 +14,10 @@ class MatchManager {
     public function getSelection(int $gameId): array {
         // 1. Haal basis match informatie op
         if ((isset($_SESSION['role']) && $_SESSION['role'] === 'superadmin') || (defined('PUBLIC_SHARE_MODE') && PUBLIC_SHARE_MODE)) {
-            $stmtGame = $this->pdo->prepare("SELECT opponent, game_date, format, min_pos, total_duration_minutes, block_labels FROM games WHERE id = :id");
+            $stmtGame = $this->pdo->prepare("SELECT opponent, game_date, format, min_pos, total_duration_minutes, block_labels, is_tournament FROM games WHERE id = :id");
             $stmtGame->execute(['id' => $gameId]);
         } else {
-            $stmtGame = $this->pdo->prepare("SELECT opponent, game_date, format, min_pos, total_duration_minutes, block_labels FROM games WHERE id = :id AND team_id = :team_id");
+            $stmtGame = $this->pdo->prepare("SELECT opponent, game_date, format, min_pos, total_duration_minutes, block_labels, is_tournament FROM games WHERE id = :id AND team_id = :team_id");
             $stmtGame->execute(['id' => $gameId, 'team_id' => $_SESSION['team_id']]);
         }
         $game = $stmtGame->fetch(PDO::FETCH_ASSOC);

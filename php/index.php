@@ -416,7 +416,9 @@ require_once __DIR__ . '/header.php';
                                         echo $dStr;
                                     }
                                 ?>
-                                <span class="badge bg-black bg-opacity-25 border border-white border-opacity-25 ms-1 text-white" style="font-size: 0.65em; vertical-align: middle; padding: 0.3em 0.5em;"><?= htmlspecialchars($next_game['format']) ?></span>
+                                <a href="/games/<?= $next_game['id'] ?>/edit" class="text-decoration-none" title="Bewerk wedstrijd">
+                                    <span class="badge bg-black bg-opacity-25 border border-white border-opacity-25 ms-1 text-white" style="font-size: 0.65em; vertical-align: middle; padding: 0.3em 0.5em; cursor: pointer;"><?= htmlspecialchars($next_game['format']) ?></span>
+                                </a>
                                 <?php if (!empty($next_game['coach_name'])): ?>
                                     <span class="mx-2 text-white">•</span> 
                                     <span class="badge bg-primary bg-opacity-50 border border-white border-opacity-25 text-white"><i class="fa-solid fa-user-tie me-1"></i><?= htmlspecialchars($next_game['coach_name']) ?></span>
@@ -640,16 +642,25 @@ require_once __DIR__ . '/header.php';
                                     <?php endif; ?>
                                     
                                     <?php foreach($past_games as $game): 
-                                        $gameTimestamp = strtotime($game['game_date']);
+                                        $gameTimestamp = strtotime(date('Y-m-d', strtotime($game['game_date'])));
                                         $todayTimestamp = strtotime(date('Y-m-d'));
-                                        $isToday = $gameTimestamp === $todayTimestamp;
-                                        $isFuture = $gameTimestamp > $todayTimestamp;
+                                        $dayDiff = (int)(($gameTimestamp - $todayTimestamp) / 86400);
+                                        $isToday = $dayDiff === 0;
+                                        $isFuture = $dayDiff > 0;
+                                        $dateBadge = match(true) {
+                                            $dayDiff === -2 => ['label' => 'eergisteren', 'class' => 'bg-secondary text-white'],
+                                            $dayDiff === -1 => ['label' => 'gisteren',    'class' => 'bg-secondary text-white'],
+                                            $dayDiff ===  0 => ['label' => 'vandaag',     'class' => 'bg-success text-white'],
+                                            $dayDiff ===  1 => ['label' => 'morgen',      'class' => 'bg-primary text-white'],
+                                            $dayDiff ===  2 => ['label' => 'overmorgen',  'class' => 'bg-primary text-white'],
+                                            $dayDiff  >   2 => ['label' => 'binnenkort',  'class' => 'bg-info text-dark'],
+                                            default         => null
+                                        };
                                     ?>
                                      <tr class="<?= ($isToday || $isFuture) ? 'table-info' : '' ?>">
                                         <td class="ps-4 fw-medium text-secondary small">
                                             <?= date('d/m/Y', strtotime($game['game_date'])) ?>
-                                            <?php if ($isToday): ?><span class="badge bg-success text-white ms-1" style="font-size:0.65rem;">vandaag</span>
-                                            <?php elseif ($isFuture): ?><span class="badge bg-info text-dark ms-1" style="font-size:0.65rem;">binnenkort</span><?php endif; ?>
+                                            <?php if ($dateBadge): ?><span class="badge <?= $dateBadge['class'] ?> ms-1" style="font-size:0.65rem;"><?= $dateBadge['label'] ?></span><?php endif; ?>
                                         </td>
                                         <td class="fw-bold">
                                             <?= htmlspecialchars($game['opponent']) ?>
@@ -658,7 +669,9 @@ require_once __DIR__ . '/header.php';
                                                 $fmtTextColors = ['text-white', 'text-white', 'text-white', 'text-dark', 'text-dark', 'text-white', 'text-white'];
                                                 $fmtIdx = abs(crc32($game['format'])) % count($fmtColors);
                                             ?>
-                                                <span class="badge <?= $fmtColors[$fmtIdx] ?> <?= $fmtTextColors[$fmtIdx] ?> ms-1" style="font-size:0.7rem;"><?= htmlspecialchars($game['format']) ?></span>
+                                            <a href="/games/<?= $game['id'] ?>/edit" class="text-decoration-none" title="Bewerk wedstrijd">
+                                                <span class="badge <?= $fmtColors[$fmtIdx] ?> <?= $fmtTextColors[$fmtIdx] ?> ms-1" style="font-size:0.7rem; cursor: pointer;"><?= htmlspecialchars($game['format']) ?></span>
+                                            </a>
                                             <?php endif; ?>
                                         </td>
                                         <td>

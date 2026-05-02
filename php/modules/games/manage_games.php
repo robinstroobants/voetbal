@@ -33,8 +33,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $coachId = !empty($_POST['coach_id']) ? (int)$_POST['coach_id'] : null;
         $isHome = isset($_POST['is_home']) ? (int)$_POST['is_home'] : 1;
         
+        $isTournament = isset($_POST['is_tournament']) ? 1 : 0;
+
         $blockLabels = null;
-        if (isset($_POST['block_labels']) && is_array($_POST['block_labels'])) {
+        if ($isTournament && isset($_POST['block_labels']) && is_array($_POST['block_labels'])) {
             $labels = array_map('trim', $_POST['block_labels']);
             if (count(array_filter($labels)) > 0) {
                 $blockLabels = json_encode($labels);
@@ -54,8 +56,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $pdo->prepare("DELETE FROM game_lineups WHERE game_id = ?")->execute([$gameId]);
             }
 
-            $stmt = $pdo->prepare("UPDATE games SET opponent = :opp, is_home = :is_home, game_date = :gd, format = :fmt, min_pos = :mpos, coach_id = :cid, block_labels = :bl WHERE id = :id");
-            $stmt->execute(['opp' => $opponent, 'is_home' => $isHome, 'gd' => $gameDate, 'fmt' => $format, 'mpos' => $minPos, 'cid' => $coachId, 'bl' => $blockLabels, 'id' => $gameId]);
+            $stmt = $pdo->prepare("UPDATE games SET opponent = :opp, is_home = :is_home, game_date = :gd, format = :fmt, min_pos = :mpos, coach_id = :cid, block_labels = :bl, is_tournament = :it WHERE id = :id");
+            $stmt->execute(['opp' => $opponent, 'is_home' => $isHome, 'gd' => $gameDate, 'fmt' => $format, 'mpos' => $minPos, 'cid' => $coachId, 'bl' => $blockLabels, 'it' => $isTournament, 'id' => $gameId]);
             
             // Als de coach gewijzigd is, werk dan ook de logs bij (voor historische correctie)
             if ($oldCoachId != $coachId) {
@@ -63,8 +65,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmtLogs->execute(['cid' => $coachId, 'id' => $gameId]);
             }
         } else {
-            $stmt = $pdo->prepare("INSERT INTO games (team_id, opponent, is_home, game_date, format, min_pos, coach_id, block_labels) VALUES (:team_id, :opp, :is_home, :gd, :fmt, :mpos, :cid, :bl)");
-            $stmt->execute(['team_id' => $_SESSION['team_id'], 'opp' => $opponent, 'is_home' => $isHome, 'gd' => $gameDate, 'fmt' => $format, 'mpos' => $minPos, 'cid' => $coachId, 'bl' => $blockLabels]);
+            $stmt = $pdo->prepare("INSERT INTO games (team_id, opponent, is_home, game_date, format, min_pos, coach_id, block_labels, is_tournament) VALUES (:team_id, :opp, :is_home, :gd, :fmt, :mpos, :cid, :bl, :it)");
+            $stmt->execute(['team_id' => $_SESSION['team_id'], 'opp' => $opponent, 'is_home' => $isHome, 'gd' => $gameDate, 'fmt' => $format, 'mpos' => $minPos, 'cid' => $coachId, 'bl' => $blockLabels, 'it' => $isTournament]);
             $newGameId = $pdo->lastInsertId();
 
             // Duplicatie verwerken indien gevraagd
@@ -92,6 +94,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 // Haal wedstrijden op
 $stmt = $pdo->prepare("
     SELECT g.*, CONCAT(c.first_name, ' ', c.last_name) AS coach_name, c.first_name AS coach_first_name,
+        g.is_tournament,
         (SELECT COUNT(*) FROM game_selections gs WHERE gs.game_id = g.id) as selection_count,
         (SELECT GROUP_CONCAT(gs.player_id) FROM game_selections gs WHERE gs.game_id = g.id) as selected_player_ids,
         (SELECT id FROM game_lineups gl WHERE gl.game_id = g.id AND gl.is_final = 1 LIMIT 1) as final_lineup_id
@@ -350,7 +353,7 @@ require_once dirname(__DIR__, 2) . '/header.php';
                             <tbody>
                                 <?php foreach($phases[$phase] as $game): ?>
                                 <tr class="game-row" data-coach="<?= htmlspecialchars($game['coach_name'] ?: 'NO_COACH') ?>">
-                                    <td class="ps-4 fw-medium text-muted date-cell" style="width: 15%">
+                                    <td class="ps-4 fw-medium text-muted date-cell" title="<?= date('d/m/Y', strtotime($game['game_date'])) ?>">
                                         <?php 
                                             $t_date = strtotime($game['game_date']);
                                             $has_time = date('H:i:s', $t_date) !== '00:00:00';
@@ -363,12 +366,7 @@ require_once dirname(__DIR__, 2) . '/header.php';
                                             <br><a href="#" onclick="openGameModal(<?= htmlspecialchars(json_encode($game), ENT_QUOTES, 'UTF-8') ?>); return false;" class="text-danger fw-bold small text-decoration-none" title="Tijd instellen!"><i class="fa-solid fa-triangle-exclamation"></i> Tijd?</a>
                                         <?php endif; ?>
                                     </td>
-                                    <td class="fw-bold text-dark opp-cell">
-                                        <?php if($game['coach_name']): 
-                                            $cColor = isset($coachColorMap[$game['coach_name']]) ? $coachColorMap[$game['coach_name']] : 'bg-secondary text-white';
-                                        ?>
-                                            <span class="badge <?= $cColor ?> rounded-pill me-1"><?= htmlspecialchars($game['coach_first_name']) ?></span>
-                                        <?php endif; ?>
+                                    <td class="fw-bold text-dark opp-cell" nowrap>
                                         <a href="#" onclick="openGameModal(<?= htmlspecialchars(json_encode($game), ENT_QUOTES, 'UTF-8') ?>); return false;" class="text-decoration-none text-dark hover-primary" title="Bewerk Wedstrijd">
                                             <?php if(isset($game['is_home']) && $game['is_home'] == 0): ?>
                                                 <i class="fa-solid fa-plane text-secondary me-1" title="Uit"></i>
@@ -378,7 +376,14 @@ require_once dirname(__DIR__, 2) . '/header.php';
                                             <?= htmlspecialchars($game['opponent']) ?>
                                         </a>
                                     </td>
-                                    <td>
+                                    <td class="coach-cell">
+                                        <?php if($game['coach_name']): 
+                                            $cColor = isset($coachColorMap[$game['coach_name']]) ? $coachColorMap[$game['coach_name']] : 'bg-secondary text-white';
+                                        ?>
+                                            <span class="badge <?= $cColor ?> rounded-pill me-1"><?= htmlspecialchars($game['coach_first_name']) ?></span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td nowrap>
                                         <?php if($game['selection_count'] > 0): 
                                             $sel_ids = $game['selected_player_ids'] ? explode(',', $game['selected_player_ids']) : [];
                                             $names = [];
@@ -391,13 +396,13 @@ require_once dirname(__DIR__, 2) . '/header.php';
                                         ?>
                                             <div class="d-flex align-items-center">
                                                 <a href="/games/<?= $game['id'] ?>/selection" class="btn btn-sm btn-outline-success rounded-pill px-3 py-1 shadow-sm me-2 text-decoration-none" title="Beheer Selectie">
-                                                    <i class="fa-solid fa-users me-1"></i>&nbsp;<?= $game['selection_count'] ?>
+                                                    <i class="fa-solid fa-users me-1"></i> <?= $game['selection_count'] ?>
                                                 </a>
                                                 <span class="small text-muted" style="line-height:1.2; display:inline-block; max-width:250px; white-space:normal;"><?= htmlspecialchars($names_str) ?></span>
                                             </div>
                                         <?php else: ?>
                                             <a href="/games/<?= $game['id'] ?>/selection" class="btn btn-sm btn-outline-warning text-dark rounded-pill px-3 py-1 shadow-sm text-decoration-none" title="Maak Selectie">
-                                                <i class="fa-solid fa-users me-1"></i>&nbsp;0
+                                                <i class="fa-solid fa-users me-1"></i> 0
                                             </a>
                                         <?php endif; ?>
                                     </td>
@@ -422,6 +427,7 @@ require_once dirname(__DIR__, 2) . '/header.php';
                                     </td>
                                 </tr>
                                 <?php endforeach; ?>
+
                             </tbody>
                         </table>
                     </div>
@@ -618,7 +624,7 @@ require_once dirname(__DIR__, 2) . '/header.php';
               <div class="mb-3">
                   <div class="form-check form-switch p-0 d-flex justify-content-between align-items-center bg-light border p-2 rounded">
                       <label class="form-check-label text-dark fw-bold ms-2" for="modal_is_tournament"><i class="fa-solid fa-trophy text-warning me-2"></i>Dit is een tornooi</label>
-                      <input class="form-check-input ms-2 mt-0 mb-0" type="checkbox" id="modal_is_tournament" style="transform: scale(1.2);">
+                      <input class="form-check-input ms-2 mt-0 mb-0" type="checkbox" id="modal_is_tournament" name="is_tournament" value="1" style="transform: scale(1.2);">
                   </div>
                   <div id="modal_tournament_labels" class="mt-2 p-3 bg-light border rounded" style="display: none;">
                       <!-- Dynamically filled by JS -->
@@ -860,18 +866,16 @@ function openGameModal(game = null, isDuplicate = false) {
         }
         document.getElementById('modal_format').value = formatBase;
         
-        // Tournament labels
-        if (game.block_labels && game.block_labels !== 'null' && game.block_labels !== '""') {
+        // Tournament vlag laden op basis van is_tournament kolom
+        document.getElementById('modal_is_tournament').checked = !!parseInt(game.is_tournament || 0);
+        if (game.is_tournament && game.block_labels && game.block_labels !== 'null') {
             try {
                 window.existingTournamentLabels = JSON.parse(game.block_labels);
-                document.getElementById('modal_is_tournament').checked = true;
             } catch(e) {
                 window.existingTournamentLabels = null;
-                document.getElementById('modal_is_tournament').checked = false;
             }
         } else {
             window.existingTournamentLabels = null;
-            document.getElementById('modal_is_tournament').checked = false;
         }
         
         updateGameParts(formatParts);
@@ -909,18 +913,16 @@ function openGameModal(game = null, isDuplicate = false) {
             }
             document.getElementById('modal_format').value = formatBase;
             
-            // Tournament labels (copy from source game if available)
-            if (game.block_labels && game.block_labels !== 'null' && game.block_labels !== '""') {
+            // Tournament vlag laden op basis van is_tournament kolom (bij duplicaat)
+            document.getElementById('modal_is_tournament').checked = !!parseInt(game.is_tournament || 0);
+            if (game.is_tournament && game.block_labels && game.block_labels !== 'null') {
                 try {
                     window.existingTournamentLabels = JSON.parse(game.block_labels);
-                    document.getElementById('modal_is_tournament').checked = true;
                 } catch(e) {
                     window.existingTournamentLabels = null;
-                    document.getElementById('modal_is_tournament').checked = false;
                 }
             } else {
                 window.existingTournamentLabels = null;
-                document.getElementById('modal_is_tournament').checked = false;
             }
             
             updateGameParts(formatParts);

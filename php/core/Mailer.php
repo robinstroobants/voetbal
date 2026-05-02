@@ -41,7 +41,7 @@ class Mailer {
 
             // Recipients
             $fromEmail = 'no-reply@notifications.webbit.be';
-            $fromName  = 'LineUp';
+            $fromName  = 'Lineup Heroes';
             
             $mail->setFrom($fromEmail, $fromName);
             $mail->addAddress($to);

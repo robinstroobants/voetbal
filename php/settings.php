@@ -57,7 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         
                         $teamName = $_SESSION['team_name'];
                         $subject = "Je bent toegevoegd aan team " . $teamName;
-                        $message = "Beste " . ($existing_user['first_name'] ?: 'Coach') . ",\n\nJe bent zojuist toegevoegd als co-coach voor het team: $teamName.\n\nLog in op Lineup om je nieuwe Team te bekijken.\n\nMet vriendelijke groeten,\nHet Lineup Team";
+                        $message = "Beste " . ($existing_user['first_name'] ?: 'Coach') . ",\n\nJe bent zojuist toegevoegd als co-coach voor het team: $teamName.\n\nLog in op Lineup Heroes om je nieuwe Team te bekijken.\n\nMet vriendelijke groeten,\nHet Lineup Heroes Team";
                         
                         require_once __DIR__ . '/Mailer.php';
                         Mailer::send($invite_email, $subject, $message);
@@ -81,7 +81,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $teamName = $_SESSION['team_name'];
                         
                         $subject = "Uitnodiging om coach te worden van " . $teamName;
-                        $message = "Hallo,\n\nJe bent uitgenodigd om co-coach te worden van het team: $teamName.\n\nKlik op de onderstaande link om gratis een account aan te maken en direct aan de slag te gaan:\n$invite_link\n\nDeze link is 7 dagen geldig.\n\nMet vriendelijke groeten,\nHet Lineup Team";
+                        $message = "Hallo,\n\nJe bent uitgenodigd om co-coach te worden van het team: $teamName.\n\nKlik op de onderstaande link om gratis een account aan te maken en direct aan de slag te gaan:\n$invite_link\n\nDeze link is 7 dagen geldig.\n\nMet vriendelijke groeten,\nHet Lineup Heroes Team";
                         
                         require_once __DIR__ . '/Mailer.php';
                         Mailer::send($invite_email, $subject, $message);

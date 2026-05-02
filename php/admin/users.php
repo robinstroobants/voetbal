@@ -94,8 +94,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $host = $_SERVER['HTTP_HOST'];
                 $verify_link = "$protocol://$host/verify.php?token=$token";
                 
-                $subject = "Activeer je Lineup account";
-                $message = "Beste " . $u['first_name'] . ",\n\nWelkom bij Lineup!\nKlik op de onderstaande link om je account te activeren:\n$verify_link\n\nMet vriendelijke groeten,\nHet Lineup Team";
+                $subject = "Activeer je Lineup Heroes account";
+                $message = "Beste " . $u['first_name'] . ",\n\nWelkom bij Lineup Heroes!\nKlik op de onderstaande link om je account te activeren:\n$verify_link\n\nMet vriendelijke groeten,\nHet Lineup Heroes Team";
                 
                 require_once dirname(__DIR__) . '/core/Mailer.php';
                 Mailer::send($u['email'], $subject, $message);
@@ -117,8 +117,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $host = $_SERVER['HTTP_HOST'];
                 $reset_link = "$protocol://$host/reset_password?token=$token";
                 
-                $subject = "Wachtwoord herstellen - Lineup";
-                $message = "Beste " . $u['first_name'] . ",\n\nEr is een verzoek ingediend door een beheerder om je wachtwoord te herstellen op Lineup.\nKlik op de onderstaande link om een nieuw wachtwoord in te stellen. Deze link is 1 uur geldig:\n$reset_link\n\nAls dit een fout is, hoef je niets te doen.\n\nMet vriendelijke groeten,\nHet Lineup Team";
+                $subject = "Wachtwoord herstellen - Lineup Heroes";
+                $message = "Beste " . $u['first_name'] . ",\n\nEr is een verzoek ingediend door een beheerder om je wachtwoord te herstellen op Lineup Heroes.\nKlik op de onderstaande link om een nieuw wachtwoord in te stellen. Deze link is 1 uur geldig:\n$reset_link\n\nAls dit een fout is, hoef je niets te doen.\n\nMet vriendelijke groeten,\nHet Lineup Heroes Team";
                 
                 require_once dirname(__DIR__) . '/core/Mailer.php';
                 Mailer::send($u['email'], $subject, $message);
@@ -139,8 +139,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $host = $_SERVER['HTTP_HOST'];
                 $login_link = "$protocol://$host/login";
                 
-                $subject = "Je Lineup account is goedgekeurd!";
-                $message = "Beste " . $u['first_name'] . ",\n\nGoed nieuws! Je account op Lineup is zojuist goedgekeurd door een beheerder.\nJe kan nu inloggen via de onderstaande link:\n$login_link\n\nMet vriendelijke groeten,\nHet Lineup Team";
+                $subject = "Je Lineup Heroes account is goedgekeurd!";
+                $message = "Beste " . $u['first_name'] . ",\n\nGoed nieuws! Je account op Lineup is zojuist goedgekeurd door een beheerder.\nJe kan nu inloggen via de onderstaande link:\n$login_link\n\nMet vriendelijke groeten,\nHet Lineup Heroes Team";
                 
                 require_once dirname(__DIR__) . '/core/Mailer.php';
                 Mailer::send($u['email'], $subject, $message);

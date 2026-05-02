@@ -35,7 +35,7 @@ if (isset($_GET['token'])) {
                 if ($uInfo && $uInfo['account_status'] === 'pending') {
                     require_once dirname(__DIR__, 2) . '/core/Mailer.php';
                     $admin_subject = "Nieuwe wachtlijst aanmelding BEVESTIGD: " . $uInfo['first_name'] . " " . $uInfo['last_name'];
-                    $admin_msg = "Er is een nieuwe registratie op Lineup en het e-mailadres is zojuist bevestigd.\nNaam: " . $uInfo['first_name'] . " " . $uInfo['last_name'] . "\nEmail: " . $uInfo['email'] . "\nTeam: " . ($uInfo['team_name'] ?: 'Onbekend') . "\n\nDeze gebruiker staat op de wachtlijst en wacht op goedkeuring in het admin dashboard (sectie Gebruikers).";
+                    $admin_msg = "Er is een nieuwe registratie op Lineup Heroes en het e-mailadres is zojuist bevestigd.\nNaam: " . $uInfo['first_name'] . " " . $uInfo['last_name'] . "\nEmail: " . $uInfo['email'] . "\nTeam: " . ($uInfo['team_name'] ?: 'Onbekend') . "\n\nDeze gebruiker staat op de wachtlijst en wacht op goedkeuring in het admin dashboard (sectie Gebruikers).";
                     Mailer::send('robin@webbit.be', $admin_subject, $admin_msg);
                 }
 
@@ -59,7 +59,7 @@ if (isset($_GET['token'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Account Activeren - Lineup</title>
+    <title>Account Activeren - Lineup Heroes</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">

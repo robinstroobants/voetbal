@@ -1,6 +1,6 @@
 <?php
 // Default page title
-$page_title = $page_title ?? 'Voetbal App';
+$page_title = $page_title ?? 'Lineup Heroes';
 $is_localhost = isset($_SERVER['HTTP_HOST']) && (strpos($_SERVER['HTTP_HOST'], 'localhost') !== false || strpos($_SERVER['HTTP_HOST'], '127.0.0.1') !== false);
 ?>
 <?php
@@ -48,7 +48,7 @@ header("Expires: 0"); // Proxies blockeren
       <?php 
       $gtag_config = [
           'page_path' => $_SERVER['REQUEST_URI'],
-          'page_title' => $page_title ?? 'Lineup App'
+          'page_title' => $page_title ?? 'Lineup Heroes'
       ];
       if ($is_localhost) {
           $gtag_config['debug_mode'] = true;
@@ -74,7 +74,7 @@ header("Expires: 0"); // Proxies blockeren
             <?php if ($wsCount > 1 && (!isset($_SESSION['role']) || $_SESSION['role'] !== 'superadmin')): ?>
             <div class="dropdown">
                 <a class="navbar-brand fw-bold text-truncate dropdown-toggle text-white" style="max-width: 220px; cursor: pointer;" data-bs-toggle="dropdown" aria-expanded="false">
-                    <i class="fa-regular fa-futbol me-2"></i><?= htmlspecialchars($_SESSION['team_name'] ?? 'Lineup') ?>
+                    <i class="fa-regular fa-futbol me-2"></i><?= htmlspecialchars($_SESSION['team_name'] ?? 'Lineup Heroes') ?>
                 </a>
                 <ul class="dropdown-menu shadow">
                     <li class="dropdown-header text-uppercase fw-bold"><i class="fa-solid fa-layer-group me-1"></i> Teams</li>
@@ -93,7 +93,7 @@ header("Expires: 0"); // Proxies blockeren
             </div>
             <?php else: ?>
             <a class="navbar-brand fw-bold text-truncate" style="max-width: 220px;" href="/">
-                <i class="fa-regular fa-futbol me-2"></i><?= htmlspecialchars($_SESSION['team_name'] ?? 'Lineup') ?>
+                <i class="fa-regular fa-futbol me-2"></i><?= htmlspecialchars($_SESSION['team_name'] ?? 'Lineup Heroes') ?>
             </a>
             <?php endif; ?>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">

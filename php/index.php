@@ -315,7 +315,7 @@ require_once __DIR__ . '/header.php';
         <!-- ONBOARDING WIZARD -->
         <div class="card shadow border-0 overflow-hidden mb-4" style="border-radius: 12px;">
             <div class="bg-primary text-white p-4">
-                <h3 class="fw-bold mb-1"><i class="fa-solid fa-wand-magic-sparkles me-2"></i> Welkom bij Lineup!</h3>
+                <h3 class="fw-bold mb-1"><i class="fa-solid fa-wand-magic-sparkles me-2"></i> Welkom bij Lineup Heroes!</h3>
                 <p class="mb-0 text-white-50">Laten we je team snel opstarten. Werk deze stappen af om opstellingen te kunnen maken.</p>
             </div>
             

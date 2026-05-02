@@ -34,6 +34,8 @@ ssh -p "$SSH_PORT" "$SERVER" bash << 'ENDSSH'
   cd ~/www/lineupheroes.com/public_html
   git fetch origin
   git checkout main
+  git checkout -- . 2>/dev/null || true   # Gooi server-side lokale wijzigingen weg (bv. log files)
+  git clean -f -d --exclude='.htaccess' --exclude='site_version.txt' 2>/dev/null || true
   git pull origin main
   echo "✅ Code bijgewerkt naar laatste commit op 'main'"
 

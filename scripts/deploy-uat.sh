@@ -44,6 +44,8 @@ ssh -p "$SSH_PORT" "$SERVER" bash << 'ENDSSH'
   cd ~/www/lineup.webbit.be/public_html
   git fetch origin
   git checkout beta
+  git checkout -- . 2>/dev/null || true   # Gooi server-side lokale wijzigingen weg (bv. log files)
+  git clean -f -d --exclude='.htaccess' --exclude='site_version.txt' 2>/dev/null || true
   git pull origin beta
   echo "✅ Code bijgewerkt naar laatste commit op 'beta'"
 

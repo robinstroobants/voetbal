@@ -5,19 +5,20 @@
             $mem_peak_mb = round(memory_get_peak_usage() / 1024 / 1024, 2);
             $penalty_load = floor($global_load_ms / 1000) + floor($mem_peak_mb / 2);
             
-            // Haal de Git App Version tag op
+            // Versioning: site_version.txt (server-specifiek, niet in git) heeft prioriteit.
+            // Als enkel version.txt (git) beschikbaar is → lokale dev omgeving → toon -dev suffix.
             $app_version = 'v0.0.0';
-            // Probeer versie uit Git te halen (Docker compatibel)
 
-            $versionFile1 = __DIR__ . '/site_version.txt';
-            $versionFile2 = __DIR__ . '/version.txt';
+            $versionFile1 = __DIR__ . '/site_version.txt';  // Geschreven door deploy scripts (UAT/PROD)
+            $versionFile2 = __DIR__ . '/version.txt';        // Base versie in git
 
-            // Controleer of het bestand bestaat en lees het uit (prioriteit aan site_version)
             $raw_version = '';
+            $is_dev = true; // Aanname: dev totdat site_version.txt gevonden is
             foreach ([$versionFile1, $versionFile2] as $file) {
                 if (file_exists($file)) {
                     $raw_version = trim(file_get_contents($file));
                     if (!empty($raw_version)) {
+                        $is_dev = ($file === $versionFile2); // Enkel version.txt → dev omgeving
                         break;
                     }
                 }
@@ -25,10 +26,12 @@
 
             if (!empty($raw_version)) {
                 // Trim whitespace en sanitize de output tegen XSS (Cross-Site Scripting)
-                // Zelfs als je het bestand zelf beheert, is dit 'best practice'.
                 $version = htmlspecialchars(trim($raw_version), ENT_QUOTES, 'UTF-8');
                 if ($version && trim($version)) {
                     $app_version = trim($version);
+                    if ($is_dev) {
+                        $app_version .= '-dev'; // Lokale Docker omgeving
+                    }
                 }
             }
             

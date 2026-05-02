@@ -176,9 +176,14 @@ foreach ($selected_pattern['blocks'] as $dur) {
         $label .= " (Helft $part_idx)";
     }
     
-    // Gebruik opgeslagen label enkel als het niet leeg is
-    if (!empty($game_block_labels[$shift_idx])) {
-        $label = $game_block_labels[$shift_idx];
+    // Tournament labels zijn opgeslagen per wedstrijd (game_idx), niet per shift.
+    // Gebruik game_idx-1 als index zodat bij helften beide helften dezelfde wedstrijdnaam krijgen.
+    $game_label_idx = $game_idx - 1;
+    if (!empty($game_block_labels[$game_label_idx])) {
+        $base_label = $game_block_labels[$game_label_idx];
+        $label = $dur < $game_duration_min
+            ? $base_label . " (Helft $part_idx)"
+            : $base_label;
     }
     
     $shift_definitions[] = [

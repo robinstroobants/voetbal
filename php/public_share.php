@@ -45,5 +45,12 @@ $_GET['wedstrijd'] = $game['id'];
 $_SESSION['team_id'] = $game['team_id']; // Voorkom crashes in generator.php
 $page_title = "Opstelling: " . htmlspecialchars($game['opponent']);
 
+// ── Feature Telemetry: share view (ouder opent link) ──────────────────────────
+// Lichtgewicht: 1 INSERT, geen extra queries
+$_ip = explode(',', $_SERVER['HTTP_CF_CONNECTING_IP'] ?? $_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? '')[0];
+$pdo->prepare("INSERT INTO usage_logs (user_id, team_id, action_type, cost_weight, context) VALUES (0, ?, 'share_view', 1, ?)")
+    ->execute([$game['team_id'], $_ip]);
+// ────────────────────────────────────────────────────────────────────────────────
+
 // We laden gewoon lineup.php in, maar lineup.php moet zich nu gedragen als readonly publieke view.
 require_once __DIR__ . '/modules/schemas/lineup.php';

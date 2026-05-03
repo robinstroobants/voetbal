@@ -53,6 +53,13 @@ if (empty($token)) {
 // Update database
 $update = $pdo->prepare("UPDATE games SET share_token = ?, share_expires_at = ? WHERE id = ?");
 if ($update->execute([$token, $expires_at, $game_id])) {
+    // ── Feature Telemetry ─────────────────────────────────────────────────────
+    try {
+        $pdo->prepare("INSERT INTO usage_logs (user_id, team_id, action_type, cost_weight, context) VALUES (?, ?, 'share_link_generate', 1, ?)")
+            ->execute([$_SESSION['user_id'], $team_id, $expires_in_hours . 'h']);
+    } catch (\Exception $e) { /* non-blocking */ }
+    // ─────────────────────────────────────────────────────────────────────────
+
     $protocol = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? "https" : "http");
     $host = $_SERVER['HTTP_HOST'];
     $link = "$protocol://$host/share/$token";

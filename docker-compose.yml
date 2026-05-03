@@ -6,6 +6,8 @@ services:
     volumes:
       - ./php:/var/www/html
       - ./.git:/var/www/html/.git:ro
+      - ./php/conf.d/error_log.ini:/usr/local/etc/php/conf.d/error_log.ini:ro
+      - sessions_data:/var/www/sessions
     environment:
       - DB_HOST=db
       - DB_NAME=${MYSQL_DATABASE}
@@ -13,6 +15,8 @@ services:
       - DB_PASS=${MYSQL_PASSWORD}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - SENTRY_DSN=${SENTRY_DSN}
+      - APP_ENV=development
     ports:
       - "8085:80"
     depends_on:
@@ -64,3 +68,4 @@ services:
 
 volumes:
   db_data:
+  sessions_data:

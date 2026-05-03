@@ -1,5 +1,5 @@
 <?php
-session_start();
+if (session_status() === PHP_SESSION_NONE) session_start();
 
 if (isset($_SESSION['user_id'])) {
     header("Location: /");
@@ -102,7 +102,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Inloggen - Lineup</title>
+    <title>Inloggen - Lineup Heroes</title>
     <!-- Gebruik Inter voor een Apple-achtige of strakke uitstraling -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     <!-- FontAwesome toevoegen -->
@@ -123,7 +123,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       <?php 
       $gtag_config = [
           'page_path' => $_SERVER['REQUEST_URI'],
-          'page_title' => 'Inloggen - Lineup'
+          'page_title' => 'Inloggen - Lineup Heroes'
       ];
       if ($is_localhost) {
           $gtag_config['debug_mode'] = true;
@@ -359,7 +359,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <div class="login-container">
         <div class="logo-wrap">
             <i class="fa-regular fa-futbol main-icon"></i>
-            <h1>Inloggen op Lineup</h1>
+            <h1>Inloggen op Lineup Heroes</h1>
             <p>Welkom terug, Coach.</p>
         </div>
 
@@ -407,14 +407,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <button type="submit" class="btn-submit">Ga verder met e-mail</button>
                     
                     <div class="switch-link">
-                        Nog geen account? <a href="/register">Ontdek Lineup</a>
+                        Nog geen account? <a href="/register">Ontdek Lineup Heroes</a>
                     </div>
                 </form>
             </div>
         </div>
         
         <div class="footer-text">
-            &copy; <?= date('Y') ?> Lineup. Alle rechten voorbehouden.
+            &copy; <?= date('Y') ?> Lineup Heroes. Alle rechten voorbehouden.
         </div>
     </div>
 

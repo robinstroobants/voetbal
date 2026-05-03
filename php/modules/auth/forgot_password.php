@@ -25,8 +25,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $host = $_SERVER['HTTP_HOST'];
                 $reset_link = "$protocol://$host/reset_password?token=$token";
                 
-                $subject = "Wachtwoord herstellen - Lineup";
-                $message = "Beste " . $user['first_name'] . ",\n\nEr is een verzoek ingediend om je wachtwoord te herstellen op Lineup.\nKlik op de onderstaande link om een nieuw wachtwoord in te stellen. Deze link is 1 uur geldig:\n$reset_link\n\nAls jij dit niet hebt aangevraagd, hoef je niets te doen en je account blijft veilig.\n\nMet vriendelijke groeten,\nHet Lineup Team";
+                $subject = "Wachtwoord herstellen - Lineup Heroes";
+                $message = "Beste " . $user['first_name'] . ",\n\nEr is een verzoek ingediend om je wachtwoord te herstellen op Lineup Heroes.\nKlik op de onderstaande link om een nieuw wachtwoord in te stellen. Deze link is 1 uur geldig:\n$reset_link\n\nAls jij dit niet hebt aangevraagd, hoef je niets te doen en je account blijft veilig.\n\nMet vriendelijke groeten,\nHet Lineup Heroes Team";
                 
                 require_once dirname(__DIR__, 2) . '/core/Mailer.php';
                 $mail_success = Mailer::send($email, $subject, $message);
@@ -49,7 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Wachtwoord Vergeten - Lineup</title>
+    <title>Wachtwoord Vergeten - Lineup Heroes</title>
     <!-- Gebruik Inter voor een Apple-achtige of strakke uitstraling -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     <!-- FontAwesome toevoegen -->
@@ -243,7 +243,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
         
         <div class="footer-text">
-            &copy; <?= date('Y') ?> Lineup. Alle rechten voorbehouden.
+            &copy; <?= date('Y') ?> Lineup Heroes. Alle rechten voorbehouden.
         </div>
     </div>
 

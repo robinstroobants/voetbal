@@ -315,7 +315,7 @@ require_once __DIR__ . '/header.php';
         <!-- ONBOARDING WIZARD -->
         <div class="card shadow border-0 overflow-hidden mb-4" style="border-radius: 12px;">
             <div class="bg-primary text-white p-4">
-                <h3 class="fw-bold mb-1"><i class="fa-solid fa-wand-magic-sparkles me-2"></i> Welkom bij Lineup!</h3>
+                <h3 class="fw-bold mb-1"><i class="fa-solid fa-wand-magic-sparkles me-2"></i> Welkom bij Lineup Heroes!</h3>
                 <p class="mb-0 text-white-50">Laten we je team snel opstarten. Werk deze stappen af om opstellingen te kunnen maken.</p>
             </div>
             
@@ -485,7 +485,7 @@ require_once __DIR__ . '/header.php';
                                     <i class="fa-solid fa-table-list"></i>
                                 </a>
                                 <?php
-                                    $match_datetime = strtotime($next_game['match_date'] . ' ' . $next_game['time']);
+                                    $match_datetime = strtotime($next_game['game_date']);
                                     $hours_until_match = max(0, ($match_datetime - time()) / 3600);
                                     $needed_hours = ceil($hours_until_match + 4);
                                     if ($needed_hours <= 24) $needed_hours = 24;

@@ -213,7 +213,6 @@ require_once dirname(__DIR__, 2) . '/header.php';
                     </div>
                     <h5 class="card-title fw-bold text-dark">EqualPlay AI</h5>
                     <p class="card-text text-muted mb-4" style="min-height: 120px;">Genereer een schema met de absolute focus op <strong>gelijke speeltijd voor iedereen</strong> over alle posities heen. Positiescores worden pas in tweede instantie bekeken.</p>
-                    
                     <div class="mt-auto">
                         <a href="/games/<?= $gameId ?>/lineup?generate=1&dynamic=1" class="btn btn-success w-100 fw-bold">Genereer met EqualPlay</a>
                     </div>

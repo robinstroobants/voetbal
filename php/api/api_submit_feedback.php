@@ -12,6 +12,8 @@ $pdo->exec("
         description TEXT NOT NULL,
         url VARCHAR(255) NULL,
         user_agent TEXT NULL,
+        error_log TEXT NULL,
+        status ENUM('open','resolved','ignored') DEFAULT 'open',
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
 ");
@@ -54,9 +56,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
-    // Opslaan in database
-    $stmt = $pdo->prepare("INSERT INTO user_feedback (user_id, team_id, feedback_type, description, url, user_agent) VALUES (?, ?, ?, ?, ?, ?)");
-    $stmt->execute([$userId, $teamId, $type, $description, $url, $userAgent]);
+    // Haal error log op vóór insert (zodat we het kunnen opslaan)
+    $errorLogContent = null;
+    $possiblePaths = [
+        dirname(__DIR__) . '/api/php_errors.log',   // Docker: geconfigureerd via conf.d/error_log.ini
+        ini_get('error_log'),
+        '/tmp/php_errors.log',
+        dirname(__DIR__) . '/api/debug_events.log',
+        dirname(__DIR__) . '/error_log',
+        dirname(__DIR__) . '/php_errorlog',
+        '/var/log/php_errors.log',
+        '/Applications/XAMPP/logs/php_error_log',
+        '/Applications/MAMP/logs/php_error.log',
+        '/var/log/php-fpm/error.log',
+    ];
+    foreach ($possiblePaths as $path) {
+        if (!empty($path) && file_exists($path) && is_readable($path)) {
+            $lines = file($path);
+            if ($lines !== false) {
+                $errorLogContent = implode('', array_slice($lines, -10));
+                break;
+            }
+        }
+    }
+
+    // Opslaan in database (inclusief error log)
+    $stmt = $pdo->prepare("INSERT INTO user_feedback (user_id, team_id, feedback_type, description, url, user_agent, error_log) VALUES (?, ?, ?, ?, ?, ?, ?)");
+    $stmt->execute([$userId, $teamId, $type, $description, $url, $userAgent, $errorLogContent]);
 
     // Mail versturen naar admin
     $adminEmail = 'robin@webbit.be'; // Aangezien de mailer setup ook robin@webbit.be is.
@@ -69,32 +95,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $body .= "<hr/>";
     $body .= "<p><small><strong>User Agent:</strong> " . htmlspecialchars($userAgent) . "</small></p>";
 
-    // Probeer de laatste 10 regels van de error log op te halen
-    $errorLogContent = "Geen error log gevonden of niet leesbaar.";
-    $possiblePaths = [
-        ini_get('error_log'),
-        dirname(__DIR__) . '/error_log',
-        dirname(__DIR__) . '/php_errorlog',
-        '/Applications/XAMPP/logs/php_error_log',
-        '/Applications/MAMP/logs/php_error.log',
-        '/var/log/php-fpm/error.log',
-        '/var/log/apache2/error.log',
-        '/var/log/nginx/error.log'
-    ];
-
-    foreach ($possiblePaths as $path) {
-        if (!empty($path) && file_exists($path) && is_readable($path)) {
-            $lines = file($path);
-            if ($lines !== false) {
-                $lastLines = array_slice($lines, -10);
-                $errorLogContent = htmlspecialchars(implode("", $lastLines));
-                break; // We hebben een leesbare log gevonden
-            }
-        }
-    }
-
+    // Voeg error log toe aan mail (reuse $errorLogContent van hierboven)
+    $logForMail = $errorLogContent ? htmlspecialchars($errorLogContent) : 'Geen error log beschikbaar.';
     $body .= "<h3>Laatste 10 regels Error Log:</h3>";
-    $body .= "<pre style='background:#f1f1f1; padding:10px; border:1px solid #ccc; font-size:11px; overflow-x:auto; color:#d63384;'>" . $errorLogContent . "</pre>";
+    $body .= "<pre style='background:#f1f1f1; padding:10px; border:1px solid #ccc; font-size:11px; overflow-x:auto; color:#d63384;'>" . $logForMail . "</pre>";
 
     Mailer::send($adminEmail, $subject, $body, true);
 

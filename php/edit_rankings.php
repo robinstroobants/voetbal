@@ -1,5 +1,5 @@
 <?php
-require_once("game.php");
+require_once __DIR__ . '/core/getconn.php';
 
 $stmtF = $pdo->prepare("SELECT default_format FROM teams WHERE id = ?");
 $stmtF->execute([$_SESSION['team_id']]);
@@ -19,7 +19,6 @@ if (strpos($default_format, '2v2') === 0 || strpos($default_format, '3v3') === 0
     exit;
 }
 
-require_once __DIR__ . '/core/getconn.php';
 $page_title = 'Team & Positie Rankings';
 
 // Haal alle spelers op die GEEN vaste doelman zijn, specifiek voor deze ploeg
@@ -81,7 +80,7 @@ while ($g = $stmtGK->fetch(PDO::FETCH_ASSOC)) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= $page_title ?> - Lineup App</title>
+    <title><?= $page_title ?> - Lineup Heroes</title>
     <!-- Bootstrap and Fonts -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">

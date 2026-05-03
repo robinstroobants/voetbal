@@ -1,6 +1,6 @@
 <?php
 // Default page title
-$page_title = $page_title ?? 'Voetbal App';
+$page_title = $page_title ?? 'Lineup Heroes';
 $is_localhost = isset($_SERVER['HTTP_HOST']) && (strpos($_SERVER['HTTP_HOST'], 'localhost') !== false || strpos($_SERVER['HTTP_HOST'], '127.0.0.1') !== false);
 ?>
 <?php
@@ -48,7 +48,7 @@ header("Expires: 0"); // Proxies blockeren
       <?php 
       $gtag_config = [
           'page_path' => $_SERVER['REQUEST_URI'],
-          'page_title' => $page_title ?? 'Lineup App'
+          'page_title' => $page_title ?? 'Lineup Heroes'
       ];
       if ($is_localhost) {
           $gtag_config['debug_mode'] = true;
@@ -74,7 +74,7 @@ header("Expires: 0"); // Proxies blockeren
             <?php if ($wsCount > 1 && (!isset($_SESSION['role']) || $_SESSION['role'] !== 'superadmin')): ?>
             <div class="dropdown">
                 <a class="navbar-brand fw-bold text-truncate dropdown-toggle text-white" style="max-width: 220px; cursor: pointer;" data-bs-toggle="dropdown" aria-expanded="false">
-                    <i class="fa-regular fa-futbol me-2"></i><?= htmlspecialchars($_SESSION['team_name'] ?? 'Lineup') ?>
+                    <i class="fa-regular fa-futbol me-2"></i><?= htmlspecialchars($_SESSION['team_name'] ?? 'Lineup Heroes') ?>
                 </a>
                 <ul class="dropdown-menu shadow">
                     <li class="dropdown-header text-uppercase fw-bold"><i class="fa-solid fa-layer-group me-1"></i> Teams</li>
@@ -93,7 +93,7 @@ header("Expires: 0"); // Proxies blockeren
             </div>
             <?php else: ?>
             <a class="navbar-brand fw-bold text-truncate" style="max-width: 220px;" href="/">
-                <i class="fa-regular fa-futbol me-2"></i><?= htmlspecialchars($_SESSION['team_name'] ?? 'Lineup') ?>
+                <i class="fa-regular fa-futbol me-2"></i><?= htmlspecialchars($_SESSION['team_name'] ?? 'Lineup Heroes') ?>
             </a>
             <?php endif; ?>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
@@ -111,6 +111,14 @@ header("Expires: 0"); // Proxies blockeren
                     <li class="nav-item"><a class="nav-link" href="/stats">
                         <i class="fa-solid fa-chart-line me-2"></i>Statistieken
                     </a></li>
+                    <?php if (isset($_SESSION['is_beta_user']) && $_SESSION['is_beta_user'] == 1): ?>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/edit_rankings">
+                            <i class="fa-solid fa-flask text-warning me-1"></i>Rankings
+                            <span class="badge bg-warning text-dark ms-1" style="font-size:0.6rem; vertical-align:middle;">BETA</span>
+                        </a>
+                    </li>
+                    <?php endif; ?>
                     <?php endif; ?>
                     
                     <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'superadmin'): ?>
@@ -162,9 +170,6 @@ header("Expires: 0"); // Proxies blockeren
                             if (strpos($df, '2v2') !== 0 && strpos($df, '3v3') !== 0): 
                             ?>
                             <li><a class="dropdown-item" href="/scores"><i class="fa-solid fa-star me-2"></i>Score Matrix</a></li>
-                            <?php if (isset($_SESSION['is_beta_user']) && $_SESSION['is_beta_user'] == 1): ?>
-                            <li><a class="dropdown-item" href="/edit_rankings"><i class="fa-solid fa-flask text-warning me-2"></i>Rankings <span class="badge bg-warning text-dark ms-1" style="font-size:0.6rem;">BETA</span></a></li>
-                            <?php endif; ?>
                             <?php endif; ?>
                             
                             <li><hr class="dropdown-divider"></li>

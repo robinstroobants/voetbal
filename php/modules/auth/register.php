@@ -162,8 +162,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error) {
                         $host = $_SERVER['HTTP_HOST'];
                         $verify_link = "$protocol://$host/verify.php?token=$token";
                         
-                        $subject = "Activeer je Lineup account";
-                        $message = "Beste $first_name,\n\nWelkom bij Lineup!\nKlik op de onderstaande link om je account te activeren:\n$verify_link\n\nMet vriendelijke groeten,\nHet Lineup Team";
+                        $subject = "Activeer je Lineup Heroes account";
+                        $message = "Beste $first_name,\n\nWelkom bij Lineup Heroes!\nKlik op de onderstaande link om je account te activeren:\n$verify_link\n\nMet vriendelijke groeten,\nHet Lineup Heroes Team";
                         
                         require_once dirname(__DIR__, 2) . '/core/Mailer.php';
                         Mailer::send($email, $subject, $message);
@@ -194,7 +194,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Registreren - Lineup</title>
+    <title>Registreren - Lineup Heroes</title>
     <!-- Gebruik Inter voor een Apple-achtige of strakke uitstraling -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     <!-- FontAwesome toevoegen -->
@@ -415,14 +415,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error) {
                 <h1>Uitnodiging Accepteren</h1>
                 <p>Maak een gratis account aan om als coach toe te treden.</p>
             <?php else: ?>
-                <h1>Word lid van Lineup</h1>
+                <h1>Word lid van Lineup Heroes</h1>
                 <p>Maak een gratis account aan om te starten.</p>
             <?php endif; ?>
         </div>
         
         <?php if (!$invited_team_id): ?>
         <div style="background: #eef2ff; border: 1px solid #d0d7f5; color: #3b5998; padding: 12px; border-radius: 10px; font-size: 0.9rem; margin-bottom: 24px; text-align: center;">
-            <i class="fa-solid fa-circle-info me-1"></i> <strong>Lineup zit momenteel in gesloten bèta.</strong><br>Je kan je registreren, waarna je op de wachtlijst komt. We sturen je een seintje zodra je kan testen!
+            <i class="fa-solid fa-circle-info me-1"></i> <strong>Lineup Heroes zit momenteel in gesloten bèta.</strong><br>Je kan je registreren, waarna je op de wachtlijst komt. We sturen je een seintje zodra je kan testen!
         </div>
         <?php endif; ?>
 
@@ -652,7 +652,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && !$error) {
         </div>
         
         <div class="footer-text">
-            &copy; <?= date('Y') ?> Lineup. Alle rechten voorbehouden.
+            &copy; <?= date('Y') ?> Lineup Heroes. Alle rechten voorbehouden.
         </div>
     </div>
 

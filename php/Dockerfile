@@ -28,3 +28,6 @@ RUN { \
 
 # Install Composer
 RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+
+# Maak de sessions directory aan met juiste rechten voor www-data
+RUN mkdir -p /var/www/sessions && chown www-data:www-data /var/www/sessions && chmod 700 /var/www/sessions

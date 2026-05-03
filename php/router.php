@@ -4,6 +4,39 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+// ─── Sentry Error Monitoring ──────────────────────────────────────────────────
+if (file_exists(__DIR__ . '/vendor/autoload.php')) {
+    require_once __DIR__ . '/vendor/autoload.php';
+}
+$sentryDsn = $_SERVER['SENTRY_DSN'] ?? getenv('SENTRY_DSN') ?: '';
+$appEnv    = $_SERVER['APP_ENV']    ?? getenv('APP_ENV')    ?: 'production';
+
+if ($sentryDsn) {
+    // Versie ophalen: site_version.txt heeft prioriteit (gezet door deploy script)
+    $versionFile = __DIR__ . '/site_version.txt';
+    $fallbackFile = __DIR__ . '/version.txt';
+    $sentryRelease = 'v' . trim(file_get_contents(file_exists($versionFile) ? $versionFile : $fallbackFile) ?: 'unknown');
+
+    \Sentry\init([
+        'dsn'                => $sentryDsn,
+        'environment'        => $appEnv,
+        'release'            => $sentryRelease,
+        'traces_sample_rate' => ($appEnv === 'production') ? 0.1 : 1.0,
+        'send_default_pii'   => false,
+    ]);
+}
+
+// TST: toon PHP errors rechtstreeks in de browser
+if ($appEnv === 'development') {
+    ini_set('display_errors', 1);
+    ini_set('display_startup_errors', 1);
+    error_reporting(E_ALL);
+} else {
+    ini_set('display_errors', 0);
+    error_reporting(E_ALL);
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 // Security: Check of het IP adres op slot is
 // We laden we de DB connectie als we dit op termijn nodig hebben, maar auth_check is hier voldoende
 // Omdat require_once __DIR__ . '/core/getconn.php' al in de files gebeurt.

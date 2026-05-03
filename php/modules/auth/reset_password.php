@@ -48,7 +48,7 @@ if (!$user && empty($_POST)) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nieuw Wachtwoord Instellen - Lineup</title>
+    <title>Nieuw Wachtwoord Instellen - Lineup Heroes</title>
     <!-- Gebruik Inter voor een Apple-achtige of strakke uitstraling -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     <!-- FontAwesome toevoegen -->
@@ -207,7 +207,7 @@ if (!$user && empty($_POST)) {
         <div class="logo-wrap">
             <i class="fa-solid fa-key main-icon"></i>
             <h1>Nieuw Wachtwoord</h1>
-            <p>Stel een nieuw, veilig wachtwoord in voor je Lineup account.</p>
+            <p>Stel een nieuw, veilig wachtwoord in voor je Lineup Heroes account.</p>
         </div>
 
         <?php if ($error): ?>
@@ -233,7 +233,7 @@ if (!$user && empty($_POST)) {
         <?php endif; ?>
         
         <div class="footer-text">
-            &copy; <?= date('Y') ?> Lineup. Alle rechten voorbehouden.
+            &copy; <?= date('Y') ?> Lineup Heroes. Alle rechten voorbehouden.
         </div>
     </div>
 

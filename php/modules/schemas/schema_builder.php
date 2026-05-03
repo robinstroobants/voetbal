@@ -641,6 +641,14 @@ if ($numFieldPlayers > 0 && $totalFieldBlocks > 0) {
 }
 
 $page_title = "Bouw Schema Manueel";
+
+// ── Feature Telemetry: lineup lab view ────────────────────────────────────────
+try {
+    $pdo->prepare("INSERT INTO usage_logs (user_id, team_id, action_type, cost_weight, context) VALUES (?, ?, 'lineup_lab_view', 1, ?)")
+        ->execute([$_SESSION['user_id'] ?? 0, $_SESSION['team_id'] ?? 0, $search_format]);
+} catch (\Exception $e) { /* non-blocking */ }
+// ─────────────────────────────────────────────────────────────────────────────
+
 require_once dirname(__DIR__, 2) . '/header.php';
 ?>
 <style>

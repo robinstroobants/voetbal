@@ -170,6 +170,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             file_put_contents(__DIR__ . '/debug_events.log', date('Y-m-d H:i:s') . " - DB ERROR: " . print_r($err, true) . "\n", FILE_APPEND);
         }
 
+        // ── Feature Telemetry: ouder logt een event (share feature) ───────────────
+        // user_id = 0 (niet ingelogd), team_id via game_id, context = event type
+        try {
+            $stmtTeam = $pdo->prepare("SELECT team_id FROM games WHERE id = ?");
+            $stmtTeam->execute([$gameId]);
+            $eventTeamId = (int)($stmtTeam->fetchColumn() ?: 0);
+            $pdo->prepare("INSERT INTO usage_logs (user_id, team_id, action_type, cost_weight, context) VALUES (0, ?, 'game_event_log', 1, ?)")
+                ->execute([$eventTeamId, $eventType]);
+        } catch (\Exception $e) { /* non-blocking */ }
+        // ─────────────────────────────────────────────────────────────────────────
+
         echo json_encode(['status' => 'success', 'event_id' => $pdo->lastInsertId()]);
         exit;
     }

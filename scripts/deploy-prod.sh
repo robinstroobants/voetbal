@@ -39,12 +39,14 @@ git push origin "$BRANCH"
 
 ssh -p "$SSH_PORT" "$SERVER" bash << 'ENDSSH'
   set -e
-  cd ~/www/lineupheroes.com/public_html
-  git fetch origin
-  git checkout main
-  git checkout -- . 2>/dev/null || true   # Gooi server-side lokale wijzigingen weg (bv. log files)
-  git clean -f -d --exclude='.htaccess' --exclude='site_version.txt' 2>/dev/null || true
-  git pull origin main
+  # New structure: repo lives in voetbal/, public_html is a symlink to voetbal/php
+  cd ~/www/lineupheroes.com/voetbal/php
+  git -C .. fetch origin
+  git -C .. checkout main
+  git -C .. checkout -- . 2>/dev/null || true
+  # Exclude php/.htaccess (contains PROD server vars) and php/site_version.txt
+  git -C .. clean -f -d --exclude='php/.htaccess' --exclude='php/site_version.txt' 2>/dev/null || true
+  git -C .. pull origin main
   echo "✅ Code bijgewerkt naar laatste commit op 'main'"
 
   # Composer dependencies installeren (bv. Sentry SDK)
@@ -56,7 +58,7 @@ ssh -p "$SSH_PORT" "$SERVER" bash << 'ENDSSH'
   echo "${BASE_VERSION}" > site_version.txt
   echo "✅ Versie: ${BASE_VERSION}"
 
-  # Sentry & environment config via .htaccess (shared hosting, geen toegang tot php.ini)
+  # Update APP_ENV + Sentry DSN in php/.htaccess (server vars block is at top, preserved by git clean)
   SENTRY_DSN="https://9d70aefea0f7ed519ed0baf6a741869a@o4511324428107776.ingest.de.sentry.io/4511324449013840"
   for line in "SetEnv APP_ENV production" "SetEnv SENTRY_DSN $SENTRY_DSN" "php_value date.timezone Europe/Brussels" "php_value session.gc_maxlifetime 2592000" "php_value session.cookie_lifetime 2592000"; do
     key=$(echo "$line" | awk '{print $2}')
@@ -66,7 +68,7 @@ ssh -p "$SSH_PORT" "$SERVER" bash << 'ENDSSH'
       echo "$line" >> .htaccess
     fi
   done
-  echo "✅ Sentry env vars + timezone gezet in .htaccess (production)"
+  echo "✅ Sentry env vars + timezone gecontroleerd in php/.htaccess (production)"
 ENDSSH
 
 # Run migrations via HTTP

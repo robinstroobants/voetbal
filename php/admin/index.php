@@ -259,7 +259,8 @@ require_once __DIR__ . '/../header.php';
     <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom border-dark">
         <h2><i class="fa-solid fa-server text-warning me-2"></i> SaaS Tenant & Abonnementen Beheer</h2>
         <div>
-            <a href="/admin/performance_clients.php" class="btn btn-outline-info btn-sm"><i class="fa-solid fa-chart-line me-1"></i> Telemetry & Prestaties</a>
+            <a href="/admin/feature_load" class="btn btn-outline-warning btn-sm me-1"><i class="fa-solid fa-chart-area me-1"></i> Feature Load</a>
+            <a href="/admin/performance_clients" class="btn btn-outline-info btn-sm"><i class="fa-solid fa-mobile-screen me-1"></i> Client Telemetry</a>
         </div>
     </div>
 
@@ -323,7 +324,7 @@ require_once __DIR__ . '/../header.php';
                     <i class="fa-solid fa-mobile-screen fa-2x opacity-50 mb-2"></i>
                     <h3 class="mb-0 fw-bold"><?= $admin_stats['telemetry_24h'] ?? 0 ?></h3>
                 </div>
-                <a href="/admin/performance_clients.php" class="stretched-link"></a>
+                <a href="/admin/performance_clients" class="stretched-link"></a>
             </div>
         </div>
         <div class="col-md-2 col-6 mb-2">

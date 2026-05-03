@@ -73,8 +73,9 @@ $heaviest_users = $heaviest_users_stmt->fetchAll(PDO::FETCH_ASSOC);
     <?php include __DIR__ . '/../header.php'; ?>
 
     <div class="container mt-4">
+        <?php include __DIR__ . '/_monitoring_nav.php'; ?>
         <div class="d-flex justify-content-between align-items-center mb-4">
-            <h3><i class="fa-solid fa-gauge-high text-primary me-2"></i>Performance Dashboard</h3>
+            <h3><i class="fa-solid fa-gauge-high text-primary me-2"></i>Server Logs</h3>
             <div class="d-flex align-items-center gap-2">
                 <span class="badge bg-success" id="live-indicator"><i class="fa-solid fa-circle-dot fa-fade me-1"></i>Live Updates</span>
                 <form method="POST" class="d-inline"
@@ -107,8 +108,8 @@ $heaviest_users = $heaviest_users_stmt->fetchAll(PDO::FETCH_ASSOC);
                 <div class="card shadow-sm border-0 bg-white">
                     <div class="card-body text-center">
                         <h6 class="text-muted mb-2">Gem. Snelheid</h6>
-                        <h3 class="mb-0 <?= $stats['avg_ms'] > 1000 ? 'slow' : ($stats['avg_ms'] > 300 ? 'medium' : 'fast') ?>">
-                            <?= number_format($stats['avg_ms'], 0) ?> <small class="text-muted" style="font-size: 0.5em;">ms</small>
+                        <h3 class="mb-0 <?= ($stats['avg_ms'] ?? 0) > 1000 ? 'slow' : (($stats['avg_ms'] ?? 0) > 300 ? 'medium' : 'fast') ?>">
+                            <?= number_format((float)($stats['avg_ms'] ?? 0), 0) ?> <small class="text-muted" style="font-size: 0.5em;">ms</small>
                         </h3>
                     </div>
                 </div>
@@ -117,7 +118,7 @@ $heaviest_users = $heaviest_users_stmt->fetchAll(PDO::FETCH_ASSOC);
                 <div class="card shadow-sm border-0 bg-white">
                     <div class="card-body text-center">
                         <h6 class="text-muted mb-2">Piek Snelheid (Max)</h6>
-                        <h3 class="mb-0 text-danger"><?= number_format($stats['max_ms'], 0) ?> <small class="text-muted" style="font-size: 0.5em;">ms</small></h3>
+                        <h3 class="mb-0 text-danger"><?= number_format((float)($stats['max_ms'] ?? 0), 0) ?> <small class="text-muted" style="font-size: 0.5em;">ms</small></h3>
                     </div>
                 </div>
             </div>
@@ -125,7 +126,7 @@ $heaviest_users = $heaviest_users_stmt->fetchAll(PDO::FETCH_ASSOC);
                 <div class="card shadow-sm border-0 bg-white">
                     <div class="card-body text-center">
                         <h6 class="text-muted mb-2">Piek Geheugen</h6>
-                        <h3 class="mb-0"><?= number_format($stats['max_mem'], 1) ?> <small class="text-muted" style="font-size: 0.5em;">MB</small></h3>
+                        <h3 class="mb-0"><?= number_format((float)($stats['max_mem'] ?? 0), 1) ?> <small class="text-muted" style="font-size: 0.5em;">MB</small></h3>
                     </div>
                 </div>
             </div>

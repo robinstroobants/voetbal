@@ -3,6 +3,7 @@
 .htaccess
 .antigravityrules
 db/
+prompts/
 /php/prompts/
 /php/vendor/
 /php/.phpunit.cache/

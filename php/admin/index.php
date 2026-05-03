@@ -256,13 +256,12 @@ require_once __DIR__ . '/../header.php';
 ?>
 
 <div class="container mt-4 mb-5">
-    <div class="d-flex justify-content-between align-items-center mb-4 pb-3 border-bottom border-dark">
-        <h2><i class="fa-solid fa-server text-warning me-2"></i> SaaS Tenant & Abonnementen Beheer</h2>
-        <div>
-            <a href="/admin/feature_load" class="btn btn-outline-warning btn-sm me-1"><i class="fa-solid fa-chart-area me-1"></i> Feature Load</a>
-            <a href="/admin/performance_clients" class="btn btn-outline-info btn-sm"><i class="fa-solid fa-mobile-screen me-1"></i> Client Telemetry</a>
-        </div>
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="mb-0"><i class="fa-solid fa-server text-warning me-2"></i> SaaS Tenant &amp; Abonnementen Beheer</h2>
     </div>
+
+    <!-- Monitoring navigatiebalk -->
+    <?php include __DIR__ . '/_monitoring_nav.php'; ?>
 
     <!-- Systeem Alerts / Revisor Dummies -->
     <?php if ($dummyStats && $dummyStats['total_count'] > 0): ?>

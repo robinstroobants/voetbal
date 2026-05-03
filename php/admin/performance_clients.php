@@ -58,13 +58,8 @@ $logs = $pdo->query("
 <body class="bg-light">
 
 <div class="container-fluid py-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h2><i class="fa-solid fa-mobile-screen text-primary me-2"></i> Client Telemetry</h2>
-        <div>
-            <a href="/admin/performance" class="btn btn-outline-secondary"><i class="fa-solid fa-server me-1"></i> Server Performance</a>
-            <a href="/admin" class="btn btn-secondary">Terug naar Home</a>
-        </div>
-    </div>
+    <h2><i class="fa-solid fa-mobile-screen text-primary me-2"></i> Client Telemetry</h2>
+    <?php include __DIR__ . '/_monitoring_nav.php'; ?>
 
     <!-- Samenvatting per user_type -->
     <div class="row mb-4">

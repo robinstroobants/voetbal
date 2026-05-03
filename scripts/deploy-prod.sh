@@ -23,6 +23,40 @@ if [ "$CURRENT" != "$BRANCH" ]; then
   exit 1
 fi
 
+# ── WORKFLOW GUARD: Controleer of main alle commits van beta bevat ────────────
+# Alle commits op beta moeten bereikbaar zijn vanuit main.
+# Als dat niet het geval is, zijn er commits op main die nooit via beta zijn gegaan.
+BETA_NOT_IN_MAIN=$(git log main..beta --oneline 2>/dev/null | wc -l | tr -d ' ')
+MAIN_COMMITS_NOT_VIA_BETA=$(git log beta..main --oneline 2>/dev/null | wc -l | tr -d ' ')
+
+if [ "$MAIN_COMMITS_NOT_VIA_BETA" -gt 0 ]; then
+  echo ""
+  echo "🚫 STOP — WORKFLOW FOUT GEDETECTEERD"
+  echo "   Er staan $MAIN_COMMITS_NOT_VIA_BETA commit(s) op 'main' die NIET via 'beta' zijn gegaan:"
+  git log beta..main --oneline
+  echo ""
+  echo "   De correcte workflow is:"
+  echo "   1. feature/* branch → merge naar beta"
+  echo "   2. deploy-uat.sh (testen op UAT)"
+  echo "   3. git checkout main && git merge beta"
+  echo "   4. deploy-prod.sh"
+  echo ""
+  read -p "Wil je toch doorgaan? Dit is enkel aanvaardbaar bij hotfixes. (yes/no): " force_confirm
+  if [ "$force_confirm" != "yes" ]; then
+    echo "Geannuleerd. Merge je wijzigingen eerst via beta."
+    exit 1
+  fi
+  echo "⚠️  Doorgegaan op eigen verantwoordelijkheid."
+fi
+
+if [ "$BETA_NOT_IN_MAIN" -gt 0 ]; then
+  echo ""
+  echo "⚠️  WAARSCHUWING: beta heeft $BETA_NOT_IN_MAIN commit(s) die nog NIET in main zitten."
+  echo "   Overweeg: git merge beta -- zodat UAT en PROD synchroon zijn."
+  echo ""
+fi
+# ─────────────────────────────────────────────────────────────────────────────
+
 echo "⚠️  Je staat op het punt te deployen naar PRODUCTIE (lineupheroes.com)!"
 echo "   Branch: $BRANCH"
 echo "   Laatste commit: $(git log --oneline -1)"

@@ -125,7 +125,6 @@
 
 
 ## feedback
-- bij feedback zou ik ook de 10 logregels willen zien (in een modal ofzo), kan dat?
 
 
 
@@ -141,3 +140,7 @@
 
 ### Wedstrijdverslag en wachtkamer:
 -- ook daar mag je de label tonen (papa van Thibo) ipv email. toon email pas tonen na een hover
+
+
+### op lijstje zetten:
+- ik wil dat er de wedstrijden van de komende 14 dagen ook verschijnen in het coach dashboard bij historiek. 

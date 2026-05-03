@@ -39,10 +39,26 @@ ssh -p "$SSH_PORT" "$SERVER" bash << 'ENDSSH'
   git pull origin main
   echo "✅ Code bijgewerkt naar laatste commit op 'main'"
 
+  # Composer dependencies installeren (bv. Sentry SDK)
+  composer install --no-dev --no-interaction --optimize-autoloader 2>&1 | tail -5
+  echo "✅ Composer packages up-to-date"
+
   # Schrijf site_version.txt met clean versienummer (niet in git, heeft prioriteit in footer)
   BASE_VERSION=$(cat version.txt | tr -d '\n\r')
   echo "${BASE_VERSION}" > site_version.txt
   echo "✅ Versie: ${BASE_VERSION}"
+
+  # Sentry & environment config via .htaccess (shared hosting, geen toegang tot php.ini)
+  SENTRY_DSN="https://9d70aefea0f7ed519ed0baf6a741869a@o4511324428107776.ingest.de.sentry.io/4511324449013840"
+  for line in "SetEnv APP_ENV production" "SetEnv SENTRY_DSN $SENTRY_DSN"; do
+    key=$(echo "$line" | awk '{print $2}')
+    if grep -q "SetEnv $key" .htaccess 2>/dev/null; then
+      sed -i "s|SetEnv $key .*|$line|" .htaccess
+    else
+      echo "$line" >> .htaccess
+    fi
+  done
+  echo "✅ Sentry env vars gezet in .htaccess (production)"
 ENDSSH
 
 # Run migrations via HTTP

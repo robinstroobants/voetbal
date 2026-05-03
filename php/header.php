@@ -111,6 +111,14 @@ header("Expires: 0"); // Proxies blockeren
                     <li class="nav-item"><a class="nav-link" href="/stats">
                         <i class="fa-solid fa-chart-line me-2"></i>Statistieken
                     </a></li>
+                    <?php if (isset($_SESSION['is_beta_user']) && $_SESSION['is_beta_user'] == 1): ?>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/edit_rankings">
+                            <i class="fa-solid fa-flask text-warning me-1"></i>Rankings
+                            <span class="badge bg-warning text-dark ms-1" style="font-size:0.6rem; vertical-align:middle;">BETA</span>
+                        </a>
+                    </li>
+                    <?php endif; ?>
                     <?php endif; ?>
                     
                     <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'superadmin'): ?>
@@ -162,9 +170,6 @@ header("Expires: 0"); // Proxies blockeren
                             if (strpos($df, '2v2') !== 0 && strpos($df, '3v3') !== 0): 
                             ?>
                             <li><a class="dropdown-item" href="/scores"><i class="fa-solid fa-star me-2"></i>Score Matrix</a></li>
-                            <?php if (isset($_SESSION['is_beta_user']) && $_SESSION['is_beta_user'] == 1): ?>
-                            <li><a class="dropdown-item" href="/edit_rankings"><i class="fa-solid fa-flask text-warning me-2"></i>Rankings <span class="badge bg-warning text-dark ms-1" style="font-size:0.6rem;">BETA</span></a></li>
-                            <?php endif; ?>
                             <?php endif; ?>
                             
                             <li><hr class="dropdown-divider"></li>

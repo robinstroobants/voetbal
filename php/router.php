@@ -4,6 +4,30 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
+// ─── Sentry Error Monitoring ──────────────────────────────────────────────────
+$sentryDsn = $_SERVER['SENTRY_DSN'] ?? getenv('SENTRY_DSN') ?: '';
+$appEnv    = $_SERVER['APP_ENV']    ?? getenv('APP_ENV')    ?: 'production';
+
+if ($sentryDsn) {
+    \Sentry\init([
+        'dsn'                => $sentryDsn,
+        'environment'        => $appEnv,           // 'development' | 'staging' | 'production'
+        'traces_sample_rate' => ($appEnv === 'production') ? 0.1 : 1.0,
+        'send_default_pii'   => false,             // geen emails/IPs naar Sentry sturen
+    ]);
+}
+
+// TST: toon PHP errors rechtstreeks in de browser
+if ($appEnv === 'development') {
+    ini_set('display_errors', 1);
+    ini_set('display_startup_errors', 1);
+    error_reporting(E_ALL);
+} else {
+    ini_set('display_errors', 0);
+    error_reporting(E_ALL);
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 // Security: Check of het IP adres op slot is
 // We laden we de DB connectie als we dit op termijn nodig hebben, maar auth_check is hier voldoende
 // Omdat require_once __DIR__ . '/core/getconn.php' al in de files gebeurt.

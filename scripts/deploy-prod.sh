@@ -50,15 +50,15 @@ ssh -p "$SSH_PORT" "$SERVER" bash << 'ENDSSH'
 
   # Sentry & environment config via .htaccess (shared hosting, geen toegang tot php.ini)
   SENTRY_DSN="https://9d70aefea0f7ed519ed0baf6a741869a@o4511324428107776.ingest.de.sentry.io/4511324449013840"
-  for line in "SetEnv APP_ENV production" "SetEnv SENTRY_DSN $SENTRY_DSN"; do
+  for line in "SetEnv APP_ENV production" "SetEnv SENTRY_DSN $SENTRY_DSN" "php_value date.timezone Europe/Brussels"; do
     key=$(echo "$line" | awk '{print $2}')
-    if grep -q "SetEnv $key" .htaccess 2>/dev/null; then
-      sed -i "s|SetEnv $key .*|$line|" .htaccess
+    if grep -q "$key" .htaccess 2>/dev/null; then
+      sed -i "s|.*$key.*|$line|" .htaccess
     else
       echo "$line" >> .htaccess
     fi
   done
-  echo "✅ Sentry env vars gezet in .htaccess (production)"
+  echo "✅ Sentry env vars + timezone gezet in .htaccess (production)"
 ENDSSH
 
 # Run migrations via HTTP

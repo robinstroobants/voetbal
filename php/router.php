@@ -12,11 +12,17 @@ $sentryDsn = $_SERVER['SENTRY_DSN'] ?? getenv('SENTRY_DSN') ?: '';
 $appEnv    = $_SERVER['APP_ENV']    ?? getenv('APP_ENV')    ?: 'production';
 
 if ($sentryDsn) {
+    // Versie ophalen: site_version.txt heeft prioriteit (gezet door deploy script)
+    $versionFile = __DIR__ . '/site_version.txt';
+    $fallbackFile = __DIR__ . '/version.txt';
+    $sentryRelease = 'v' . trim(file_get_contents(file_exists($versionFile) ? $versionFile : $fallbackFile) ?: 'unknown');
+
     \Sentry\init([
         'dsn'                => $sentryDsn,
-        'environment'        => $appEnv,           // 'development' | 'staging' | 'production'
+        'environment'        => $appEnv,
+        'release'            => $sentryRelease,
         'traces_sample_rate' => ($appEnv === 'production') ? 0.1 : 1.0,
-        'send_default_pii'   => false,             // geen emails/IPs naar Sentry sturen
+        'send_default_pii'   => false,
     ]);
 }
 

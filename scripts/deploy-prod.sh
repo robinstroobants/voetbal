@@ -7,6 +7,14 @@ SSH_PORT="18765"
 BRANCH="main"
 # ==============
 
+# Laad .env variabelen (voor Sentry credentials)
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+if [ -f "$REPO_ROOT/.env" ]; then
+  export $(grep -v '^#' "$REPO_ROOT/.env" | grep -E 'SENTRY_' | xargs)
+fi
+
+
 # Veiligheidscheck: zorg dat je op main staat
 CURRENT=$(git branch --show-current)
 if [ "$CURRENT" != "$BRANCH" ]; then
@@ -50,7 +58,7 @@ ssh -p "$SSH_PORT" "$SERVER" bash << 'ENDSSH'
 
   # Sentry & environment config via .htaccess (shared hosting, geen toegang tot php.ini)
   SENTRY_DSN="https://9d70aefea0f7ed519ed0baf6a741869a@o4511324428107776.ingest.de.sentry.io/4511324449013840"
-  for line in "SetEnv APP_ENV production" "SetEnv SENTRY_DSN $SENTRY_DSN" "php_value date.timezone Europe/Brussels"; do
+  for line in "SetEnv APP_ENV production" "SetEnv SENTRY_DSN $SENTRY_DSN" "php_value date.timezone Europe/Brussels" "php_value session.gc_maxlifetime 2592000" "php_value session.cookie_lifetime 2592000"; do
     key=$(echo "$line" | awk '{print $2}')
     if grep -q "$key" .htaccess 2>/dev/null; then
       sed -i "s|.*$key.*|$line|" .htaccess
@@ -68,3 +76,17 @@ echo "$MIGRATION_OUTPUT" | sed 's/<[^>]*>//g' | grep -v '^$' || true
 
 echo ""
 echo "✅ PROD deploy klaar → https://lineupheroes.com"
+
+# --- Sentry Release ---
+PROD_VERSION=$(cat "$REPO_ROOT/php/version.txt" | tr -d '\n\r ')
+SENTRY_RELEASE="v${PROD_VERSION}"
+if command -v sentry-cli &>/dev/null && [ -n "$SENTRY_AUTH_TOKEN" ] && [ -n "$SENTRY_ORG" ]; then
+  echo "📡 Sentry release aanmaken: $SENTRY_RELEASE"
+  sentry-cli releases new "$SENTRY_RELEASE" --org "$SENTRY_ORG" --project "$SENTRY_PROJECT"
+  sentry-cli releases set-commits "$SENTRY_RELEASE" --auto --org "$SENTRY_ORG"
+  sentry-cli releases finalize "$SENTRY_RELEASE" --org "$SENTRY_ORG"
+  sentry-cli releases deploys "$SENTRY_RELEASE" new -e production --org "$SENTRY_ORG"
+  echo "✅ Sentry release $SENTRY_RELEASE gekoppeld aan production"
+else
+  echo "⚠️  Sentry release overgeslagen (sentry-cli niet gevonden of SENTRY_AUTH_TOKEN niet ingesteld)"
+fi

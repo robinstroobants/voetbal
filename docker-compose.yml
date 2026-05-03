@@ -7,6 +7,7 @@ services:
       - ./php:/var/www/html
       - ./.git:/var/www/html/.git:ro
       - ./php/conf.d/error_log.ini:/usr/local/etc/php/conf.d/error_log.ini:ro
+      - sessions_data:/var/www/sessions
     environment:
       - DB_HOST=db
       - DB_NAME=${MYSQL_DATABASE}
@@ -67,3 +68,4 @@ services:
 
 volumes:
   db_data:
+  sessions_data:

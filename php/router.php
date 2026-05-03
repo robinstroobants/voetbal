@@ -5,6 +5,9 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 // ─── Sentry Error Monitoring ──────────────────────────────────────────────────
+if (file_exists(__DIR__ . '/vendor/autoload.php')) {
+    require_once __DIR__ . '/vendor/autoload.php';
+}
 $sentryDsn = $_SERVER['SENTRY_DSN'] ?? getenv('SENTRY_DSN') ?: '';
 $appEnv    = $_SERVER['APP_ENV']    ?? getenv('APP_ENV')    ?: 'production';
 

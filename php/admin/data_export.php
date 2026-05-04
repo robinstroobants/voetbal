@@ -24,7 +24,7 @@ if ($email_query) {
         $tid  = null;
 
         // Team van de coach
-        $stmtT = $pdo->prepare("SELECT t.id, t.name, t.default_format, t.timezone FROM teams t JOIN users u ON u.team_id = t.id WHERE u.id = ?");
+        $stmtT = $pdo->prepare("SELECT t.id, t.name, t.default_format FROM teams t JOIN users u ON u.team_id = t.id WHERE u.id = ?");
         $stmtT->execute([$uid]);
         $team = $stmtT->fetch(PDO::FETCH_ASSOC);
         $tid  = $team['id'] ?? null;
@@ -32,7 +32,7 @@ if ($email_query) {
         // Spelers
         $players = [];
         if ($tid) {
-            $stmtP = $pdo->prepare("SELECT id, first_name, last_name, created_at FROM players WHERE team_id = ? AND deleted_at IS NULL ORDER BY last_name");
+            $stmtP = $pdo->prepare("SELECT id, first_name, last_name FROM players WHERE team_id = ? ORDER BY last_name");
             $stmtP->execute([$tid]);
             $players = $stmtP->fetchAll(PDO::FETCH_ASSOC);
         }
@@ -40,7 +40,7 @@ if ($email_query) {
         // Wedstrijden
         $games = [];
         if ($tid) {
-            $stmtG = $pdo->prepare("SELECT id, opponent, game_date, game_format, created_at FROM games WHERE team_id = ? ORDER BY game_date DESC LIMIT 50");
+            $stmtG = $pdo->prepare("SELECT id, opponent, game_date FROM games WHERE team_id = ? ORDER BY game_date DESC LIMIT 50");
             $stmtG->execute([$tid]);
             $games = $stmtG->fetchAll(PDO::FETCH_ASSOC);
         }
@@ -120,7 +120,6 @@ if ($email_query) {
             <div class="row g-2">
                 <div class="col-md-4"><small class="text-muted d-block">Naam</small><?= htmlspecialchars($t['name']) ?></div>
                 <div class="col-md-4"><small class="text-muted d-block">Standaard formaat</small><?= htmlspecialchars($t['default_format'] ?? '—') ?></div>
-                <div class="col-md-4"><small class="text-muted d-block">Tijdzone</small><?= htmlspecialchars($t['timezone'] ?? '—') ?></div>
             </div>
         </div>
     </div>
@@ -138,13 +137,12 @@ if ($email_query) {
             <?php else: ?>
             <div class="table-responsive">
                 <table class="table table-sm table-striped mb-0 small">
-                    <thead class="table-light"><tr><th>#</th><th>Naam</th><th>Aangemaakt</th></tr></thead>
+                    <thead class="table-light"><tr><th>#</th><th>Naam</th></tr></thead>
                     <tbody>
                     <?php foreach ($datasets['players'] as $i => $p): ?>
                         <tr>
                             <td class="text-muted"><?= $i + 1 ?></td>
                             <td><?= htmlspecialchars($p['first_name'] . ' ' . $p['last_name']) ?></td>
-                            <td><?= date('d/m/Y', strtotime($p['created_at'])) ?></td>
                         </tr>
                     <?php endforeach; ?>
                     </tbody>

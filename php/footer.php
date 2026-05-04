@@ -73,6 +73,16 @@
                 </div>
             <?php endif; ?>
         </div>
+        <div class="mt-1">
+            <a href="/privacy" class="text-muted text-decoration-none" style="font-size:0.7rem;">
+                <i class="fa-solid fa-shield-halved me-1"></i>Privacybeleid
+            </a>
+            <span class="mx-1 text-muted" style="font-size:0.7rem;">&middot;</span>
+            <a href="#" class="text-muted text-decoration-none" style="font-size:0.7rem;"
+               onclick="localStorage.removeItem('lh_consent'); var b=document.getElementById('cookieConsentBar'); if(b) b.classList.remove('d-none'); return false;">
+                <i class="fa-solid fa-cookie-bite me-1"></i>Cookie-instellingen
+            </a>
+        </div>
     </footer>
 
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>

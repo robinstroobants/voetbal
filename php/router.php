@@ -87,7 +87,8 @@ $routes = [
     '/scores' => ['target' => 'modules/players/edit_scores.php', 'auth' => true, 'permission' => Permissions::PERM_EDIT_SCORES],
     '/stats' => ['target' => 'modules/players/stats.php', 'auth' => true, 'permission' => Permissions::PERM_MANAGE_GAMES],
     '/settings' => ['target' => 'settings.php', 'auth' => true, 'permission' => Permissions::PERM_MANAGE_TEAM_SETTINGS],
-    '/settings/periods' => ['target' => 'manage_periods.php', 'auth' => true, 'permission' => Permissions::PERM_MANAGE_TEAM_SETTINGS]
+    '/settings/periods' => ['target' => 'manage_periods.php', 'auth' => true, 'permission' => Permissions::PERM_MANAGE_TEAM_SETTINGS],
+    '/privacy'          => ['target' => 'privacy.php',        'auth' => false],
 ];
 
 if (isset($routes[$path])) {

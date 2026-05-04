@@ -34,17 +34,35 @@ header("Expires: 0"); // Proxies blockeren
     <!-- Print Styles -->
     <link href="/css/print.css" rel="stylesheet" media="print">
     
-    <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-25S9DSJM7N"></script>
+    <!-- Google Analytics 4 — Consent Mode v2
+         Default: alles geblokkeerd. Wordt bijgewerkt door cookie_consent.php na gebruikersoordeel.
+         Volgorde: consent default → script laden → config (Google-vereiste) -->
     <script>
+      // Stap 1: Consent defaults instellen VÓÓR het laden van gtag (Google vereiste)
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
+      gtag('consent', 'default', {
+          analytics_storage:  'denied',
+          ad_storage:         'denied',
+          ad_user_data:       'denied',
+          ad_personalization: 'denied',
+          wait_for_update:    500
+      });
+      // Stap 2: Als eerder toestemming gegeven → direct upgraden (voor script-load)
+      (function(){
+          var c = localStorage.getItem('lh_consent');
+          if (c === 'granted') {
+              gtag('consent', 'update', { analytics_storage: 'granted' });
+          }
+      })();
+    </script>
+    <!-- Stap 3: GA4 script laden -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-25S9DSJM7N"></script>
+    <script>
       gtag('js', new Date());
-
       <?php if (isset($_SESSION['user_id'])): ?>
       gtag('set', 'user_properties', { 'coach_id': '<?= (string)$_SESSION['user_id'] ?>' });
       <?php endif; ?>
-
       <?php 
       $gtag_config = [
           'page_path' => $_SERVER['REQUEST_URI'],
@@ -61,6 +79,7 @@ header("Expires: 0"); // Proxies blockeren
     </script>
 </head>
 <body class="bg-light pb-5">
+    <?php require_once __DIR__ . '/cookie_consent.php'; ?>
     <?php if (isset($_SESSION['original_user_id'])): ?>
     <div class="alert alert-warning text-center fw-bold py-2 mb-0 rounded-0 border-bottom border-warning shadow-sm d-print-none" style="z-index: 1050;">
         <i class="fa-solid fa-user-secret me-2"></i> Je bent actief als coach: <span class="text-dark bg-white px-2 py-1 rounded ms-1 border border-warning shadow-sm"><?= htmlspecialchars($_SESSION['impersonated_first_name'] ?? 'Coach') ?></span>

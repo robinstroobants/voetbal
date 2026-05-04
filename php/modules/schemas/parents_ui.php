@@ -36,10 +36,18 @@ foreach($gamePlayers as $p) {
 }
 
 // Check if it's a tournament via de is_tournament vlag (block_labels kan leeg zijn maar tornooi nog steeds actief)
-$stmtTour = $pdo->prepare("SELECT is_tournament, block_labels FROM games WHERE id = ?");
+$stmtTour = $pdo->prepare("
+    SELECT g.is_tournament, g.block_labels, g.opponent, t.name as team_name
+    FROM games g
+    LEFT JOIN teams t ON t.id = g.team_id
+    WHERE g.id = ?
+");
 $stmtTour->execute([$gameId]);
 $gameRow = $stmtTour->fetch(PDO::FETCH_ASSOC);
 $isTournament = !empty($gameRow['is_tournament']);
+$teamName = htmlspecialchars($gameRow['team_name'] ?? 'Ons team');
+$gameOpponent = htmlspecialchars($gameRow['opponent'] ?? '');
+$gameBlockLabels = json_decode($gameRow['block_labels'] ?? '[]', true) ?: [];
 
 // Haal de shifts (blokken) op uit het lineup object
 $shifts_data = [];
@@ -100,13 +108,18 @@ if (isset($lineup) && isset($lineup->events)) {
             $title = $game_prefix . ", Deel " . $part;
         }
         
+        $bench_with_pos = [];
+        foreach ($ev['bench'] ?? [] as $bid) {
+            $bench_with_pos[] = ['id' => $bid, 'pos' => 'bank'];
+        }
+
         $shifts_data[] = [
             'index' => $idx + 1,
             'title' => $title,
             'game_counter' => $current_game_counter,
             'duration' => $duration_minutes,
             'start_minute' => $start_minute,
-            'bench' => array_values($ev['bench'] ?? []),
+            'bench' => $bench_with_pos,
             'pitch' => $pitch_with_pos
         ];
     }
@@ -134,15 +147,40 @@ $stmtBlocks = $pdo->prepare("SELECT created_at FROM game_events WHERE game_id = 
 $stmtBlocks->execute([$gameId]);
 $blockEvents = $stmtBlocks->fetchAll(PDO::FETCH_COLUMN);
 
-$stmtMatchEnd = $pdo->prepare("SELECT created_at FROM game_events WHERE game_id = ? AND event_type = 'match_end' AND is_deleted = 0 ORDER BY created_at DESC LIMIT 1");
-$stmtMatchEnd->execute([$gameId]);
+// matchEndedAt is enkel geldig als match_end het LAATSTE status event is
+// (geen period_start erna — want dan is er een nieuwe game gestart)
+$stmtMatchEnd = $pdo->prepare("
+    SELECT created_at FROM game_events
+    WHERE game_id = ? AND event_type = 'match_end' AND is_deleted = 0
+      AND created_at >= COALESCE(
+          (SELECT MAX(created_at) FROM game_events WHERE game_id = ? AND event_type = 'period_start' AND is_deleted = 0),
+          '1970-01-01'
+      )
+    ORDER BY created_at DESC LIMIT 1
+");
+$stmtMatchEnd->execute([$gameId, $gameId]);
 $matchEndedAt = $stmtMatchEnd->fetchColumn();
 
 $matchStarted = count($blockEvents) > 0;
-// De currentShiftIndex is hoeveel block events er zijn (1 event = shift index 0, 2 events = shift index 1)
-$currentShiftIndex = max(0, count($blockEvents) - 1);
-if ($currentShiftIndex >= count($shifts_data)) {
-    $currentShiftIndex = count($shifts_data) - 1; // Cap op laatste blok
+
+// totalGames: hoogste game_counter in alle shifts (nodig vóór currentGameCounter berekening)
+$totalGames = 1;
+foreach ($shifts_data as $s) {
+    if (($s['game_counter'] ?? 1) > $totalGames) $totalGames = $s['game_counter'];
+}
+
+// Game-niveau: elk block event (match_start + period_start) = 1 wedstrijdje
+// Block 1 = game 1, Block 2 = game 2, etc.
+$currentGameCounter = max(1, count($blockEvents)); // 1-based, minimum 1
+if ($currentGameCounter > $totalGames) $currentGameCounter = $totalGames;
+
+// Zoek de EERSTE shift van het huidige game_counter (voor lineup-data)
+$currentShiftIndex = 0;
+foreach ($shifts_data as $idx => $shift) {
+    if (($shift['game_counter'] ?? 1) === $currentGameCounter) {
+        $currentShiftIndex = $idx;
+        break;
+    }
 }
 
 $stmtLastStatus = $pdo->prepare("SELECT event_type, created_at FROM game_events WHERE game_id = ? AND event_type IN ('match_start', 'period_start', 'period_end') AND is_deleted = 0 ORDER BY id DESC LIMIT 1");
@@ -152,13 +190,15 @@ $lastStatusEvent = $stmtLastStatus->fetch(PDO::FETCH_ASSOC);
 $activeBlockEventTimeMs = 'null';
 $isPaused = false;
 $pausedAtMs = 'null';
-if ($matchStarted) {
-    // Tijdstip van de start van het huidige blok
-    $activeBlockEventTimeMs = strtotime($blockEvents[$currentShiftIndex]) * 1000;
-    
+if ($matchStarted && isset($blockEvents[$currentGameCounter - 1])) {
+    // UTC-aware: MySQL slaat op in UTC, PHP strtotime() interpreteert als lokale tijd
+    // Fix: altijd expliciet als UTC parsen zodat JS new Date().getTime() klopt
+    $dt = new DateTime($blockEvents[$currentGameCounter - 1], new DateTimeZone('UTC'));
+    $activeBlockEventTimeMs = $dt->getTimestamp() * 1000;
     if ($lastStatusEvent && $lastStatusEvent['event_type'] === 'period_end') {
         $isPaused = true;
-        $pausedAtMs = strtotime($lastStatusEvent['created_at']) * 1000;
+        $dtPaused = new DateTime($lastStatusEvent['created_at'], new DateTimeZone('UTC'));
+        $pausedAtMs = $dtPaused->getTimestamp() * 1000;
     }
 }
 ?>
@@ -447,11 +487,24 @@ document.addEventListener("DOMContentLoaded", function() {
     const shiftsData = <?= json_encode($shifts_data) ?>;
     const playerMap = <?= json_encode($playerMap) ?>;
     const gameId = <?= (int)$gameId ?>;
+    const teamName = <?= json_encode($teamName) ?>;
+    const gameBlockLabels = <?= json_encode($gameBlockLabels) ?>;
+    const gameOpponent = <?= json_encode($gameOpponent) ?>;
+    const isTournament = <?= $isTournament ? 'true' : 'false' ?>;
+    const currentGameCounter = <?= (int)$currentGameCounter ?>;
+    const totalGames = <?= (int)$totalGames ?>;
 
     let currentCalculatedMinute = 0;
     let currentAdjustedMinute = 0;
     let clockInterval = null;
-    let matchEndedAtMs = <?= $matchEndedAt ? strtotime($matchEndedAt) * 1000 : 'null' ?>;
+    let matchEndedAtMs = <?php
+        if ($matchEndedAt) {
+            $dtEnd = new DateTime($matchEndedAt, new DateTimeZone('UTC'));
+            echo $dtEnd->getTimestamp() * 1000;
+        } else {
+            echo 'null';
+        }
+    ?>;
     // Als de match al gepauzeerd of beëindigd is (server zegt dit via PHP vars),
     // dan mag de auto-trigger NIET opnieuw afvuren na een page reload.
     let autoEventTriggered = isPaused || !!matchEndedAtMs;
@@ -497,35 +550,49 @@ document.addEventListener("DOMContentLoaded", function() {
         return localStorage.getItem('parent_name') || '';
     }
 
+    // Hulpfunctie: geef de game-naam voor een gegeven game_counter
+    function getGameLabel(gc) {
+        if (isTournament) {
+            return gameBlockLabels[gc - 1] || ('Wedstrijd ' + gc);
+        } else {
+            return 'Wedstrijd ' + gc;
+        }
+    }
+
+    // Hulpfunctie: geef de eerste shift van een gegeven game_counter
+    function getFirstShiftOfGame(gc) {
+        return shiftsData.find(s => s.game_counter === gc) || shiftsData[0];
+    }
+
     function getActiveShift() {
         return shiftsData[currentShiftIndex] || shiftsData[0];
     }
     
     function isMatchEnded() {
-        return !!matchEndedAtMs; // matchEndedAtMs wordt door PHP ingevuld als er een match_end event is
+        return !!matchEndedAtMs;
     }
 
     function calculateElapsedMinutes() {
         if (!matchStarted) return 0;
-        const shift = getActiveShift();
+        const firstShift = getFirstShiftOfGame(currentGameCounter);
         const now = new Date().getTime();
-        let diffMs = now - activeBlockEventTimeMs;
-        if (diffMs < 0) diffMs = 0;
-        if (isPaused) diffMs = pausedAtMs - activeBlockEventTimeMs;
-        
-        const minutesInCurrentBlock = diffMs / 60000;
-        return Math.floor(shift.start_minute + minutesInCurrentBlock) + 1;
+        let diffMs = Math.max(0, now - activeBlockEventTimeMs);
+        if (isPaused) diffMs = Math.max(0, pausedAtMs - activeBlockEventTimeMs);
+        // Tornooi: per game timer (start altijd op 0)
+        // Gewone match: cumulatief (firstShift.start_minute geeft offset)
+        const baseSeconds = isTournament ? 0 : (firstShift.start_minute * 60);
+        return Math.floor((baseSeconds + diffMs / 1000) / 60) + 1;
     }
     
     function formatClock() {
         if (!matchStarted) return '00:00';
-        const shift = getActiveShift();
+        const firstShift = getFirstShiftOfGame(currentGameCounter);
         const now = matchEndedAtMs ? matchEndedAtMs : new Date().getTime();
-        let diffMs = now - activeBlockEventTimeMs;
-        if (diffMs < 0) diffMs = 0;
-        if (isPaused) diffMs = pausedAtMs - activeBlockEventTimeMs;
-        
-        const totalSeconds = Math.floor((shift.start_minute * 60) + (diffMs / 1000));
+        let diffMs = Math.max(0, now - activeBlockEventTimeMs);
+        if (isPaused) diffMs = Math.max(0, pausedAtMs - activeBlockEventTimeMs);
+        // Tornooi: reset naar 0 per game | Gewone match: cumulatief
+        const baseSeconds = isTournament ? 0 : (firstShift.start_minute * 60);
+        const totalSeconds = Math.floor(baseSeconds + diffMs / 1000);
         const mins = Math.floor(totalSeconds / 60);
         const secs = totalSeconds % 60;
         return String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
@@ -538,8 +605,8 @@ document.addEventListener("DOMContentLoaded", function() {
             display.innerText = formatClock();
             updateBlockLabel();
             updateWisselHint();
-            
-            if (!matchEndedAtMs) {
+            // Interval loopt als de match bezig is (niet gepauzeerd tussen wedstrijdjes EN niet helemaal gedaan)
+            if (matchStarted && !matchEndedAtMs && !isPaused) {
                 clockInterval = setInterval(() => {
                     display.innerText = formatClock();
                     updateBlockLabel();
@@ -549,97 +616,93 @@ document.addEventListener("DOMContentLoaded", function() {
         }
     }
 
+    function updateBlockLabel() {
+        const lbl = document.getElementById('activeBlockLabel');
+        if (!lbl) return;
+        if (!matchStarted) {
+            lbl.innerText = '';
+            return;
+        }
+        if (matchEndedAtMs) {
+            lbl.innerText = '\ud83c\udfc1 Einde';
+            return;
+        }
+        // Toon alleen de naam van de huidige wedstrijd (geen helft-vermelding)
+        lbl.innerText = getGameLabel(currentGameCounter);
+    }
+
     function updateWisselHint() {
-        if (!matchStarted || matchEndedAtMs) return;
-        const shift = getActiveShift();
-        const now = new Date().getTime();
-        let diffMs = now - activeBlockEventTimeMs;
-        if (diffMs < 0) diffMs = 0;
-        if (isPaused) diffMs = pausedAtMs - activeBlockEventTimeMs;
-        
-        const currentSeconds = (shift.start_minute * 60) + (diffMs / 1000);
-        const expectedEndSeconds = (shift.start_minute + shift.duration) * 60;
-        
-        // Auto trigger events at 20% overtime (only apply 20% to the duration itself)
-        const overTimeThreshold = (shift.start_minute * 60) + (shift.duration * 60 * 1.20);
-        if (currentSeconds >= overTimeThreshold && !autoEventTriggered && !isPaused && !matchEndedAtMs) {
-            autoEventTriggered = true;
-            if (currentShiftIndex < shiftsData.length - 1) {
-                const currentShift = shiftsData[currentShiftIndex];
-                const nextShift = shiftsData[currentShiftIndex + 1];
-                
-                if (currentShift.game_counter === nextShift.game_counter) {
-                    // Auto-wissel (same game, just switch half)
-                    sendAutoEvent('period_start', Math.floor(nextShift.start_minute));
+        if (!matchStarted) return;
+
+        // Ververs de block label
+        const blockLbl = document.getElementById('activeBlockLabel');
+        if (blockLbl) blockLbl.innerText = matchEndedAtMs ? '\ud83c\udfc1 Einde' : getGameLabel(currentGameCounter);
+
+        // Overtijd auto-trigger (op basis van de TOTALE gameDuur, niet per helft)
+        if (!matchEndedAtMs && !isPaused) {
+            const firstShift = getFirstShiftOfGame(currentGameCounter);
+            // Som alle helften van de huidige game op voor de totale duur
+            const totalGameDurSec = shiftsData
+                .filter(s => s.game_counter === currentGameCounter)
+                .reduce((acc, s) => acc + s.duration * 60, 0);
+            const now = new Date().getTime();
+            let diffMs = Math.max(0, now - activeBlockEventTimeMs);
+            if (diffMs / 1000 >= totalGameDurSec * 1.20 && !autoEventTriggered) {
+                autoEventTriggered = true;
+                if (currentGameCounter < totalGames) {
+                    sendAutoEvent('period_end', calculateElapsedMinutes());
                 } else {
-                    // Auto-pauze (different game, break)
-                    sendAutoEvent('period_end', Math.floor(currentSeconds / 60) + 1);
+                    sendAutoEvent('match_end', calculateElapsedMinutes());
                 }
-            } else {
-                sendAutoEvent('match_end', Math.floor(currentSeconds / 60) + 1);
             }
         }
+
         const btnStartVolgende = document.getElementById('btnStartVolgende');
         const btnFluitAf = document.getElementById('btnFluitAf');
         const btnEindeMatch = document.getElementById('btnEindeMatch');
         const btnUitzonderingWissel = document.getElementById('btnUitzonderingWissel');
         const lbl = document.getElementById('lblActionBtn');
 
-        // Helper to hide all action btns
         const hideAll = () => {
             [btnStartVolgende, btnFluitAf, btnEindeMatch, btnUitzonderingWissel].forEach(b => b && b.classList.add('d-none'));
         };
-
-        if (!matchStarted || matchEndedAtMs) {
-            hideAll();
-            return;
-        }
+        const showBtn = (btn, html, cls, onClick) => {
+            btn.innerHTML = html;
+            btn.className = 'btn ' + cls + ' shadow-sm w-100 fw-bold';
+            btn.style = 'padding: 3px 6px; font-size: 0.78rem;';
+            btn.onclick = onClick;
+            btn.classList.remove('d-none');
+        };
 
         hideAll();
 
-        if (currentShiftIndex < shiftsData.length - 1) {
-            const cShift = shiftsData[currentShiftIndex];
-            const nShift = shiftsData[currentShiftIndex + 1];
-            const shiftTitle = nShift.title || ('Blok ' + nShift.index);
+        if (matchEndedAtMs) {
+            // Match volledig gedaan — geen knoppen
+            return;
+        }
 
-            if (isPaused) {
-                // Paused: only show start next
+        if (isPaused) {
+            // Tussen wedstrijdjes — toon 'Start [volgende]'
+            const nextGC = currentGameCounter + 1;
+            if (nextGC <= totalGames) {
+                const nextLabel = getGameLabel(nextGC);
                 if (lbl) lbl.innerText = 'Volgende';
-                btnStartVolgende.innerHTML = '▶ Start ' + shiftTitle;
-                btnStartVolgende.className = 'btn btn-success shadow-sm w-100 fw-bold btn-wissel-due';
-                btnStartVolgende.style = 'padding: 3px 6px; font-size: 0.78rem;';
-                btnStartVolgende.onclick = () => submitNextBlock();
-                btnStartVolgende.classList.remove('d-none');
-            } else if (cShift.game_counter !== nShift.game_counter) {
-                // Different sub-game: show 'fluit af', also show wissel as exception
-                if (lbl) lbl.innerText = 'Einde';
-                btnFluitAf.innerHTML = '⏹ Fluit af';
-                btnFluitAf.className = 'btn btn-warning shadow-sm w-100 fw-bold' + (currentSeconds >= expectedEndSeconds ? ' btn-wissel-due' : '');
-                btnFluitAf.style = 'padding: 3px 6px; font-size: 0.78rem;';
-                btnFluitAf.onclick = () => submitPauseBlock();
-                btnFluitAf.classList.remove('d-none');
-                btnUitzonderingWissel.classList.remove('d-none');
-            } else {
-                // Same sub-game: show start next when time is up, show exception always
-                if (lbl) lbl.innerText = currentSeconds >= expectedEndSeconds ? 'Wissel!' : 'Wissel';
-                if (currentSeconds >= expectedEndSeconds) {
-                    btnStartVolgende.innerHTML = '🔄 Start ' + shiftTitle;
-                    btnStartVolgende.className = 'btn btn-success shadow-sm w-100 fw-bold btn-wissel-due';
-                    btnStartVolgende.style = 'padding: 3px 6px; font-size: 0.78rem;';
-                    btnStartVolgende.onclick = () => submitNextBlock();
-                    btnStartVolgende.classList.remove('d-none');
-                }
-                btnUitzonderingWissel.classList.remove('d-none');
+                showBtn(btnStartVolgende, '\u25b6 Start ' + nextLabel, 'btn-success btn-wissel-due',
+                    () => sendStartGame(nextGC));
             }
-        } else {
-            // Last block
+            return;
+        }
+
+        // Game loopt — toon Stop
+        const gameName = getGameLabel(currentGameCounter);
+        if (currentGameCounter >= totalGames) {
+            // Laatste wedstrijd — Stop = match_end
             if (lbl) lbl.innerText = 'Einde';
-            btnEindeMatch.innerHTML = '🛑 Einde Match';
-            btnEindeMatch.className = 'btn btn-danger shadow-sm w-100 fw-bold' + (currentSeconds >= expectedEndSeconds ? ' btn-wissel-due' : ' btn-outline-danger');
-            btnEindeMatch.style = 'padding: 3px 6px; font-size: 0.78rem;';
-            btnEindeMatch.onclick = () => submitMatchEnd();
-            btnEindeMatch.classList.remove('d-none');
-            btnUitzonderingWissel.classList.remove('d-none');
+            showBtn(btnEindeMatch, '\u23f9 Stop ' + gameName, 'btn-danger', () => submitMatchEnd());
+        } else {
+            // Niet-laatste — Stop = period_end (pauze tussen wedstrijdjes)
+            if (lbl) lbl.innerText = 'Stop';
+            showBtn(btnFluitAf, '\u23f9 Stop ' + gameName, 'btn-warning', () => submitPauseBlock());
         }
     }
 
@@ -655,7 +718,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 if (playerMap[item.id]) {
                     const opt = document.createElement('option');
                     opt.value = item.id;
-                    opt.innerText = (item.pos && item.pos !== '?') ? `(#${item.pos}) ` + playerMap[item.id] : playerMap[item.id];
+                    opt.innerText = playerMap[item.id];
                     sel.appendChild(opt);
                 }
             });
@@ -685,29 +748,31 @@ document.addEventListener("DOMContentLoaded", function() {
         sendApiEvent('match_start', 0);
     }
 
-    function submitNextBlock() {
-        const email = getParentEmail();
-        if (!email) return alert("Je e-mailadres is vereist.");
-        
-        if(!confirm("Start het volgende wisselblok nu? De timer wordt aangepast naar de geplande starttijd van dit blok.")) return;
-        
-        const nextShift = shiftsData[currentShiftIndex + 1];
-        if (!nextShift) return;
-
-        sendApiEvent('period_start', Math.floor(nextShift.start_minute));
+    // Start de volgende wedstrijd (game-niveau: 1 period_start = 1 wedstrijd)
+    function sendStartGame(targetGameCounter) {
+        autoEventTriggered = true; // Voorkom dubbele auto-trigger
+        sendApiEventObject({
+            action:               'start_game',
+            game_id:              gameId,
+            parent_email:         getParentEmail() || 'auto@systeem',
+            parent_name:          getParentName() || null,
+            target_game_counter:  targetGameCounter
+        });
     }
     
     function submitPauseBlock() {
         if (!matchStarted) return;
-        if(!confirm("Ben je zeker dat je deze helft wil afsluiten en de timer wil pauzeren?")) return;
-        
+        const gameName = getGameLabel(currentGameCounter);
+        if (!confirm(`Stop ${gameName} en pauzeer de timer?`)) return;
+        autoEventTriggered = true; // Voorkom dubbele auto-trigger
         sendApiEvent('period_end', calculateElapsedMinutes());
     }
 
     function submitMatchEnd() {
         if (!matchStarted) return;
-        if (!confirm("Is de wedstrijd definitief afgelopen?")) return;
-        
+        const gameName = getGameLabel(currentGameCounter);
+        if (!confirm(`Stop ${gameName} en beëindig het tornooi?`)) return;
+        autoEventTriggered = true; // Voorkom dubbele auto-trigger
         sendApiEvent('match_end', calculateElapsedMinutes());
     }
 
@@ -732,8 +797,15 @@ document.addEventListener("DOMContentLoaded", function() {
             document.getElementById('eventModalTitle').innerText = '⚽ Goal Melden';
             document.getElementById('goalPlayerSelect').style.display = 'block';
             document.getElementById('wisselMenu').style.display = 'none';
-            populateDropdown('goalPlayerId', shift.pitch, true);
-            populateDropdown('assistPlayerId', shift.pitch, true);
+            // Alle spelers (pitch + bank) — iedereen kan scoren
+            const allPlayers = [...(shift.pitch || []), ...(shift.bench || [])]
+                .sort((a, b) => {
+                    const na = (playerMap[a.id] ? playerMap[a.id].first_name + ' ' + playerMap[a.id].last_name : '');
+                    const nb = (playerMap[b.id] ? playerMap[b.id].first_name + ' ' + playerMap[b.id].last_name : '');
+                    return na.localeCompare(nb);
+                });
+            populateDropdown('goalPlayerId', allPlayers, true);
+            populateDropdown('assistPlayerId', allPlayers, true);
         } else if (type === 'opp_goal') {
             document.getElementById('eventModalTitle').innerText = '🥅 Tegengoal Melden';
             document.getElementById('goalPlayerSelect').style.display = 'none';
@@ -800,14 +872,7 @@ document.addEventListener("DOMContentLoaded", function() {
         document.getElementById('eventMinuteDisplay').innerText = currentAdjustedMinute + "'";
     }
 
-    function updateBlockLabel() {
-        if (!matchStarted) return;
-        const shift = getActiveShift();
-        const lbl = document.getElementById('currentBlockLabel');
-        if (lbl) {
-            lbl.innerText = shift.title || `Blok ${shift.index} / ${shiftsData.length}`;
-        }
-    }
+    // updateBlockLabel is now integrated in updateWisselHint above
 
     function submitEvent() {
         const type = document.getElementById('eventTypeInput').value;
@@ -911,6 +976,9 @@ document.addEventListener("DOMContentLoaded", function() {
                     if (modalInst) modalInst.hide();
                 }
                 location.reload(); // Herlaad om de nieuwe shifts en timer direct correct te zetten
+            } else if (data.status === 'deduped') {
+                // Event was al geregistreerd door iemand anders — geen actie nodig, gewoon refreshen
+                location.reload();
             } else if (data.status === 'warning') {
                 if (confirm(data.warning_text)) {
                     payload.force = true;
@@ -976,7 +1044,7 @@ document.addEventListener("DOMContentLoaded", function() {
         const feed = document.getElementById('liveEventsFeed');
         feed.innerHTML = '';
         
-        let isTournament = <?= $isTournament ? 'true' : 'false' ?>;
+        // isTournament is een globale const (gedeclareerd bovenaan de script tag)
         let homeScore = 0;
         let awayScore = 0;
         
@@ -984,6 +1052,10 @@ document.addEventListener("DOMContentLoaded", function() {
         let activeGameCounter = 1;
         window.startEventPerBlock = {};
         
+        // Bijhouden block start tijden voor relatieve minuten berekening
+        window.blockStartCreatedAt = {};
+        window.gameStartCreatedAt = {}; // Voor tornooi: start van elke game (game_counter)
+
         // Calculate score and assign blocks
         events.forEach(e => {
             let tempBlockIndex = currentBlockIndex;
@@ -992,13 +1064,19 @@ document.addEventListener("DOMContentLoaded", function() {
             }
             
             let shiftData = shiftsData[tempBlockIndex - 1];
-            let blockGameCounter = shiftData ? shiftData.game_counter : 1;
+            // Game-niveau: blockIndex IS game_counter
+            let blockGameCounter = tempBlockIndex;
+            // Gebruik de eerste shift van de huidige game voor lineup
+            const firstShiftOfBlock = getFirstShiftOfGame(blockGameCounter);
             
             if (isTournament && blockGameCounter !== activeGameCounter) {
                 homeScore = 0;
                 awayScore = 0;
                 activeGameCounter = blockGameCounter;
             }
+
+            // Score vóór increment opslaan (voor weergave NA de goal)
+            e._scoreBeforeEvent = homeScore + '-' + awayScore;
             
             if (e.event_type === 'goal') {
                 homeScore++;
@@ -1011,7 +1089,14 @@ document.addEventListener("DOMContentLoaded", function() {
                     currentBlockIndex++;
                 }
                 window.startEventPerBlock[currentBlockIndex] = e;
+                window.blockStartCreatedAt[currentBlockIndex] = e.created_at;
+                // Game-niveau: blockIndex IS de game_counter (block 1 = game 1, block 2 = game 2)
+                const gc = currentBlockIndex;
+                if (!window.gameStartCreatedAt[gc]) {
+                    window.gameStartCreatedAt[gc] = e.created_at;
+                }
                 e._blockIndex = currentBlockIndex;
+                e._gameCounter = gc;
             } else if (e.event_type === 'match_end' || e.event_type === 'period_end') {
                 e._blockIndex = currentBlockIndex;
                 currentBlockIndex++;
@@ -1041,8 +1126,42 @@ document.addEventListener("DOMContentLoaded", function() {
             }
             
             const isStatusEvent = ['match_start', 'period_start', 'period_end', 'match_end'].includes(e.event_type);
+
+            // Sla substitution events volledig over — wissels worden niet getoond in de tracker
+            if (e.event_type === 'substitution') return;
+
+            // Bereken de matchminuut:
+            // - Tornooi: relatief t.o.v. start van de huidige GAME (game_counter), timer reset per game
+            // - Gewone match: cumulatief t.o.v. match_start
+            // Matchminuut: gebruik event_minute (wat de coach op de klok zag bij het loggen)
+            // Als event_minute 0/null is, fallback naar timestamp-berekening
+            let relMin = 0;
+            if (!isStatusEvent) {
+                if (e.event_minute && e.event_minute > 0) {
+                    // event_minute = what the timer showed when logged — always correct
+                    relMin = e.event_minute;
+                } else if (e.created_at) {
+                    // Fallback: bereken van timestamps
+                    let baseTs;
+                    if (isTournament) {
+                        // Game-niveau: e._blockIndex IS de game_counter
+                        const gc = e._blockIndex;
+                        baseTs = window.gameStartCreatedAt[gc];
+                    } else {
+                        baseTs = window.blockStartCreatedAt[1];
+                    }
+                    if (baseTs) {
+                        const bStart = new Date(baseTs.replace(' ', 'T') + 'Z').getTime();
+                        const eTime  = new Date(e.created_at.replace(' ', 'T') + 'Z').getTime();
+                        const diffSec = (eTime - bStart) / 1000;
+                        if (diffSec >= 0) relMin = Math.floor(diffSec / 60) + 1;
+                    }
+                }
+            }
             
-            let text = isStatusEvent ? `<strong class="text-primary me-1" style="cursor:pointer;" onclick="openEditTimeModal(${e.id}, '${timeStr}', '${e.event_type}', ${e._blockIndex})">${timeStr} <i class="fa-solid fa-pen text-muted ms-1" style="font-size:0.7rem;"></i></strong> ` : `<strong>${e.event_minute}'</strong> `;
+            let text = isStatusEvent
+                ? `<strong class="text-primary me-1" style="cursor:pointer;" onclick="openEditTimeModal(${e.id}, '${timeStr}', '${e.event_type}', ${e._blockIndex})">${timeStr} <i class="fa-solid fa-pen text-muted ms-1" style="font-size:0.7rem;"></i></strong> `
+                : `<strong>${relMin}'</strong> `;
             
             let byWho = '';
             if (!isStatusEvent && e.parent_name) {
@@ -1052,30 +1171,35 @@ document.addEventListener("DOMContentLoaded", function() {
             }
 
             if (e.event_type === 'goal') {
-                text += '⚽ ' + (e.p1_first || 'Onbekend');
-                if (e.p2_first) {
-                    text += ' (' + e.p2_first + ')';
-                }
+                const newScore = e._homeScore + '-' + e._awayScore;
+                text += `⚽ <strong>${newScore}</strong> ` + (e.p1_first || 'Onbekend');
+                if (e.p2_first) text += ' (' + e.p2_first + ')';
                 text += byWho;
             } else if (e.event_type === 'opp_goal' || e.event_type === 'tegengoal' || !e.event_type || e.event_type.trim() === '') {
-                text += '🥅 Tegendoelpunt' + byWho;
-            } else if (e.event_type === 'substitution') {
-                text += '🔄 Wissel: ' + (e.p1_first || '?') + ' IN, ' + (e.p2_first || '?') + ' UIT';
+                const newScore = e._homeScore + '-' + e._awayScore;
+                text += `🥅 <strong>${newScore}</strong> Tegendoelpunt` + byWho;
             } else if (e.event_type === 'match_end') {
-                text += '🛑 Einde Wedstrijd' + (e.parent_email === 'auto@systeem' ? ' (auto)' : '') + (isTournament ? ` (Eindstand: ${e._homeScore}-${e._awayScore})` : '');
-            } else if (e.event_type === 'period_end') {
-                let nShift = shiftsData[e._blockIndex];
-                let cShift = shiftsData[e._blockIndex - 1];
-                let isMatchSwitch = nShift && cShift && nShift.game_counter !== cShift.game_counter;
-                if (isTournament && isMatchSwitch) {
-                    text += '🏁 Einde Wedstrijdje' + (e.parent_email === 'auto@systeem' ? ' (auto)' : '') + ` (Eindstand: ${e._homeScore}-${e._awayScore})`;
+                // blockIndex = game_counter van de afgelopen game
+                const gc = e._blockIndex;
+                const opponent = gameBlockLabels[gc - 1] || gameOpponent || 'Tegenstander';
+                if (isTournament) {
+                    text += `${teamName} - ${opponent} <strong>${e._homeScore}-${e._awayScore}</strong>`;
                 } else {
-                    text += '⏸ Rust / Einde Helft' + (e.parent_email === 'auto@systeem' ? ' (auto)' : '') + (isTournament ? ` (Tussenstand: ${e._homeScore}-${e._awayScore})` : '');
+                    text += '\ud83c\udfc1 Einde' + (e.parent_email === 'auto@systeem' ? ' (auto)' : '');
+                }
+            } else if (e.event_type === 'period_end') {
+                // blockIndex = game_counter van de afgelopen game (elke period_end = einde van 1 wedstrijd)
+                const gc = e._blockIndex;
+                const opponent = gameBlockLabels[gc - 1] || gameOpponent || 'Tegenstander';
+                if (isTournament) {
+                    text += `${teamName} - ${opponent} <strong>${e._homeScore}-${e._awayScore}</strong>`;
+                } else {
+                    text += '\u23f8 Einde Wedstrijd ' + gc + (e.parent_email === 'auto@systeem' ? ' (auto)' : '');
                 }
             } else if (e.event_type === 'match_start' || e.event_type === 'period_start') {
-                let shiftData = shiftsData[e._blockIndex - 1];
-                let blockTitle = shiftData ? shiftData.title : `Blok ${e._blockIndex}`;
-                text += `▶ Start ${blockTitle}` + (e.parent_email === 'auto@systeem' ? ' (auto)' : '');
+                // e._gameCounter = blockIndex = game_counter (block 1=game 1, block 2=game 2)
+                const gc = e._gameCounter || e._blockIndex;
+                text += `▶ Start ${getGameLabel(gc)}` + (e.parent_email === 'auto@systeem' ? ' (auto)' : '');
             } else {
                 text += '[' + e.event_type + ']';
             }

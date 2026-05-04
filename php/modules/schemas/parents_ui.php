@@ -279,7 +279,7 @@ if ($matchStarted && isset($blockEvents[$currentGameCounter - 1])) {
             <div id="liveClockContainer" class="parents-clock-container w-100 d-flex justify-content-center flex-column align-items-center">
                 <?php if ($matchStarted): ?>
                     <div class="w-100 text-center mb-2">
-                        <div class="badge bg-light text-dark border px-3 py-2 shadow-sm" style="font-size: 0.95rem;" id="currentBlockLabel">Loading...</div>
+                        <div class="badge bg-light text-dark border px-3 py-2 shadow-sm" style="font-size: 0.95rem;" id="currentBlockLabel"><?= $matchStarted ? htmlspecialchars($gameBlockLabels[$currentGameCounter - 1] ?? ('Wedstrijd ' . $currentGameCounter)) : '' ?></div>
                     </div>
                     <div class="d-flex justify-content-center align-items-center gap-3 w-100 flex-nowrap">
                         <div class="d-flex flex-column align-items-center flex-grow-1" style="flex-basis: 33%;">

@@ -116,8 +116,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $playerName = trim(($existing['first_name'] ?? '') . ' ' . ($existing['last_name'] ?? ''));
                     if (!$playerName) $playerName = 'deze speler';
                     // Altijd de naam tonen, nooit 'jou' — ook als het dezelfde ouder is
-                    $doorWie = $existing['parent_name'] 
-                        ? htmlspecialchars($existing['parent_name']) 
+                    $doorWie = ($existing['parent_name'] ?? null)
+                        ? htmlspecialchars($existing['parent_name'])
                         : explode('@', $existing['parent_email'] ?? 'onbekend')[0];
                     $warningText = "Er werd zojuist al een doelpunt gelogd voor " . htmlspecialchars($playerName) . " door " . $doorWie . " (in minuut " . $existing['event_minute'] . "). Wil je dit doelpunt toch extra toevoegen?";
                     
@@ -137,8 +137,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 
                 if ($existing) {
                     // Altijd de naam tonen, nooit 'jou'
-                    $doorWie = $existing['parent_name'] 
-                        ? htmlspecialchars($existing['parent_name']) 
+                    $doorWie = ($existing['parent_name'] ?? null)
+                        ? htmlspecialchars($existing['parent_name'])
                         : explode('@', $existing['parent_email'] ?? 'onbekend')[0];
                     $warningText = "Er werd zojuist al een tegendoelpunt gelogd door " . $doorWie . " (in minuut " . $existing['event_minute'] . "). Wil je dit doelpunt toch extra toevoegen?";
                     

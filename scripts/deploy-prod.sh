@@ -121,7 +121,7 @@ if command -v sentry-cli &>/dev/null && [ -n "$SENTRY_AUTH_TOKEN" ] && [ -n "$SE
   sentry-cli releases new "$SENTRY_RELEASE" --org "$SENTRY_ORG" --project "$SENTRY_PROJECT"
   sentry-cli releases set-commits "$SENTRY_RELEASE" --auto --org "$SENTRY_ORG"
   sentry-cli releases finalize "$SENTRY_RELEASE" --org "$SENTRY_ORG"
-  sentry-cli releases deploys "$SENTRY_RELEASE" new -e production --org "$SENTRY_ORG"
+  sentry-cli releases deploys "$SENTRY_RELEASE" new -e production --name "PROD deploy $(date '+%Y-%m-%d %H:%M')" --org "$SENTRY_ORG"
   echo "✅ Sentry release $SENTRY_RELEASE gekoppeld aan production"
 else
   echo "⚠️  Sentry release overgeslagen (sentry-cli niet gevonden of SENTRY_AUTH_TOKEN niet ingesteld)"

@@ -1,7 +1,9 @@
-<?php require_once __DIR__ . '/generator.php'; ?>
-  <?php require_once dirname(__DIR__, 2) . '/header.php'; ?>
-  <?php 
+<?php
+require_once __DIR__ . '/generator.php';
+require_once dirname(__DIR__, 2) . '/header.php';
+
   // Helper om speler ID naar leesbare naam om te zetten voor weergave
+
   function getPlayerName($id) {
       global $global_playerinfo;
       if (isset($global_playerinfo[$id])) {

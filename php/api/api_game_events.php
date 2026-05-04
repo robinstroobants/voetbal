@@ -148,15 +148,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $reject = true; $rejectMsg = 'Periode is al afgelopen of match niet gestart.';
                 }
             } elseif ($eventType === 'period_start') {
-                // Weiger als we NIET gepauzeerd zijn (laatste state is al period_start of match_start)
-                if ($lastStateType === 'period_start' || $lastStateType === 'match_start') {
+                // Weiger enkel als een periode al actief is (laatste status = period_start of match_start ZONDER tussenliggende period_end)
+                // match_start gevolgd door period_start is geldig (vliegende wissel na aanvang)
+                $stmtCheck = $pdo->prepare("
+                    SELECT event_type FROM game_events
+                    WHERE game_id = ? AND event_type IN ('match_start','period_start','period_end','match_end') AND is_deleted = 0
+                    ORDER BY id DESC LIMIT 2
+                ");
+                $stmtCheck->execute([$gameId]);
+                $recentStates = $stmtCheck->fetchAll(PDO::FETCH_COLUMN);
+                // Blokkeer enkel als de laatste state period_start IS en er geen period_end tussenin zit
+                if (count($recentStates) >= 1 && $recentStates[0] === 'period_start') {
                     $reject = true; $rejectMsg = 'Periode loopt al — dubbele start geweigerd.';
                 }
             }
 
             if ($reject) {
                 file_put_contents(__DIR__ . '/debug_events.log', date('Y-m-d H:i:s') . " - DEDUP REJECT $eventType (last=$lastStateType) by $parentEmail\n", FILE_APPEND);
-                echo json_encode(['status' => 'success', 'message' => 'Deduped: ' . $rejectMsg]);
+                echo json_encode(['status' => 'deduped', 'message' => 'Deduped: ' . $rejectMsg]);
                 exit;
             }
         }
@@ -185,6 +194,116 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit;
     }
     
+    if ($action === 'start_block') {
+        // ── Architectureel correcte shift-jump: springt direct naar target_shift_index ──
+        // Berekent server-side hoeveel period_starts nodig zijn + logt auto-substitutions
+        $gameId       = (int)($data['game_id'] ?? 0);
+        $parentEmail  = $data['parent_email'] ?? 'auto@systeem';
+        $parentName   = isset($data['parent_name']) ? substr(trim($data['parent_name']), 0, 100) : null;
+        $targetIdx    = (int)($data['target_shift_index'] ?? 0); // 0-based
+        $subs         = $data['subs'] ?? []; // [{player_in, player_out, minute}]
+        $isCoach      = isset($_SESSION['user_id']) ? 1 : 0;
+        $userAgent    = substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 500);
+        $ipAddress    = explode(',', $_SERVER['HTTP_CF_CONNECTING_IP'] ?? $_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? '')[0] ?: null;
+
+        if (!$gameId) {
+            echo json_encode(['status' => 'error', 'message' => 'Missing game_id']);
+            exit;
+        }
+
+        // Huidige shift index = aantal block events - 1
+        $stmtCount = $pdo->prepare("SELECT COUNT(*) FROM game_events WHERE game_id = ? AND event_type IN ('match_start','period_start') AND is_deleted = 0");
+        $stmtCount->execute([$gameId]);
+        $currentShiftIndex = max(0, (int)$stmtCount->fetchColumn() - 1);
+
+        $stepsNeeded = $targetIdx - $currentShiftIndex;
+        if ($stepsNeeded <= 0) {
+            echo json_encode(['status' => 'deduped', 'message' => 'Al op of voorbij target shift']);
+            exit;
+        }
+
+        // Verifieer dat de huidige state een period_start toelaat
+        $stmtState = $pdo->prepare("SELECT event_type FROM game_events WHERE game_id = ? AND event_type IN ('match_start','period_start','period_end','match_end') AND is_deleted = 0 ORDER BY id DESC LIMIT 1");
+        $stmtState->execute([$gameId]);
+        $lastState = $stmtState->fetchColumn();
+        if ($lastState === 'period_start') {
+            echo json_encode(['status' => 'deduped', 'message' => 'Periode loopt al']);
+            exit;
+        }
+
+        try {
+            $pdo->beginTransaction();
+            $stmtInsert = $pdo->prepare("INSERT INTO game_events (game_id, parent_email, parent_name, event_type, player_id, player_out_id, event_minute, is_confirmed, user_agent, ip_address) VALUES (?, ?, ?, ?, NULL, NULL, 0, ?, ?, ?)");
+
+            for ($step = 0; $step < $stepsNeeded; $step++) {
+                $stmtInsert->execute([$gameId, $parentEmail, $parentName, 'period_start', $isCoach, $userAgent, $ipAddress]);
+
+                // Op de LAATSTE stap: log de schema-substitutions automatisch
+                if ($step === $stepsNeeded - 1 && !empty($subs)) {
+                    $stmtSub = $pdo->prepare("INSERT INTO game_events (game_id, parent_email, event_type, player_id, player_out_id, event_minute, is_confirmed) VALUES (?, 'auto@systeem', 'substitution', ?, ?, ?, 1)");
+                    foreach ($subs as $sub) {
+                        $pIn  = !empty($sub['player_in'])  ? (int)$sub['player_in']  : null;
+                        $pOut = !empty($sub['player_out']) ? (int)$sub['player_out'] : null;
+                        $min  = (int)($sub['minute'] ?? 0);
+                        if ($pIn || $pOut) {
+                            $stmtSub->execute([$gameId, $pIn, $pOut, $min]);
+                        }
+                    }
+                }
+            }
+
+        $pdo->commit();
+            echo json_encode(['status' => 'success']);
+        } catch (Exception $e) {
+            $pdo->rollBack();
+            echo json_encode(['status' => 'error', 'message' => $e->getMessage()]);
+        }
+        exit;
+    }
+
+    if ($action === 'start_game') {
+        // ── Game-niveau start: 1 period_start per wedstrijd (geen helften) ──
+        $gameId              = (int)($data['game_id'] ?? 0);
+        $parentEmail         = $data['parent_email'] ?? 'auto@systeem';
+        $parentName          = isset($data['parent_name']) ? substr(trim($data['parent_name']), 0, 100) : null;
+        $targetGameCounter   = (int)($data['target_game_counter'] ?? 2); // 1-based, min 2
+        $isCoach             = isset($_SESSION['user_id']) ? 1 : 0;
+        $userAgent           = substr($_SERVER['HTTP_USER_AGENT'] ?? '', 0, 500);
+        $ipAddress           = explode(',', $_SERVER['HTTP_CF_CONNECTING_IP'] ?? $_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? '')[0] ?: null;
+
+        if (!$gameId || $targetGameCounter < 2) {
+            echo json_encode(['status' => 'error', 'message' => 'Ongeldige parameters']);
+            exit;
+        }
+
+        // Huidig aantal block events = huidig game_counter
+        $stmtCount = $pdo->prepare("SELECT COUNT(*) FROM game_events WHERE game_id = ? AND event_type IN ('match_start','period_start') AND is_deleted = 0");
+        $stmtCount->execute([$gameId]);
+        $currentGameCounter = (int)$stmtCount->fetchColumn();
+
+        if ($currentGameCounter >= $targetGameCounter) {
+            echo json_encode(['status' => 'deduped', 'message' => 'Wedstrijd ' . $targetGameCounter . ' al gestart']);
+            exit;
+        }
+
+        // Laatste status event moet period_end zijn (vorige game gestopt)
+        $stmtState = $pdo->prepare("SELECT event_type FROM game_events WHERE game_id = ? AND event_type IN ('match_start','period_start','period_end','match_end') AND is_deleted = 0 ORDER BY id DESC LIMIT 1");
+        $stmtState->execute([$gameId]);
+        $lastState = $stmtState->fetchColumn();
+
+        if ($lastState === 'period_start' || $lastState === 'match_start') {
+            echo json_encode(['status' => 'deduped', 'message' => 'Vorige wedstrijd is nog actief — stop eerst']);
+            exit;
+        }
+
+        // Eén period_start = start van de volgende wedstrijd
+        $stmtInsert = $pdo->prepare("INSERT INTO game_events (game_id, parent_email, parent_name, event_type, player_id, player_out_id, event_minute, is_confirmed, user_agent, ip_address) VALUES (?, ?, ?, 'period_start', NULL, NULL, 0, ?, ?, ?)");
+        $stmtInsert->execute([$gameId, $parentEmail, $parentName, $isCoach, $userAgent, $ipAddress]);
+
+        echo json_encode(['status' => 'success']);
+        exit;
+    }
+
     if ($action === 'get_events') {
         $gameId = (int)($data['game_id'] ?? 0);
         $stmt = $pdo->prepare("SELECT e.*, p1.first_name as p1_first, p1.last_name as p1_last, p2.first_name as p2_first, p2.last_name as p2_last 

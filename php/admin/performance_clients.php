@@ -68,7 +68,7 @@ $logs = $pdo->query("
                 <div class="card-body pb-2">
                     <div class="table-responsive">
                         <table class="table table-bordered table-striped text-center align-middle">
-                            <thead class="table-dark">
+                            <thead class="">
                                 <tr>
                                     <th>User Type</th>
                                     <th>Unieke gebruikers</th>

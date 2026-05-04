@@ -1018,7 +1018,11 @@ $loadPenalty = ($penalty_seconds * 2) + $penalty_memory;
 $finalCost = $baseCost + $loadPenalty;
 
 $pdo->prepare("INSERT INTO usage_logs (user_id, team_id, action_type, cost_weight) VALUES (?, ?, ?, ?)")
-->execute([$_SESSION['user_id'] ?? 0, $_SESSION['team_id'] ?? 0, $actionType, $finalCost]);
+    ->execute([$_SESSION['user_id'] ?? 0, $_SESSION['team_id'] ?? 0, $actionType, $finalCost]);
+
+    // Log naar system_logs voor het Server Logs performance dashboard
+    $context = ($format ?? '?') . ' | ' . count($squad ?? []) . 'sp | ' . count($beschikbare_schemas ?? []) . ' schemas | ' . ($tries ?? 0) . ' nodes';
+    logPerformance($actionType, $gen_time_ms, $mem_peak_mb, $_SESSION['user_id'] ?? null, $context);
 
 $_SESSION["logged_generation_{$gameId}_{$dynKey}"] = true;
 }

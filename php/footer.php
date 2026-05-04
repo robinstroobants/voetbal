@@ -169,6 +169,9 @@
             if (localStorage.getItem('parent_email')) {
                 payload.parentEmail = localStorage.getItem('parent_email');
             }
+            if (localStorage.getItem('parent_name')) {
+                payload.parentName = localStorage.getItem('parent_name');
+            }
             
             fetch('/api/submit_feedback', {
                 method: 'POST',

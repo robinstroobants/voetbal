@@ -42,11 +42,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $teamId = $_SESSION['team_id'] ?? null;
     $teamName = $_SESSION['team_name'] ?? 'Onbekend';
     $parentEmail = $data['parentEmail'] ?? null;
+    $parentName  = $data['parentName']  ?? null;
     
     // Haal voornaam op uit database in plaats van session
     $firstName = 'Onbekend';
     if ($parentEmail) {
-        $firstName = 'Ouder (' . $parentEmail . ')';
+        $label = $parentName ?: 'Ouder';
+        $firstName = $label . ' (' . $parentEmail . ')';
     } elseif ($userId) {
         $stmtU = $pdo->prepare("SELECT first_name, last_name FROM users WHERE id = ?");
         $stmtU->execute([$userId]);

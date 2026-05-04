@@ -1,11 +1,12 @@
 <?php
-session_start();
+if (session_status() === PHP_SESSION_NONE) session_start();
 
 if (isset($_SESSION['user_id'])) {
     session_unset();
     session_destroy();
-    session_start();
+    if (session_status() === PHP_SESSION_NONE) session_start();
 }
+
 
 require_once dirname(__DIR__, 2) . '/core/getconn.php';
 

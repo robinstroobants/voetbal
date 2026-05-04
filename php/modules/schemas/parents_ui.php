@@ -1133,29 +1133,24 @@ document.addEventListener("DOMContentLoaded", function() {
             // Bereken de matchminuut:
             // - Tornooi: relatief t.o.v. start van de huidige GAME (game_counter), timer reset per game
             // - Gewone match: cumulatief t.o.v. match_start
-            // Matchminuut: gebruik event_minute (wat de coach op de klok zag bij het loggen)
-            // Als event_minute 0/null is, fallback naar timestamp-berekening
-            let relMin = 0;
-            if (!isStatusEvent) {
-                if (e.event_minute && e.event_minute > 0) {
-                    // event_minute = what the timer showed when logged — always correct
-                    relMin = e.event_minute;
-                } else if (e.created_at) {
-                    // Fallback: bereken van timestamps
-                    let baseTs;
-                    if (isTournament) {
-                        // Game-niveau: e._blockIndex IS de game_counter
-                        const gc = e._blockIndex;
-                        baseTs = window.gameStartCreatedAt[gc];
-                    } else {
-                        baseTs = window.blockStartCreatedAt[1];
-                    }
-                    if (baseTs) {
-                        const bStart = new Date(baseTs.replace(' ', 'T') + 'Z').getTime();
-                        const eTime  = new Date(e.created_at.replace(' ', 'T') + 'Z').getTime();
-                        const diffSec = (eTime - bStart) / 1000;
-                        if (diffSec >= 0) relMin = Math.floor(diffSec / 60) + 1;
-                    }
+            // Matchminuut: altijd berekenen van timestamps (UTC-correct met +Z suffix)
+            // Stored event_minute kan kapotte waarden bevatten van oude versies
+            let relMin = e.event_minute || 0; // fallback
+            if (!isStatusEvent && e.created_at) {
+                let baseTs;
+                if (isTournament) {
+                    // Game-niveau: e._blockIndex IS de game_counter
+                    const gc = e._blockIndex;
+                    baseTs = window.gameStartCreatedAt[gc];
+                } else {
+                    baseTs = window.blockStartCreatedAt[1]; // match_start
+                }
+                if (baseTs) {
+                    // +Z forceert UTC interpretatie — anders behandelt browser als lokale tijd
+                    const bStart = new Date(baseTs.replace(' ', 'T') + 'Z').getTime();
+                    const eTime  = new Date(e.created_at.replace(' ', 'T') + 'Z').getTime();
+                    const diffSec = (eTime - bStart) / 1000;
+                    if (diffSec >= 0) relMin = Math.floor(diffSec / 60) + 1;
                 }
             }
             

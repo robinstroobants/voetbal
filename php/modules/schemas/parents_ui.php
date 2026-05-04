@@ -1047,7 +1047,8 @@ document.addEventListener("DOMContentLoaded", function() {
         });
     }
     function fetchLiveEvents() {
-        if (!matchStarted) return;
+        // Altijd pollen — ook als matchStarted = false (pagina geladen vóór match start)
+        // renderLiveEvents detecteert een match_start en reloadt dan de pagina
         fetch('/api/api_game_events.php', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
@@ -1075,6 +1076,15 @@ document.addEventListener("DOMContentLoaded", function() {
         let now = Date.now();
         let canReload = !lastReload || (now - parseInt(lastReload) > 10000); // min 10s between reloads
         
+        // Als de pagina geladen werd vóór de match startte, detecteer dit en herlaad
+        if (!matchStarted && serverBlockStarts.length > 0) {
+            if (canReload) {
+                sessionStorage.setItem('last_sync_reload_' + gameId, now);
+                location.reload(); // Tweede ouder ziet nu de gestarte match
+            }
+            return;
+        }
+
         if (serverBlockCount > 0 && serverBlockCount - 1 > currentShiftIndex) {
             if (canReload) {
                 sessionStorage.setItem('last_sync_reload_' + gameId, now);
@@ -1339,23 +1349,25 @@ document.addEventListener("DOMContentLoaded", function() {
         }, 1200);
     }
 
+    // Altijd pollen — ook als match nog niet gestart is (detecteert match_start voor andere ouders)
+    // Vóór match start: elke 10s (snel detecteren) | Na start: elke 75s (DB-vriendelijk)
+    fetchLiveEvents();
     let fetchIntervalId = null;
-    if (matchStarted) {
-        // Eerste fetch bij paginastart
-        fetchLiveEvents();
-        // Auto-poll elke 75 seconden — goed evenwicht tussen realtime en DB-load
+    function startPollInterval() {
+        if (fetchIntervalId) clearInterval(fetchIntervalId);
+        const interval = matchStarted ? 75000 : 10000;
         fetchIntervalId = setInterval(() => {
             if (isMatchEnded()) {
                 clearInterval(fetchIntervalId);
             } else {
                 fetchLiveEvents();
-                // GA4 tracking van auto-refresh
                 if (typeof gtag === 'function') {
                     gtag('event', 'live_feed_auto_refresh', { game_id: gameId });
                 }
             }
-        }, 75000);
+        }, interval);
     }
+    startPollInterval();
 
     let currentEditTimeStr = '';
     

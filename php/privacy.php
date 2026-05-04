@@ -8,8 +8,7 @@ require_once __DIR__ . '/header.php';
 
     <section class="mb-5">
         <h2 class="h5 fw-bold">1. Wie zijn we?</h2>
-        <p>Lineup Heroes is een webapplicatie voor jeugdvoetbalcoaches om opstellingen en speeltijden te beheren.
-        De app wordt aangeboden door Robin Stroobants (hierna "wij" of "Lineup Heroes").</p>
+        <p>Lineup Heroes is een webapplicatie voor jeugdvoetbalcoaches om opstellingen en speeltijden te beheren.</p>
         <p>Contact: <a href="mailto:info@lineupheroes.com">info@lineupheroes.com</a></p>
     </section>
 
@@ -96,12 +95,16 @@ require_once __DIR__ . '/header.php';
         <h2 class="h5 fw-bold">6. Jouw rechten (AVG / GDPR)</h2>
         <p>Je hebt het recht om:</p>
         <ul>
-            <li>Inzage te vragen in de gegevens die we over jou bewaren</li>
-            <li>Onjuiste gegevens te laten corrigeren</li>
-            <li>Je gegevens te laten verwijderen ("recht op vergetelheid")</li>
-            <li>Je toestemming voor analytics op elk moment in te trekken</li>
+            <li><strong>Inzage</strong> te vragen in de gegevens die we over jou bewaren (Art. 15)</li>
+            <li><strong>Onjuiste gegevens</strong> te laten corrigeren (Art. 16)</li>
+            <li><strong>Je gegevens te laten verwijderen</strong> ("recht op vergetelheid", Art. 17)</li>
+            <li><strong>Je toestemming voor analytics</strong> op elk moment in te trekken (zie "Cookie-instellingen" onderaan)</li>
         </ul>
-        <p>Neem contact op via <a href="mailto:info@lineupheroes.com">info@lineupheroes.com</a>.</p>
+        <div class="alert alert-light border small">
+            <i class="fa-solid fa-envelope me-2 text-primary"></i>
+            Stuur je verzoek naar <a href="mailto:info@lineupheroes.com" class="fw-bold">info@lineupheroes.com</a>
+            met vermelding van je naam en e-mailadres. We reageren binnen <strong>30 dagen</strong>.
+        </div>
     </section>
 
     <section class="mb-5">

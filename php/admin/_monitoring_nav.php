@@ -9,6 +9,7 @@ $nav_items = [
     ['href' => '/admin/feedback',      'label' => 'Feedback',         'icon' => 'fa-bug',             'color' => 'danger',    'key' => 'feedback'],
     ['href' => '/admin/users',         'label' => 'Gebruikers',       'icon' => 'fa-users',           'color' => 'primary',   'key' => 'users'],
     ['href' => '/admin/manage_schemas','label' => "Schema's",         'icon' => 'fa-diagram-project', 'color' => 'primary',   'key' => 'manage_schemas'],
+    ['href' => '/admin/data_export',   'label' => 'GDPR Export',      'icon' => 'fa-shield-halved',   'color' => 'success',   'key' => 'data_export'],
 ];
 ?>
 <div class="d-flex align-items-center gap-2 flex-wrap mb-4 pb-3 border-bottom border-dark">

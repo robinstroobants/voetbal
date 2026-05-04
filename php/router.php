@@ -228,6 +228,11 @@ if (isset($routes[$path])) {
         require_once __DIR__ . '/api/api_game_events.php';
         $route_matched = true;
     }
+    elseif ($path === '/api/api_telemetry.php' || $path === '/api/telemetry') {
+        // Geen enforce_auth() — ouders op share pagina sturen telemetrie zonder login
+        require_once __DIR__ . '/api/api_telemetry.php';
+        $route_matched = true;
+    }
 }
 
 // 4. Fallback voor native requests (.php, scripts, API)

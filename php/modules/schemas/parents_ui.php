@@ -1391,8 +1391,9 @@ document.addEventListener("DOMContentLoaded", function() {
         } catch(e) {}
 
         let domNodes = document.getElementsByTagName('*').length;
+        const parentEmailVal = getParentEmail();
         let uType = 'guest';
-        <?php if (isset($_SESSION['user_id'])): ?>uType = 'coach';<?php elseif (!empty($_SESSION['parent_email'])): ?>uType = 'parent';<?php endif; ?>
+        <?php if (isset($_SESSION['user_id'])): ?>uType = 'coach';<?php else: ?>if (parentEmailVal) uType = 'parent';<?php endif; ?>
 
         fetch('/api/api_telemetry.php', {
             method: 'POST',
@@ -1401,7 +1402,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 action: 'log_telemetry',
                 game_id: gameId,
                 user_type: uType,
-                identifier: parentEmail || 'guest',
+                identifier: parentEmailVal || 'guest',
                 js_heap_mb: jsHeapMb,
                 dom_nodes: domNodes,
                 page_load_ms: pageLoadMs,

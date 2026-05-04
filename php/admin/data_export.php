@@ -24,7 +24,7 @@ if ($email_query) {
         $tid  = null;
 
         // Team van de coach
-        $stmtT = $pdo->prepare("SELECT t.id, t.name, t.default_format, t.show_lineup, t.timezone FROM teams t JOIN users u ON u.team_id = t.id WHERE u.id = ?");
+        $stmtT = $pdo->prepare("SELECT t.id, t.name, t.default_format, t.timezone FROM teams t JOIN users u ON u.team_id = t.id WHERE u.id = ?");
         $stmtT->execute([$uid]);
         $team = $stmtT->fetch(PDO::FETCH_ASSOC);
         $tid  = $team['id'] ?? null;

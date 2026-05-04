@@ -311,7 +311,15 @@ if ($matchStarted && isset($blockEvents[$currentGameCounter - 1])) {
             </div>
 
             <hr class="w-100 my-2 text-muted">
-            <h6 class="text-start fw-bold text-muted w-100 mb-0" style="font-size: 0.85rem;"><i class="fa-solid fa-list-check me-1"></i> Wedstrijdverloop</h6>
+            <div class="d-flex justify-content-between align-items-center w-100 mb-0">
+                <h6 class="fw-bold text-muted mb-0" style="font-size: 0.85rem;">
+                    <i class="fa-solid fa-list-check me-1"></i> Wedstrijdverloop
+                </h6>
+                <button id="btnRefreshFeed" onclick="manualRefreshFeed()" class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1" style="font-size: 0.75rem; padding: 2px 8px;">
+                    <i class="fa-solid fa-rotate-right"></i> Ververs
+                </button>
+            </div>
+            <div id="lastRefreshLabel" class="text-muted w-100 text-end" style="font-size: 0.7rem; min-height: 1rem;"></div>
             <div id="liveEventsFeed" class="w-100 pb-1 mt-1"></div>
         </div>
         
@@ -1268,16 +1276,26 @@ document.addEventListener("DOMContentLoaded", function() {
         }).catch(() => {}); // Silent fail - telemetry is non-critical
     }, 60000); // Elke minuut
 
+    // Manuele refresh door de ouder
+    function manualRefreshFeed() {
+        const btn = document.getElementById('btnRefreshFeed');
+        const lbl = document.getElementById('lastRefreshLabel');
+        if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-rotate-right fa-spin"></i> Bezig...'; }
+        fetchLiveEvents();
+        setTimeout(() => {
+            if (btn) { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-rotate-right"></i> Ververs'; }
+            const now = new Date();
+            const hhmm = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0') + ':' + String(now.getSeconds()).padStart(2,'0');
+            if (lbl) lbl.innerText = 'Bijgewerkt om ' + hhmm;
+        }, 1200);
+    }
+
     let fetchIntervalId = null;
     if (matchStarted) {
+        // Eénmalige fetch bij paginastart
         fetchLiveEvents();
-        fetchIntervalId = setInterval(() => {
-            if (isMatchEnded()) {
-                clearInterval(fetchIntervalId);
-            } else {
-                fetchLiveEvents();
-            }
-        }, 30000); // Check every 30 seconds as long as match is active
+        // Geen auto-poll meer — ouder gebruikt de 'Ververs' knop
+        // (vermijdt onnodige DB-load bij veel gelijktijdige bezoekers)
     }
 
     let currentEditTimeStr = '';

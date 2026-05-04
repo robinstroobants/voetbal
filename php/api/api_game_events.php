@@ -87,19 +87,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 if ($existing) {
                     $playerName = trim(($existing['first_name'] ?? '') . ' ' . ($existing['last_name'] ?? ''));
                     if (!$playerName) $playerName = 'deze speler';
-                    
-                    $doorWie = ($existing['parent_email'] === $parentEmail)
-                        ? 'jou'
-                        : ($existing['parent_name'] ? htmlspecialchars($existing['parent_name']) : explode('@', $existing['parent_email'])[0]);
+                    // Altijd de naam tonen, nooit 'jou' — ook als het dezelfde ouder is
+                    $doorWie = $existing['parent_name'] 
+                        ? htmlspecialchars($existing['parent_name']) 
+                        : explode('@', $existing['parent_email'] ?? 'onbekend')[0];
                     $warningText = "Er werd zojuist al een doelpunt gelogd voor " . htmlspecialchars($playerName) . " door " . $doorWie . " (in minuut " . $existing['event_minute'] . "). Wil je dit doelpunt toch extra toevoegen?";
                     
                     echo json_encode(['status' => 'warning', 'message' => 'duplicate_warning', 'warning_text' => $warningText]);
                     exit;
                 }
             } elseif (in_array($eventType, ['opp_goal', 'tegengoal'])) {
-                // Check within 90 seconds
+                // Inclusief parent_name voor de dedup-melding
                 $stmt = $pdo->prepare("
-                    SELECT parent_email, event_minute 
+                    SELECT parent_email, parent_name, event_minute 
                     FROM game_events 
                     WHERE game_id = ? AND event_type IN ('opp_goal', 'tegengoal') AND created_at > DATE_SUB(NOW(), INTERVAL 90 SECOND) AND is_deleted = 0
                     ORDER BY created_at DESC LIMIT 1
@@ -108,9 +108,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $existing = $stmt->fetch(PDO::FETCH_ASSOC);
                 
                 if ($existing) {
-                    $doorWie = ($existing['parent_email'] === $parentEmail)
-                        ? 'jou'
-                        : ($existing['parent_name'] ? htmlspecialchars($existing['parent_name']) : explode('@', $existing['parent_email'])[0]);
+                    // Altijd de naam tonen, nooit 'jou'
+                    $doorWie = $existing['parent_name'] 
+                        ? htmlspecialchars($existing['parent_name']) 
+                        : explode('@', $existing['parent_email'] ?? 'onbekend')[0];
                     $warningText = "Er werd zojuist al een tegendoelpunt gelogd door " . $doorWie . " (in minuut " . $existing['event_minute'] . "). Wil je dit doelpunt toch extra toevoegen?";
                     
                     echo json_encode(['status' => 'warning', 'message' => 'duplicate_warning', 'warning_text' => $warningText]);

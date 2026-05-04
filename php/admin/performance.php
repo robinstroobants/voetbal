@@ -55,24 +55,14 @@ $heaviest_users_stmt = $pdo->query("
 ");
 $heaviest_users = $heaviest_users_stmt->fetchAll(PDO::FETCH_ASSOC);
 ?>
-<!DOCTYPE html>
-<html lang="nl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= $page_title ?> - Lineup Heroes</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        .fast { color: #198754; font-weight: bold; }
-        .medium { color: #fd7e14; font-weight: bold; }
-        .slow { color: #dc3545; font-weight: bold; }
-    </style>
-</head>
-<body class="bg-light">
-    <?php include __DIR__ . '/../header.php'; ?>
+<?php require_once __DIR__ . '/../header.php'; ?>
+<style>
+    .fast { color: #198754; font-weight: bold; }
+    .medium { color: #fd7e14; font-weight: bold; }
+    .slow { color: #dc3545; font-weight: bold; }
+</style>
 
-    <div class="container mt-4">
+<div class="container mt-4">
         <?php include __DIR__ . '/_monitoring_nav.php'; ?>
         <div class="d-flex justify-content-between align-items-center mb-4">
             <h3><i class="fa-solid fa-gauge-high text-primary me-2"></i>Server Logs</h3>

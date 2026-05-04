@@ -52,12 +52,9 @@ if ($action === 'add_single_player') {
         $player_id = $pdo->lastInsertId();
         
         $stmtScores = $pdo->prepare("INSERT INTO player_scores (player_id, position, score, score_date) VALUES (?, ?, ?, CURDATE())");
-        for ($pos = 1; $pos <= 11; $pos++) {
-            if ($is_doelman) {
-                $score = ($pos == 1) ? 50 : 0;
-            } else {
-                $score = ($pos == 1) ? 0 : 50;
-            }
+        $valid_positions = [1, 2, 4, 5, 7, 9, 10, 11];
+        foreach ($valid_positions as $pos) {
+            $score = $is_doelman ? ($pos === 1 ? 75 : 0) : ($pos === 1 ? 0 : 50);
             $stmtScores->execute([$player_id, $pos, $score]);
         }
         $pdo->commit();
@@ -116,8 +113,9 @@ if ($action === 'add_bulk_players') {
                 $player_id = $pdo->lastInsertId();
                 
                 // Veldspeler (is_doelman = 0 default bij bulk)
-                for ($pos = 1; $pos <= 11; $pos++) {
-                    $score = ($pos == 1) ? 0 : 50;
+                $valid_positions = [1, 2, 4, 5, 7, 9, 10, 11];
+                foreach ($valid_positions as $pos) {
+                    $score = ($pos === 1) ? 0 : 50;
                     $stmtScores->execute([$player_id, $pos, $score]);
                 }
                 $added++;

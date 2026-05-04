@@ -39,23 +39,14 @@ $logs = $pdo->query("
     SELECT * FROM client_telemetry ORDER BY created_at DESC LIMIT 100
 ")->fetchAll(PDO::FETCH_ASSOC);
 ?>
-<!DOCTYPE html>
-<html lang="nl">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= $page_title ?> - Lineup Heroes</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        .high-mem { color: #dc3545; font-weight: bold; }
-        .normal-mem { color: #198754; }
-        .slow-load { color: #fd7e14; font-weight: bold; }
-        th { white-space: nowrap; font-size: 0.82rem; }
-        td { font-size: 0.85rem; }
-    </style>
-</head>
-<body class="bg-light">
+<?php require_once __DIR__ . '/../header.php'; ?>
+<style>
+    .high-mem { color: #dc3545; font-weight: bold; }
+    .normal-mem { color: #198754; }
+    .slow-load { color: #fd7e14; font-weight: bold; }
+    th { white-space: nowrap; font-size: 0.82rem; }
+    td { font-size: 0.85rem; }
+</style>
 
 <div class="container-fluid py-4">
     <h2><i class="fa-solid fa-mobile-screen text-primary me-2"></i> Client Telemetry</h2>
@@ -180,6 +171,4 @@ $logs = $pdo->query("
 
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-</body>
-</html>
+<?php require_once __DIR__ . '/../footer.php'; ?>

@@ -291,7 +291,7 @@ class Game
       foreach($this->time_in_position as $_player => $time_played_in_position){
         foreach($time_played_in_position as $_pos=>$time_in_position){
           if (is_numeric($_pos)){
-            $score += $this->playerscores[$_player][$_pos] * ($time_in_position / 60);//tijd is berekend in seconden
+            $score += ($this->playerscores[$_player][$_pos] ?? 0) * ($time_in_position / 60);//tijd is berekend in seconden
           }
         }
       }

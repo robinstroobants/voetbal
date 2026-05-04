@@ -14,10 +14,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $default_format = trim($_POST['default_format'] ?? '8v8');
         $default_game_parts = trim($_POST['default_game_parts'] ?? '4x15');
         $meeting_time_offset = (int)($_POST['meeting_time_offset'] ?? 45);
+        $timezone = trim($_POST['timezone'] ?? 'Europe/Brussels');
+        $show_lineup = isset($_POST['show_lineup_to_parents']) ? 1 : 0;
+
+        // Valideer timezone
+        $valid_timezones = DateTimeZone::listIdentifiers();
+        if (!in_array($timezone, $valid_timezones)) $timezone = 'Europe/Brussels';
 
         if ($team_name) {
-            $stmt = $pdo->prepare("UPDATE teams SET name = ?, default_format = ?, default_game_parts = ?, meeting_time_offset = ? WHERE id = ?");
-            if ($stmt->execute([$team_name, $default_format, $default_game_parts, $meeting_time_offset, $team_id])) {
+            $stmt = $pdo->prepare("UPDATE teams SET name = ?, default_format = ?, default_game_parts = ?, meeting_time_offset = ?, timezone = ?, show_lineup_to_parents = ? WHERE id = ?");
+            if ($stmt->execute([$team_name, $default_format, $default_game_parts, $meeting_time_offset, $timezone, $show_lineup, $team_id])) {
                 $_SESSION['team_name'] = $team_name;
                 $_SESSION['default_format'] = $default_format;
                 $_SESSION['default_game_parts'] = $default_game_parts;
@@ -114,9 +120,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 // Ophalen van bestaande team_data
-$stmt = $pdo->prepare("SELECT name, default_format, default_game_parts, meeting_time_offset, user_id as owner_id FROM teams WHERE id = ?");
+$stmt = $pdo->prepare("SELECT name, default_format, default_game_parts, meeting_time_offset, timezone, show_lineup_to_parents, user_id as owner_id FROM teams WHERE id = ?");
 $stmt->execute([$team_id]);
 $team = $stmt->fetch();
+
+// Beschikbare tijdzones voor de dropdown (Europa-relevant)
+$common_timezones = [
+    'Europe/Brussels' => 'Brussel (UTC+1/+2)',
+    'Europe/Amsterdam' => 'Amsterdam (UTC+1/+2)',
+    'Europe/London'   => 'Londen (UTC+0/+1)',
+    'Europe/Paris'    => 'Parijs (UTC+1/+2)',
+    'Europe/Berlin'   => 'Berlijn (UTC+1/+2)',
+    'UTC'             => 'UTC',
+];
 
 // Ophalen van beschikbare formats
 $stmtFormats = $pdo->query("SELECT DISTINCT game_format FROM lineups");
@@ -204,9 +220,26 @@ require_once __DIR__ . '/header.php';
                         </div>
                     </div>
 
+                    <div class="col-md-3 mt-3 mt-md-0">
+                        <label class="form-label fw-bold">Tijdzone</label>
+                        <select name="timezone" class="form-select border-secondary">
+                            <?php foreach ($common_timezones as $tz => $label): ?>
+                            <option value="<?= $tz ?>" <?= ($team['timezone'] ?? 'Europe/Brussels') === $tz ? 'selected' : '' ?>><?= $label ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                        <div class="form-text">Tijdstippen in de match tracker</div>
+                    </div>
 
+                    <div class="col-12 mt-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" name="show_lineup_to_parents" id="show_lineup_to_parents" <?= !empty($team['show_lineup_to_parents']) ? 'checked' : '' ?>>
+                            <label class="form-check-label fw-bold" for="show_lineup_to_parents">
+                                📋 Opstelling tonen aan ouders via de share link
+                            </label>
+                            <div class="form-text">Als dit uit staat zien ouders enkel de match tracker (score &amp; doelpunten), niet de opstellingen.</div>
+                        </div>
+                    </div>
 
-                </div>
 
                
                 <script>

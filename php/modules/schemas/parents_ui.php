@@ -37,7 +37,9 @@ foreach($gamePlayers as $p) {
 
 // Check if it's a tournament via de is_tournament vlag (block_labels kan leeg zijn maar tornooi nog steeds actief)
 $stmtTour = $pdo->prepare("
-    SELECT g.is_tournament, g.block_labels, g.opponent, t.name as team_name
+    SELECT g.is_tournament, g.block_labels, g.opponent, t.name as team_name,
+           COALESCE(t.timezone, 'Europe/Brussels') as timezone,
+           COALESCE(t.show_lineup_to_parents, 0) as show_lineup_to_parents
     FROM games g
     LEFT JOIN teams t ON t.id = g.team_id
     WHERE g.id = ?
@@ -48,6 +50,13 @@ $isTournament = !empty($gameRow['is_tournament']);
 $teamName = htmlspecialchars($gameRow['team_name'] ?? 'Ons team');
 $gameOpponent = htmlspecialchars($gameRow['opponent'] ?? '');
 $gameBlockLabels = json_decode($gameRow['block_labels'] ?? '[]', true) ?: [];
+$teamTimezone = $gameRow['timezone'] ?? 'Europe/Brussels';
+$showLineupToParents = !empty($gameRow['show_lineup_to_parents']);
+
+// Bereken UTC-offset in minuten voor de team-tijdzone (voor JS timestamp display)
+$tzObj = new DateTimeZone($teamTimezone);
+$utcOffset = $tzObj->getOffset(new DateTime('now', new DateTimeZone('UTC'))); // seconden
+$timezoneOffsetMinutes = intval($utcOffset / 60);
 
 // Haal de shifts (blokken) op uit het lineup object
 $shifts_data = [];
@@ -267,9 +276,11 @@ if ($matchStarted && isset($blockEvents[$currentGameCounter - 1])) {
     <li class="nav-item" role="presentation">
       <button class="nav-link active fw-bold text-dark border-0" data-bs-toggle="pill" data-bs-target="#tab-tracker" type="button" role="tab"><i class="fa-solid fa-stopwatch me-1"></i> Match Tracker</button>
     </li>
+    <?php if ($showLineupToParents): ?>
     <li class="nav-item" role="presentation">
       <button class="nav-link fw-bold text-dark border-0" data-bs-toggle="pill" data-bs-target="#tab-lineup" type="button" role="tab"><i class="fa-solid fa-clipboard-list me-1"></i> Opstelling</button>
     </li>
+    <?php endif; ?>
   </ul>
   
   <div class="tab-content" id="parentsTabsContent">
@@ -501,6 +512,8 @@ document.addEventListener("DOMContentLoaded", function() {
     const isTournament = <?= $isTournament ? 'true' : 'false' ?>;
     const currentGameCounter = <?= (int)$currentGameCounter ?>;
     const totalGames = <?= (int)$totalGames ?>;
+    // Tijdzone offset in minuten t.o.v. UTC (voor timestamp display in feed)
+    const timezoneOffsetMinutes = <?= (int)$timezoneOffsetMinutes ?>;
 
     let currentCalculatedMinute = 0;
     let currentAdjustedMinute = 0;
@@ -1130,7 +1143,11 @@ document.addEventListener("DOMContentLoaded", function() {
             
             let timeStr = '';
             if (e.created_at) {
-                timeStr = e.created_at.substring(11, 16);
+                // UTC timestamp uit DB omzetten naar lokale teamtijdzone
+                const utcMs = new Date(e.created_at.replace(' ', 'T') + 'Z').getTime();
+                const localMs = utcMs + timezoneOffsetMinutes * 60 * 1000;
+                const d = new Date(localMs);
+                timeStr = String(d.getUTCHours()).padStart(2,'0') + ':' + String(d.getUTCMinutes()).padStart(2,'0');
             }
             
             const isStatusEvent = ['match_start', 'period_start', 'period_end', 'match_end'].includes(e.event_type);
@@ -1292,10 +1309,20 @@ document.addEventListener("DOMContentLoaded", function() {
 
     let fetchIntervalId = null;
     if (matchStarted) {
-        // Eénmalige fetch bij paginastart
+        // Eerste fetch bij paginastart
         fetchLiveEvents();
-        // Geen auto-poll meer — ouder gebruikt de 'Ververs' knop
-        // (vermijdt onnodige DB-load bij veel gelijktijdige bezoekers)
+        // Auto-poll elke 75 seconden — goed evenwicht tussen realtime en DB-load
+        fetchIntervalId = setInterval(() => {
+            if (isMatchEnded()) {
+                clearInterval(fetchIntervalId);
+            } else {
+                fetchLiveEvents();
+                // GA4 tracking van auto-refresh
+                if (typeof gtag === 'function') {
+                    gtag('event', 'live_feed_auto_refresh', { game_id: gameId });
+                }
+            }
+        }, 75000);
     }
 
     let currentEditTimeStr = '';

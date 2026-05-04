@@ -8,7 +8,7 @@ $schemaId = isset($_GET['schema']) ? (int)$_GET['schema'] : null;
 $format = $_GET['format'] ?? null;
 
 if (!$schemaId) {
-    $stmtAll = $pdo->query("SELECT id, game_format, player_count, team_id, is_original, schema_data FROM lineups ORDER BY game_format ASC, player_count ASC, id DESC");
+    $stmtAll = $pdo->query("SELECT id, game_format, player_count, team_id, is_original, schema_data FROM lineups WHERE is_original = 1 ORDER BY game_format ASC, player_count ASC, id DESC");
     $all_schemas = $stmtAll->fetchAll();
     ?>
     <div class="container mt-5 mb-5">
@@ -257,6 +257,10 @@ if (!$schema_json) {
 }
 
 $shifts = json_decode($schema_json, true);
+
+// Bepaal gk_count vroeg, zodat de check-loops hem kunnen gebruiken
+preg_match('/^(\d+v\d+)_(\d+)gk_/', $format, $_gkm);
+$gk_count = isset($_gkm[2]) ? (int)$_gkm[2] : 0;
 
 // Bepaal playercount ALTIJD op basis van de daadwerkelijke schema data, onafhankelijk van the URL format parameter
 if (isset($shifts[0]['lineup']) && isset($shifts[0]['bench'])) {
@@ -632,7 +636,7 @@ $is_broken = (count($unique_playtimes) > 2) || (count($logic_errors) > 0);
                 
                 <?php if ($editorContext): ?>
                     <div class="mt-4 border-top pt-3">
-                        <a href="/schema_editor?game_id=<?= $editorContext['game_id'] ?>&schema_id=<?= $schemaId ?>&volgorde=<?= urlencode($editorContext['player_order']) ?>&overwrite_mode=1" class="btn btn-warning shadow-sm fw-bold">
+                        <a href="/games/<?= $editorContext['game_id'] ?>/editor?schema_id=<?= $schemaId ?>&volgorde=<?= urlencode($editorContext['player_order']) ?>&overwrite_mode=1" class="btn btn-warning shadow-sm fw-bold">
                             <i class="fa-solid fa-hammer"></i> Open in Visual Revisor Modus
                         </a>
                         <small class="text-muted d-block mt-1">Hier kan je het schema grafisch herbouwen en bij opslaan <strong>overschrijft hij keihard het brondocument</strong>!</small>

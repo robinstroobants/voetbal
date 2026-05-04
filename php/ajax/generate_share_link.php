@@ -20,9 +20,15 @@ if (!$game_id) {
     exit;
 }
 
-// Controleer of de wedstrijd van dit team is
-$stmt = $pdo->prepare("SELECT id, share_token FROM games WHERE id = ? AND team_id = ?");
-$stmt->execute([$game_id, $team_id]);
+// Controleer of de wedstrijd van dit team is (superadmin mag alles)
+$isSuperAdmin = ($_SESSION['role'] ?? '') === 'superadmin';
+if ($isSuperAdmin) {
+    $stmt = $pdo->prepare("SELECT id, share_token FROM games WHERE id = ?");
+    $stmt->execute([$game_id]);
+} else {
+    $stmt = $pdo->prepare("SELECT id, share_token FROM games WHERE id = ? AND team_id = ?");
+    $stmt->execute([$game_id, $team_id]);
+}
 $game = $stmt->fetch();
 
 if (!$game) {

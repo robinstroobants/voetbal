@@ -134,21 +134,14 @@ $common_timezones = [
     'UTC'             => 'UTC',
 ];
 
-// Ophalen van beschikbare formats
-$stmtFormats = $pdo->query("SELECT DISTINCT game_format FROM lineups");
-$available_parts_by_format = [];
-while ($row = $stmtFormats->fetchColumn()) {
-    if (preg_match('/^(\d+v\d+)_(\d+gk_)?(\d+x\d+)$/', $row, $matches)) {
-        $f = $matches[1];
-        $p = $matches[3];
-        if (!isset($available_parts_by_format[$f])) {
-            $available_parts_by_format[$f] = [];
-        }
-        if (!in_array($p, $available_parts_by_format[$f])) {
-            $available_parts_by_format[$f][] = $p;
-        }
-    }
-}
+// Hardcoded beschikbare game parts per format (onafhankelijk van DB-inhoud)
+$available_parts_by_format = [
+    '11v11' => ['2x45', '2x40', '2x35'],
+    '8v8'   => ['4x15', '5x15', '6x15', '7x15', '4x20', '5x20', '6x20', '7x20'],
+    '5v5'   => ['4x15', '5x15', '6x15', '7x15'],
+    '3v3'   => ['6x10'],
+    '2v2'   => ['6x10'],
+];
 $json_available_parts = json_encode($available_parts_by_format);
 
 // Ophalen van co-coaches
@@ -196,7 +189,7 @@ require_once __DIR__ . '/header.php';
                          <label class="form-label fw-bold">Ploegnaam</label>
                          <input type="text" name="team_name" class="form-control" value="<?= htmlspecialchars($team['name'] ?? '') ?>" required>
                     </div>
-                    <div class="col-md-1">
+                    <div class="col-md-2">
                         <label class="form-label fw-bold">Format</label>
                         <select name="default_format" id="default_format" class="form-select border-secondary">
                             <option value="11v11" <?= ($team['default_format'] == '11v11') ? 'selected' : '' ?>>11v11</option>
@@ -207,12 +200,14 @@ require_once __DIR__ . '/header.php';
                         </select>
                     </div>
                     <div class="col-md-2 mt-3 mt-md-0">
-                        <label class="form-label fw-bold">Wedstrijdduur</label>
+                        <label class="form-label fw-bold">Default</label>
                         <select name="default_game_parts" id="default_game_parts" class="form-select border-secondary">
                             <!-- Opties worden ingevuld via JS -->
                         </select>
                     </div>
-                    <div class="col-md-3 mt-3 mt-md-0">
+                </div>
+                <div class="row">
+                    <div class="col-md-5 mt-3 mt-md-0">
                         <label class="form-label fw-bold">Samenkomsttijd</label>
                         <div class="input-group">
                             <input type="number" name="meeting_time_offset" class="form-control" value="<?= htmlspecialchars($team['meeting_time_offset'] ?? 45) ?>" min="0" required>
@@ -220,7 +215,7 @@ require_once __DIR__ . '/header.php';
                         </div>
                     </div>
 
-                    <div class="col-md-3 mt-3 mt-md-0">
+                    <div class="col-md-4 mt-3 mt-md-0">
                         <label class="form-label fw-bold">Tijdzone</label>
                         <select name="timezone" class="form-select border-secondary">
                             <?php foreach ($common_timezones as $tz => $label): ?>
@@ -229,7 +224,8 @@ require_once __DIR__ . '/header.php';
                         </select>
                         <div class="form-text">Tijdstippen in de match tracker</div>
                     </div>
-
+                </div>
+                <div class="row">
                     <div class="col-12 mt-3">
                         <div class="form-check form-switch">
                             <input class="form-check-input" type="checkbox" name="show_lineup_to_parents" id="show_lineup_to_parents" <?= !empty($team['show_lineup_to_parents']) ? 'checked' : '' ?>>
@@ -239,7 +235,7 @@ require_once __DIR__ . '/header.php';
                             <div class="form-text">Als dit uit staat zien ouders enkel de match tracker (score &amp; doelpunten), niet de opstellingen.</div>
                         </div>
                     </div>
-
+                </div>
 
                
                 <script>
@@ -253,20 +249,7 @@ require_once __DIR__ . '/header.php';
                         const selectedFormat = formatSelect.value;
                         partsSelect.innerHTML = '';
                         
-                        let parts = availableParts[selectedFormat] || [];
-                        if (parts.length === 0) {
-                            if (selectedFormat === '11v11') {
-                                parts = ['2x45', '2x40', '2x35'];
-                            } else if (selectedFormat === '8v8') {
-                                parts = ['4x15', '5x15', '6x15', '7x15', '4x20', '5x20', '6x20', '7x20'];
-                            } else if (selectedFormat === '5v5') {
-                                parts = ['4x15', '5x15', '6x15', '7x15'];
-                            } else if (selectedFormat === '3v3' || selectedFormat === '2v2') {
-                                parts = ['6x10'];
-                            } else {
-                                parts = ['4x15'];
-                            }
-                        }
+                        const parts = availableParts[selectedFormat] || ['4x15'];
 
                         parts.forEach(part => {
                             const option = document.createElement('option');
@@ -283,8 +266,11 @@ require_once __DIR__ . '/header.php';
                     updateParts(); // Initial call
                 });
                 </script>
+                <div class="row">
+                    <div class="col-12 mt-3">
                         <button type="submit" class="btn btn-primary"><i class="fa-solid fa-floppy-disk me-2"></i> Opslaan</button>
-
+                    </div>
+                </div>
                 
             </form>
         </div>

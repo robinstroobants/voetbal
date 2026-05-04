@@ -272,6 +272,17 @@ if ($matchStarted && isset($blockEvents[$currentGameCounter - 1])) {
 </style>
 
 <div class="d-print-none mt-1 mb-2 w-100" id="parentsShareTabsContainer">
+
+  <!-- Identiteitsbalk: toont naam/email van de ouder met optie om te bewerken -->
+  <div id="parentIdentityBar" class="d-none mb-2 px-3 py-2 rounded d-flex align-items-center justify-content-between" style="background: #f0f4ff; border: 1px solid #d0dcff; font-size: 0.82rem;">
+    <div class="d-flex align-items-center gap-2 text-secondary">
+      <i class="fa-solid fa-user-circle text-primary"></i>
+      <span id="parentIdentityDisplay"></span>
+    </div>
+    <button class="btn btn-sm btn-link text-primary p-0 ms-2" style="font-size: 0.82rem;" onclick="reopenIdentityModal()" title="Aanpassen">
+      <i class="fa-solid fa-pen-to-square"></i>
+    </button>
+  </div>
   <ul class="nav nav-pills nav-fill bg-white p-1 rounded shadow-sm border mb-2" id="parentsTabs" role="tablist">
     <li class="nav-item" role="presentation">
       <button class="nav-link active fw-bold text-dark border-0" data-bs-toggle="pill" data-bs-target="#tab-tracker" type="button" role="tab"><i class="fa-solid fa-stopwatch me-1"></i> Match Tracker</button>
@@ -541,6 +552,8 @@ document.addEventListener("DOMContentLoaded", function() {
         if (!storedEmail && skipIdentityFlag !== '1') {
             var myModal = new bootstrap.Modal(document.getElementById('parentIdentityModal'));
             myModal.show();
+        } else {
+            updateIdentityBar();
         }
         
         if (matchStarted) {
@@ -553,8 +566,14 @@ document.addEventListener("DOMContentLoaded", function() {
         const name = document.getElementById('parentNameInput').value.trim();
         if (email) {
             localStorage.setItem('parent_email', email);
-            if (name) localStorage.setItem('parent_name', name);
+            localStorage.removeItem('skip_identity');
+            if (name) {
+                localStorage.setItem('parent_name', name);
+            } else {
+                localStorage.removeItem('parent_name');
+            }
             bootstrap.Modal.getInstance(document.getElementById('parentIdentityModal')).hide();
+            updateIdentityBar();
         } else {
             alert('Vul een geldig e-mailadres in of kies voor "Kijken".');
         }
@@ -563,6 +582,29 @@ document.addEventListener("DOMContentLoaded", function() {
     function skipIdentity() {
         localStorage.setItem('skip_identity', '1');
         bootstrap.Modal.getInstance(document.getElementById('parentIdentityModal')).hide();
+        updateIdentityBar();
+    }
+
+    function reopenIdentityModal() {
+        const storedEmail = localStorage.getItem('parent_email') || '';
+        const storedName  = localStorage.getItem('parent_name')  || '';
+        document.getElementById('parentEmailInput').value = storedEmail;
+        document.getElementById('parentNameInput').value  = storedName;
+        new bootstrap.Modal(document.getElementById('parentIdentityModal')).show();
+    }
+
+    function updateIdentityBar() {
+        const bar     = document.getElementById('parentIdentityBar');
+        const display = document.getElementById('parentIdentityDisplay');
+        if (!bar || !display) return;
+        const email = localStorage.getItem('parent_email');
+        const name  = localStorage.getItem('parent_name');
+        if (email) {
+            display.textContent = name ? name + ' — ' + email : email;
+            bar.classList.remove('d-none');
+        } else {
+            bar.classList.add('d-none');
+        }
     }
 
     function getParentEmail() {

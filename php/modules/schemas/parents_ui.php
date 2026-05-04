@@ -412,17 +412,19 @@ document.addEventListener("DOMContentLoaded", function() {
         
         <!-- Wie scoorde er? (Enkel) -->
         <div id="goalPlayerSelect" class="mb-3" style="display:none;">
-            <label class="form-label fw-bold small text-primary">Wie heeft er gescoord?</label>
-            <select class="form-select mb-3" id="goalPlayerId">
+            <label class="form-label fw-bold small text-primary" id="goalPlayerSelectLabel">Wie heeft er gescoord?</label>
+            <select class="form-select mb-3" id="goalPlayerId" onchange="onGoalPlayerChange()">
                 <option value="">Selecteer een speler...</option>
                 <!-- JS vult dit -->
             </select>
             
-            <label class="form-label fw-bold small text-info">Wie gaf de assist? (Optioneel)</label>
-            <select class="form-select mb-2" id="assistPlayerId">
-                <option value="">Geen assist / Onbekend</option>
-                <!-- JS vult dit -->
-            </select>
+            <div id="assistSection">
+                <label class="form-label fw-bold small text-info">Wie gaf de assist? (Optioneel)</label>
+                <select class="form-select mb-2" id="assistPlayerId">
+                    <option value="">Geen assist / Onbekend</option>
+                    <!-- JS vult dit -->
+                </select>
+            </div>
         </div>
         
         <!-- Wissel Menu -->
@@ -857,7 +859,7 @@ document.addEventListener("DOMContentLoaded", function() {
     function submitMatchEnd() {
         if (!matchStarted) return;
         const gameName = getGameLabel(currentGameCounter);
-        if (!confirm(`Stop ${gameName} en beëindig het tornooi?`)) return;
+        if (!confirm(`Stop ${gameName}?`)) return;
         autoEventTriggered = true; // Voorkom dubbele auto-trigger
         sendApiEvent('match_end', calculateElapsedMinutes());
     }
@@ -887,15 +889,22 @@ document.addEventListener("DOMContentLoaded", function() {
         if (type === 'goal') {
             document.getElementById('eventModalTitle').innerText = '⚽ Goal Melden';
             document.getElementById('goalPlayerSelect').style.display = 'block';
+            document.getElementById('goalPlayerSelectLabel').innerText = 'Wie heeft er gescoord?';
+            document.getElementById('assistSection').style.display = 'block';
             document.getElementById('wisselMenu').style.display = 'none';
-            // Alle spelers (pitch + bank) — iedereen kan scoren
+            // Bouw de spelerlijst op: first own-goal option, then all players sorted
+            const goalSel = document.getElementById('goalPlayerId');
+            goalSel.innerHTML = '<option value="">Selecteer een speler...</option><option value="own_goal_opp">⚽ Own-goal (tegenstander)</option>';
             const allPlayers = [...(shift.pitch || []), ...(shift.bench || [])]
-                .sort((a, b) => {
-                    const na = (playerMap[a.id] ? playerMap[a.id].first_name + ' ' + playerMap[a.id].last_name : '');
-                    const nb = (playerMap[b.id] ? playerMap[b.id].first_name + ' ' + playerMap[b.id].last_name : '');
-                    return na.localeCompare(nb);
-                });
-            populateDropdown('goalPlayerId', allPlayers, true);
+                .sort((a, b) => (playerMap[a.id] || '').localeCompare(playerMap[b.id] || ''));
+            allPlayers.forEach(item => {
+                if (playerMap[item.id]) {
+                    const opt = document.createElement('option');
+                    opt.value = item.id;
+                    opt.innerText = playerMap[item.id];
+                    goalSel.appendChild(opt);
+                }
+            });
             populateDropdown('assistPlayerId', allPlayers, true);
         } else if (type === 'opp_goal') {
             document.getElementById('eventModalTitle').innerText = '🥅 Tegengoal Melden';
@@ -959,6 +968,17 @@ document.addEventListener("DOMContentLoaded", function() {
         updateMinuteDisplay();
     }
 
+    function toggleOwnGoalPlayer() {
+        const checked = document.getElementById('ownGoalCheck').checked;
+        document.getElementById('ownGoalPlayerSection').style.display = checked ? 'block' : 'none';
+    }
+
+    function onGoalPlayerChange() {
+        const pid = document.getElementById('goalPlayerId').value;
+        // Verberg assist-sectie als own-goal geselecteerd
+        document.getElementById('assistSection').style.display = (pid === 'own_goal_opp') ? 'none' : 'block';
+    }
+
     function updateMinuteDisplay() {
         document.getElementById('eventMinuteDisplay').innerText = currentAdjustedMinute + "'";
     }
@@ -979,12 +999,24 @@ document.addEventListener("DOMContentLoaded", function() {
 
         if (type === 'goal') {
             const pid = document.getElementById('goalPlayerId').value;
-            if (!pid) { alert("Selecteer de speler die gescoord heeft."); return; }
-            payload.player_id = pid;
-            const assistPid = document.getElementById('assistPlayerId').value;
-            if (assistPid) { payload.player_out_id = assistPid; }
+            if (!pid) { alert("Selecteer de speler die gescoord heeft, of kies 'Own-goal (tegenstander)'."); return; }
+            if (pid === 'own_goal_opp') {
+                // Own-goal door de tegenstander = goal voor ons, geen speler van ons
+                payload.event_type = 'own_goal';
+                payload.player_id = null;
+            } else {
+                payload.player_id = pid;
+                const assistPid = document.getElementById('assistPlayerId').value;
+                if (assistPid) { payload.player_out_id = assistPid; }
+            }
         } else if (type === 'opp_goal') {
-            // Niets extra nodig
+            // Check of het een eigen doelpunt is
+            const isOwnGoal = document.getElementById('ownGoalCheck').checked;
+            if (isOwnGoal) {
+                payload.event_type = 'own_goal';
+                const ownPid = document.getElementById('ownGoalPlayerId').value;
+                if (ownPid) payload.player_id = ownPid;
+            }
         } else if (type === 'wissel') {
             const pIn = document.getElementById('wisselPlayerInId').value;
             const pOut = document.getElementById('wisselPlayerOutId').value;
@@ -1183,7 +1215,7 @@ document.addEventListener("DOMContentLoaded", function() {
             // Score vóór increment opslaan (voor weergave NA de goal)
             e._scoreBeforeEvent = homeScore + '-' + awayScore;
             
-            if (e.event_type === 'goal') {
+            if (e.event_type === 'goal' || e.event_type === 'own_goal') {
                 homeScore++;
             } else if (e.event_type === 'opp_goal' || e.event_type === 'tegengoal' || !e.event_type || e.event_type.trim() === '') {
                 awayScore++;
@@ -1240,26 +1272,24 @@ document.addEventListener("DOMContentLoaded", function() {
             if (e.event_type === 'substitution') return;
 
             // Bereken de matchminuut:
-            // - Tornooi: relatief t.o.v. start van de huidige GAME (game_counter), timer reset per game
-            // - Gewone match: cumulatief t.o.v. match_start
-            // Matchminuut: altijd berekenen van timestamps (UTC-correct met +Z suffix)
-            // Stored event_minute kan kapotte waarden bevatten van oude versies
+            // Strategie: gebruik de NOMINALE start_minute van de eerste shift van de huidige wedstrijd
+            // als cumulatieve offset, plus de werkelijk verstreken tijd binnen die wedstrijd.
+            // Bv. wedstrijd 3 start op nominale minuut 30, goal na 60s reëel → 30 + 1 = 31'
+            // Dit werkt voor zowel tornooi (isTournament=true) als meerdere wedstrijden (false).
             let relMin = e.event_minute || 0; // fallback
             if (!isStatusEvent && e.created_at) {
-                let baseTs;
-                if (isTournament) {
-                    // Game-niveau: e._blockIndex IS de game_counter
-                    const gc = e._blockIndex;
-                    baseTs = window.gameStartCreatedAt[gc];
-                } else {
-                    baseTs = window.blockStartCreatedAt[1]; // match_start
-                }
+                const gc = e._blockIndex; // game_counter van dit event
+                const baseTs = window.gameStartCreatedAt[gc]; // start-timestamp van die wedstrijd
+                // Nominale startminuut = start_minute van de eerste shift van deze game_counter
+                const firstShiftOfGc = shiftsData.find(s => s.game_counter === gc);
+                const nominalStartMin = firstShiftOfGc ? firstShiftOfGc.start_minute : 0;
+
                 if (baseTs) {
                     // +Z forceert UTC interpretatie — anders behandelt browser als lokale tijd
                     const bStart = new Date(baseTs.replace(' ', 'T') + 'Z').getTime();
                     const eTime  = new Date(e.created_at.replace(' ', 'T') + 'Z').getTime();
                     const diffSec = (eTime - bStart) / 1000;
-                    if (diffSec >= 0) relMin = Math.floor(diffSec / 60) + 1;
+                    if (diffSec >= 0) relMin = Math.round(nominalStartMin) + Math.floor(diffSec / 60) + 1;
                 }
             }
             
@@ -1282,6 +1312,9 @@ document.addEventListener("DOMContentLoaded", function() {
             } else if (e.event_type === 'opp_goal' || e.event_type === 'tegengoal' || !e.event_type || e.event_type.trim() === '') {
                 const newScore = e._homeScore + '-' + e._awayScore;
                 text += `🥅 <strong>${newScore}</strong> Tegendoelpunt` + byWho;
+            } else if (e.event_type === 'own_goal') {
+                const newScore = e._homeScore + '-' + e._awayScore;
+                text += `⚽ <strong>${newScore}</strong> Own-goal` + byWho;
             } else if (e.event_type === 'match_end') {
                 // blockIndex = game_counter van de afgelopen game
                 const gc = e._blockIndex;

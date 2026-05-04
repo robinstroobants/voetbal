@@ -70,11 +70,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
 
-        // ── Server-side timer state check voor goal/opp_goal ─────────────────────
+        // ── Server-side timer state check voor goal/opp_goal/own_goal ─────────────────────
         // De client-side check helpt enkel voor de ouder die zelf op stop klikte.
         // Als een andere ouder nog een goal logt terwijl de timer gestopt is (race condition),
         // weigeren we dat hier op server niveau.
-        if (in_array($eventType, ['goal', 'opp_goal'])) {
+        if (in_array($eventType, ['goal', 'opp_goal', 'own_goal'])) {
             $stmtTimer = $pdo->prepare("
                 SELECT event_type FROM game_events
                 WHERE game_id = ? AND event_type IN ('match_start','period_start','period_end','match_end') AND is_deleted = 0
@@ -100,7 +100,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $force = !empty($data['force']);
         if (!$force) {
-            if ($eventType === 'goal' && $playerId) {
+            if (in_array($eventType, ['goal', 'own_goal'])) {
                 // Check within 120 seconds
                 $stmt = $pdo->prepare("
                     SELECT e.parent_email, e.event_minute, p.first_name, p.last_name 

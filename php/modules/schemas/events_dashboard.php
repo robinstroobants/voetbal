@@ -91,6 +91,12 @@ foreach ($events as $ev) {
                                             $title = 'Tegendoelpunt';
                                             $desc = 'De tegenstander heeft gescoord.';
                                             break;
+                                        case 'own_goal':
+                                            $icon = 'fa-person-falling'; $color = 'text-warning'; $bg = 'bg-warning-subtle';
+                                            $title = 'Eigen Doelpunt';
+                                            $playerName = trim(($ev['first_name'] ?? '') . ' ' . ($ev['last_name'] ?? ''));
+                                            $desc = $playerName ? 'Eigen doelpunt door <strong>' . htmlspecialchars($playerName) . '</strong>.' : 'Eigen doelpunt.';
+                                            break;
                                         case 'substitution':
                                             $icon = 'fa-rotate'; $color = 'text-info'; $bg = 'bg-info-subtle';
                                             $title = 'Individuele Wissel';

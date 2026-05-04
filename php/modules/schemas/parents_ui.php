@@ -607,6 +607,8 @@ document.addEventListener("DOMContentLoaded", function() {
     
     function formatClock() {
         if (!matchStarted) return '00:00';
+        // Tornooi gepauzeerd = tussen wedstrijden → timer klaar op 00:00
+        if (isPaused && isTournament) return '00:00';
         const firstShift = getFirstShiftOfGame(currentGameCounter);
         const now = matchEndedAtMs ? matchEndedAtMs : new Date().getTime();
         let diffMs = Math.max(0, now - activeBlockEventTimeMs);

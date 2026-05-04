@@ -70,6 +70,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             exit;
         }
 
+        // ── Server-side timer state check voor goal/opp_goal ─────────────────────
+        // De client-side check helpt enkel voor de ouder die zelf op stop klikte.
+        // Als een andere ouder nog een goal logt terwijl de timer gestopt is (race condition),
+        // weigeren we dat hier op server niveau.
+        if (in_array($eventType, ['goal', 'opp_goal'])) {
+            $stmtTimer = $pdo->prepare("
+                SELECT event_type FROM game_events
+                WHERE game_id = ? AND event_type IN ('match_start','period_start','period_end','match_end') AND is_deleted = 0
+                ORDER BY id DESC LIMIT 1
+            ");
+            $stmtTimer->execute([$gameId]);
+            $timerState = $stmtTimer->fetchColumn();
+
+            // Weiger als: nooit gestart, of timer gestopt (period_end = tussen wedstrijdjes, match_end = volledig gedaan)
+            if (!$timerState || $timerState === 'period_end' || $timerState === 'match_end') {
+                $reason = ($timerState === 'match_end')
+                    ? 'De wedstrijd is al beëindigd.'
+                    : (($timerState === 'period_end')
+                        ? 'De timer loopt niet (tussen twee wedstrijdjes in).'
+                        : 'De wedstrijd is nog niet gestart.');
+                file_put_contents(__DIR__ . '/debug_events.log', date('Y-m-d H:i:s') . " - GOAL REJECTED (timer=$timerState, type=$eventType) by $parentEmail\n", FILE_APPEND);
+                echo json_encode(['status' => 'error', 'message' => $reason]);
+                exit;
+            }
+        }
+        // ─────────────────────────────────────────────────────────────────────────
+
+
         $force = !empty($data['force']);
         if (!$force) {
             if ($eventType === 'goal' && $playerId) {

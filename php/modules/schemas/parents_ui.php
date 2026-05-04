@@ -317,8 +317,8 @@ if ($matchStarted && isset($blockEvents[$currentGameCounter - 1])) {
                 <?php endif; ?>
             </div>
             <div class="d-flex gap-2 w-100 justify-content-center mt-1">
-                <button class="btn btn-primary fw-bold shadow-sm flex-fill" onclick="openEventModal('goal')">⚽ Goal</button>
-                <button class="btn btn-danger fw-bold shadow-sm flex-fill" onclick="openEventModal('opp_goal')">🥅 Tegengoal</button>
+                <button id="btnGoal" class="btn btn-primary fw-bold shadow-sm flex-fill" onclick="openEventModal('goal')">⚽ Goal</button>
+                <button id="btnOppGoal" class="btn btn-danger fw-bold shadow-sm flex-fill" onclick="openEventModal('opp_goal')">🥅 Tegengoal</button>
             </div>
 
             <hr class="w-100 my-2 text-muted">
@@ -326,11 +326,13 @@ if ($matchStarted && isset($blockEvents[$currentGameCounter - 1])) {
                 <h6 class="fw-bold text-muted mb-0" style="font-size: 0.85rem;">
                     <i class="fa-solid fa-list-check me-1"></i> Wedstrijdverloop
                 </h6>
-                <button id="btnRefreshFeed" onclick="manualRefreshFeed()" class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1" style="font-size: 0.75rem; padding: 2px 8px;">
-                    <i class="fa-solid fa-rotate-right"></i> Ververs
-                </button>
+                <div class="d-flex align-items-center gap-2">
+                    <span id="lastRefreshLabel" class="text-muted" style="font-size: 0.7rem;"></span>
+                    <button id="btnRefreshFeed" onclick="manualRefreshFeed()" class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1" style="font-size: 0.75rem; padding: 2px 8px;">
+                        <i class="fa-solid fa-rotate-right"></i> Ververs
+                    </button>
+                </div>
             </div>
-            <div id="lastRefreshLabel" class="text-muted w-100 text-end" style="font-size: 0.7rem; min-height: 1rem;"></div>
             <div id="liveEventsFeed" class="w-100 pb-1 mt-1"></div>
         </div>
         
@@ -593,6 +595,24 @@ document.addEventListener("DOMContentLoaded", function() {
         return !!matchEndedAtMs;
     }
 
+    // Timer loopt enkel als de match gestart is, NIET gepauzeerd en NIET beëindigd
+    function isTimerRunning() {
+        return matchStarted && !isPaused && !isMatchEnded();
+    }
+
+    function updateGoalButtons() {
+        const running = isTimerRunning();
+        const btnGoal    = document.getElementById('btnGoal');
+        const btnOppGoal = document.getElementById('btnOppGoal');
+        if (!btnGoal || !btnOppGoal) return;
+        btnGoal.disabled    = !running;
+        btnOppGoal.disabled = !running;
+        btnGoal.title    = running ? '' : 'Timer moet lopen om een goal te kunnen loggen';
+        btnOppGoal.title = running ? '' : 'Timer moet lopen om een tegengoal te kunnen loggen';
+        btnGoal.classList.toggle('opacity-50', !running);
+        btnOppGoal.classList.toggle('opacity-50', !running);
+    }
+
     function calculateElapsedMinutes() {
         if (!matchStarted) return 0;
         const firstShift = getFirstShiftOfGame(currentGameCounter);
@@ -698,6 +718,7 @@ document.addEventListener("DOMContentLoaded", function() {
         };
 
         hideAll();
+        updateGoalButtons();
 
         if (matchEndedAtMs) {
             // Match volledig gedaan — geen knoppen
@@ -809,6 +830,11 @@ document.addEventListener("DOMContentLoaded", function() {
         }
         if (!matchStarted) {
             alert("Start eerst de wedstrijd met de timer links onderaan!");
+            return;
+        }
+        // Blokkeer goal/tegengoal als de timer niet loopt (gepauzeerd of wedstrijd gedaan)
+        if ((type === 'goal' || type === 'opp_goal') && !isTimerRunning()) {
+            alert("De timer loopt niet. Start de volgende wedstrijd voor je een goal logt.");
             return;
         }
 
@@ -1010,7 +1036,11 @@ document.addEventListener("DOMContentLoaded", function() {
                     location.reload();
                 }
             } else {
-                alert("Fout bij opslaan: " + (data.message || ''));
+                // Server weigerde het event (bv. timer loopt niet) — toon melding, sluit modal en herlaad
+                alert(data.message || 'Fout bij opslaan.');
+                const modalEl = document.getElementById('eventActionModal');
+                if (modalEl) { const m = bootstrap.Modal.getInstance(modalEl); if (m) m.hide(); }
+                location.reload(); // Sync de UI naar de werkelijke match state
             }
         }).catch(err => {
             alert("Verbindingsfout.");

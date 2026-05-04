@@ -144,3 +144,6 @@
 
 ### op lijstje zetten:
 - ik wil dat er de wedstrijden van de komende 14 dagen ook verschijnen in het coach dashboard bij historiek. 
+
+- team instellingen layout
+- wedstrijdverslag coach overzicht

@@ -958,7 +958,7 @@
               <ul class="list-group mb-3">
                 <?php foreach($playtime as $pos=>$seconds){ 
                   if (is_numeric($pos)){
-                    $score_for_player += ($seconds * $player_scores[$player][$pos]); // aantal seconden in die positie maal de score voor die positie. 
+                    $score_for_player += ($seconds * ($player_scores[$player][$pos] ?? 0)); // aantal seconden in die positie maal de score voor die positie. 
                   }
                   if ($seconds > 0 && $pos != "total"){ 
                     $extra_class = "";

@@ -1,0 +1,24 @@
+Act as an autonomous Server Administrator and AntiGravity PHP Developer. 
+
+I need you to directly restructure my PROD environment (lineupheroes.com) so that its directory structure exactly matches my UAT environment (lineup.webbit.be).
+
+Here is the current situation on PROD:
+- Path: `/home/u18-qysfjqo1g9od/www/lineupheroes.com`
+- All repository files, including the `php` folder, `.htaccess`, and `.git`, are currently directly inside the `public_html` directory.
+
+Target structure (matching UAT):
+- The repository must be moved to a folder named `voetbal` located outside of `public_html`.
+- `public_html` must become a symlink pointing to the `php` folder inside the `voetbal` repository.
+
+CRITICAL REQUIREMENT: 
+The server variables (like `.env` files or specific PROD config files) on PROD are different from UAT. You MUST ensure that the PROD server variables are strictly preserved during this move and are not lost or overwritten.
+
+Please autonomously execute the following migration steps on the server:
+1. Create the new repository directory: `mkdir /home/u18-qysfjqo1g9od/www/lineupheroes.com/voetbal`.
+2. Safely move ALL files and folders (strictly including hidden files like `.env`, `.git`, `.htaccess`, and the `php` folder) from `public_html` to the new `voetbal` directory. Verify that the PROD configuration files were moved successfully.
+3. Rename the original (now empty) directory: `mv /home/u18-qysfjqo1g9od/www/lineupheroes.com/public_html /home/u18-qysfjqo1g9od/www/lineupheroes.com/public_html_backup`.
+4. Create the correct symlink: `ln -s /home/u18-qysfjqo1g9od/www/lineupheroes.com/voetbal/php /home/u18-qysfjqo1g9od/www/lineupheroes.com/public_html`.
+5. Execute any required AntiGravity commands to clear caches or rebuild configurations now that the document root structure has changed.
+6. Verify file permissions and confirm that the site is accessible. Explicitly verify that sensitive files (like `.env` and `.git`) are no longer accessible via the public internet.
+
+Please run these commands and provide a summary of the actions taken once the migration is fully completed and verified.

@@ -129,29 +129,36 @@ require_once __DIR__ . '/../header.php';
 
 <div class="container-fluid mt-4 mb-5 px-4">
 
-    <h2 class="mb-0"><i class="fa-solid fa-chart-area text-primary me-2"></i> Feature Load Dashboard</h2>
-    <p class="text-muted mb-0 small mt-1">Welke features veroorzaken de meeste serverbelasting?</p>
-
-    <!-- Tijdvenster switcher -->
-    <div class="d-flex align-items-center gap-2 mb-4">
-        <span class="text-muted small fw-bold me-1">Venster:</span>
-        <div class="btn-group btn-group-sm" role="group">
-            <?php foreach ([1=>'1u', 6=>'6u', 24=>'24u', 168=>'7d', 720=>'30d'] as $h => $lbl): ?>
-            <a href="/admin/feature_load?hours=<?= $h ?>" class="btn <?= $window === $h ? 'btn-primary' : 'btn-outline-secondary' ?>"><?= $lbl ?></a>
-            <?php endforeach; ?>
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-0"><i class="fa-solid fa-chart-area text-primary me-2"></i> Feature Load Dashboard</h2>
+            <p class="text-muted mb-0 small mt-1">Welke features veroorzaken de meeste serverbelasting?</p>
+        </div>
+        <div class="d-flex align-items-center gap-2">
+            <!-- Tijdvenster switcher -->
+            <div class="btn-group btn-group-sm" role="group">
+                <?php foreach ([1=>'1u', 6=>'6u', 24=>'24u', 168=>'7d', 720=>'30d'] as $h => $lbl): ?>
+                <a href="/admin/feature_load?hours=<?= $h ?>" class="btn <?= $window === $h ? 'btn-primary' : 'btn-outline-secondary' ?>"><?= $lbl ?></a>
+                <?php endforeach; ?>
+            </div>
+            <a href="/admin/performance" class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-server me-1"></i> Server Logs</a>
+            <a href="/admin/performance_clients" class="btn btn-sm btn-outline-secondary"><i class="fa-solid fa-mobile-screen me-1"></i> Client Telemetry</a>
+            <a href="/admin" class="btn btn-sm btn-secondary"><i class="fa-solid fa-arrow-left me-1"></i> Admin</a>
         </div>
     </div>
-
-    <?php require_once __DIR__ . '/_monitoring_nav.php'; ?>
 
     <!-- Totale load summary -->
     <div class="row mb-4">
         <div class="col-12">
-            <div class="alert alert-dark d-flex align-items-center py-2 px-3 mb-0 border-0 shadow-sm rounded-3">
-                <i class="fa-solid fa-bolt text-warning me-2"></i>
-                <strong>Totale compute cost</strong> afgelopen <?= $windowLabel ?>:
-                <span class="badge bg-warning text-dark fs-6 ms-2"><?= number_format($totalCostAll) ?></span>
-                <span class="text-muted ms-2 small">(hogere waarde = meer serverbelasting)</span>
+            <div class="alert alert-dark d-flex align-items-center justify-content-between py-2 px-3 mb-0 border-0 shadow-sm rounded-3">
+                <div>
+                    <i class="fa-solid fa-bolt text-warning me-2"></i>
+                    <strong>Totale compute cost</strong> afgelopen <?= $windowLabel ?>:
+                    <span class="badge bg-warning text-dark fs-6 ms-2"><?= number_format($totalCostAll) ?></span>
+                    <span class="text-muted ms-2 small">(hogere waarde = meer serverbelasting)</span>
+                </div>
+                <small class="text-muted">Auto-refresh over <span id="refresh-countdown">30</span>s</small>
             </div>
         </div>
     </div>
@@ -314,5 +321,16 @@ require_once __DIR__ . '/../header.php';
         </div>
     </div>
 </div>
+
+<script>
+// Auto refresh countdown
+let countdown = 30;
+const el = document.getElementById('refresh-countdown');
+setInterval(() => {
+    countdown--;
+    if (el) el.textContent = countdown;
+    if (countdown <= 0) window.location.reload();
+}, 1000);
+</script>
 
 <?php require_once __DIR__ . '/../footer.php'; ?>

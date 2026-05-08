@@ -157,6 +157,24 @@ require_once dirname(__DIR__, 2) . '/header.php';
         </div>
     <?php endif; ?>
 
+    <!-- Score Matrix Snapshot Historiek -->
+    <div class="card shadow-sm border-0 mb-4" id="snapshotPanel">
+        <div class="card-header bg-white d-flex justify-content-between align-items-center">
+            <span class="fw-bold"><i class="fa-solid fa-clock-rotate-left text-primary me-2"></i>Matrix Historiek</span>
+            <div class="d-flex gap-2">
+                <button class="btn btn-sm btn-outline-primary" onclick="saveSnapshot()" id="btnSaveSnapshot">
+                    <i class="fa-solid fa-floppy-disk me-1"></i>Snapshot Opslaan
+                </button>
+                <button class="btn btn-sm btn-outline-secondary" onclick="loadHistory()">
+                    <i class="fa-solid fa-rotate me-1"></i>Ververs
+                </button>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div id="snapshotList" class="p-3 text-muted small">Laden...</div>
+        </div>
+    </div>
+
     <div class="alert alert-info border-0 shadow-sm mb-4">
         <i class="fa-solid fa-circle-info me-2"></i>Je bekijkt the posities voor <b><?= htmlspecialchars($default_format) ?></b>. Andere posities worden op de achtergrond bewaard en doorgerekend.
     </div>
@@ -187,3 +205,147 @@ require_once dirname(__DIR__, 2) . '/header.php';
 </div>
 
 <?php require_once dirname(__DIR__, 2) . '/footer.php'; ?>
+
+<script>
+// ── Auto-save bij paginabezoek als er nog geen backup is ─────────────────
+document.addEventListener('DOMContentLoaded', function() {
+    loadHistory();
+});
+
+function loadHistory() {
+    fetch('/api/api_score_snapshots.php', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({action: 'get_history'})
+    })
+    .then(r => r.json())
+    .then(data => {
+        const list = document.getElementById('snapshotList');
+        if (!data.snapshots || data.snapshots.length === 0) {
+            list.innerHTML = '<em class="text-muted">Nog geen snapshots. Pagina wordt automatisch opgeslagen...</em>';
+            // Geen backup → auto-save
+            autoSaveIfNeeded();
+            return;
+        }
+
+        // Controleer of er al een recente auto-save is (< 10 min oud)
+        const newest = new Date(data.snapshots[0].created_at + 'Z');
+        const ageMs = Date.now() - newest.getTime();
+        if (ageMs > 10 * 60 * 1000) {
+            autoSaveIfNeeded();
+        }
+
+        let html = '<table class="table table-sm table-hover mb-0">';
+        html += '<thead class="table-light"><tr><th>Datum</th><th>Label</th><th>Door</th><th></th></tr></thead><tbody>';
+        data.snapshots.forEach(s => {
+            const dt = new Date(s.created_at + 'Z');
+            const dtStr = dt.toLocaleDateString('nl-BE') + ' ' + dt.toLocaleTimeString('nl-BE', {hour: '2-digit', minute: '2-digit'});
+            const label = s.label || '<span class="text-muted fst-italic">auto</span>';
+            const by = s.first_name ? (s.first_name + ' ' + (s.last_name || '')) : '<span class="text-muted">systeem</span>';
+            html += `<tr>
+                <td class="small">${dtStr}</td>
+                <td class="small">${label}</td>
+                <td class="small">${by}</td>
+                <td class="text-end">
+                    <button class="btn btn-xs btn-outline-success me-1" style="padding:1px 8px;font-size:0.75rem;"
+                        onclick="restoreSnapshot(${s.id}, '${dtStr}')">
+                        <i class="fa-solid fa-rotate-left"></i> Herstel
+                    </button>
+                    <button class="btn btn-xs btn-outline-danger" style="padding:1px 8px;font-size:0.75rem;"
+                        onclick="deleteSnapshot(${s.id})">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </td>
+            </tr>`;
+        });
+        html += '</tbody></table>';
+        list.innerHTML = html;
+    })
+    .catch(() => {
+        document.getElementById('snapshotList').innerHTML = '<span class="text-danger">Kon historiek niet laden.</span>';
+    });
+}
+
+function autoSaveIfNeeded() {
+    fetch('/api/api_score_snapshots.php', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({action: 'save_snapshot', auto: true})
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.status === 'success') {
+            loadHistory(); // Ververs de lijst
+        }
+    })
+    .catch(() => {});
+}
+
+function saveSnapshot() {
+    const label = prompt('Label voor deze snapshot (optioneel):');
+    if (label === null) return; // Gebruiker klikte "Annuleren"
+    const btn = document.getElementById('btnSaveSnapshot');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin me-1"></i>Opslaan...';
+
+    fetch('/api/api_score_snapshots.php', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({action: 'save_snapshot', label: label, auto: false})
+    })
+    .then(r => r.json())
+    .then(data => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-floppy-disk me-1"></i>Snapshot Opslaan';
+        if (data.status === 'success') {
+            loadHistory();
+        } else {
+            alert('Fout: ' + (data.message || 'Onbekend'));
+        }
+    })
+    .catch(() => {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="fa-solid fa-floppy-disk me-1"></i>Snapshot Opslaan';
+        alert('Verbindingsfout.');
+    });
+}
+
+function restoreSnapshot(id, dtStr) {
+    if (!confirm(`Matrix herstellen naar versie van ${dtStr}?\n\nDit overschrijft de huidige scores. De huidige staat wordt eerst automatisch opgeslagen.`)) return;
+    
+    // Sla eerst de huidige staat op als auto-backup
+    fetch('/api/api_score_snapshots.php', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({action: 'save_snapshot', label: 'Auto-backup voor herstel', auto: false})
+    })
+    .then(() => {
+        return fetch('/api/api_score_snapshots.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({action: 'restore_snapshot', snapshot_id: id})
+        });
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.status === 'success') {
+            alert('Matrix hersteld! De pagina wordt herladen.');
+            location.reload();
+        } else {
+            alert('Fout: ' + (data.message || 'Onbekend'));
+        }
+    })
+    .catch(() => alert('Verbindingsfout.'));
+}
+
+function deleteSnapshot(id) {
+    if (!confirm('Snapshot verwijderen?')) return;
+    fetch('/api/api_score_snapshots.php', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({action: 'delete_snapshot', snapshot_id: id})
+    })
+    .then(() => loadHistory())
+    .catch(() => {});
+}
+</script>

@@ -203,8 +203,9 @@ class PlayerScoreMatrixGenerator
 
 
 // ═══════════════════════════════════════════════════════════════════════════
-// TEST SCRIPT — verwijder of wrap in `if (php_sapi_name() === 'cli')` voor productie
+// TEST SCRIPT — alleen uitvoeren via CLI: php PlayerScoreMatrixGenerator.php
 // ═══════════════════════════════════════════════════════════════════════════
+if (php_sapi_name() !== 'cli') return;
 
 // ── Mock data: 5 spelers, 4 posities ────────────────────────────────────────
 

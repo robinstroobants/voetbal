@@ -1,111 +1,157 @@
 <?php
 require_once dirname(__DIR__, 1) . '/core/getconn.php';
+require_once dirname(__DIR__, 1) . '/lib/PlayerScoreMatrixGenerator.php';
+
 header('Content-Type: application/json');
 
 try {
-    $pdo->beginTransaction();
+    $teamId = $_SESSION['team_id'];
 
-    // 1. Haal spelers op met hun favo posities
-    $stmt = $pdo->prepare("SELECT id, favorite_positions, is_doelman FROM players WHERE team_id = ? AND deleted_at IS NULL");
-    $stmt->execute([$_SESSION['team_id']]);
-    $players = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    $players_data = [];
-    foreach ($players as $p) {
+    // ── 1. Spelers ophalen ─────────────────────────────────────────────────
+    $stmt = $pdo->prepare("
+        SELECT id, favorite_positions, is_doelman
+        FROM players
+        WHERE team_id = ? AND deleted_at IS NULL
+    ");
+    $stmt->execute([$teamId]);
+    $playersRaw = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+    $allPlayerIds   = [];
+    $isDoelman      = [];
+    $favoritePositions = [];
+
+    foreach ($playersRaw as $p) {
+        $allPlayerIds[] = $p['id'];
+        $isDoelman[$p['id']] = (bool)$p['is_doelman'];
+
+        // favorite_positions is een comma-separated string van positie-nummers
         $favs = [];
         if (!empty($p['favorite_positions'])) {
             $favs = array_map('trim', explode(',', $p['favorite_positions']));
         }
-        $p['favs'] = $favs;
-        $players_data[$p['id']] = $p;
+        $favoritePositions[$p['id']] = $favs;
     }
 
-    // 2. Haal de Team Ranking op
-    $teamRanks = $pdo->query("SELECT player_id, team_rank FROM player_team_ranking")->fetchAll(PDO::FETCH_KEY_PAIR);
-    $total_players = count($teamRanks) > 0 ? count($teamRanks) : 1;
+    // ── 2. Overall ranking ophalen ────────────────────────────────────────
+    // Volgorde: team_rank ASC → best naar slechtst
+    // Doelmannen worden NIET meegenomen in de team_ranking (apart behandeld via gk_scores)
+    $stmtTR = $pdo->prepare("
+        SELECT ptr.player_id
+        FROM player_team_ranking ptr
+        JOIN players p ON ptr.player_id = p.id
+        WHERE p.team_id = ?
+          AND p.deleted_at IS NULL
+        ORDER BY ptr.team_rank ASC
+    ");
+    $stmtTR->execute([$teamId]);
+    $overallRanking = $stmtTR->fetchAll(PDO::FETCH_COLUMN);
 
-    // 3. Haal Range van posities op (Positie Rankings)
-    $posRanks = $pdo->query("SELECT position_id, player_id, pos_rank FROM position_rankings")->fetchAll(PDO::FETCH_ASSOC);
-    
-    // Groepeer per positie
-    $positions = [];
-    foreach ($posRanks as $pr) {
-        $positions[$pr['position_id']][] = $pr;
-    }
-
-    // 4. Score Berekenings Logica
-    $new_scores = []; 
-    
-    foreach ($positions as $posId => $ranks) {
-        foreach ($ranks as $pr) {
-            $pid = $pr['player_id'];
-            $player = $players_data[$pid] ?? null;
-            if (!$player) {
-                continue; 
-            }
-
-            // Vaste doelmannen slaan het complexe veld-algoritme (team rank & pos rank loops) over
-            if (isset($player['is_doelman']) && $player['is_doelman'] == 1) {
-                continue;
-            }
-
-            // --- Regel 1: Positie Ranking (Top = ~85, zakt langzaam)
-            $p_rank = (int)$pr['pos_rank'];
-            $base_pos = max(40, 85 - (($p_rank - 1) * 5)); // Bij 1ste start je met 85, per plek daaronder -5 (met een vloer van 40)
-
-            // --- Regel 2: Team Bonus (Hoe sterspeler ben je algemeen?)
-            $t_rank = $teamRanks[$pid] ?? $total_players;
-            $bonus_team = max(0, 15 - (($t_rank - 1) * (15 / $total_players))); // #1 team ster = +15, laatste = 0
-
-            // --- Regel 3: Favoriete Positie Bonus
-            $bonus_fav = 0;
-            if ($player) {
-                // favs string bevatte de positie
-                $favIndex = array_search((string)$posId, $player['favs']);
-                if ($favIndex !== false) {
-                    if ($favIndex == 0) $bonus_fav = 10;        // Lievelingspositie 1
-                    elseif ($favIndex == 1) $bonus_fav = 5;     // Lievelingspositie 2
-                    else $bonus_fav = 2;                        // Vanaf plaats 3 etc..
-                }
-            }
-
-            // Sommatie (Max 100)
-            $final_score = round($base_pos + $bonus_team + $bonus_fav);
-            if ($final_score > 100) $final_score = 100;
-
-            $new_scores[$pid][$posId] = $final_score;
+    // Voeg spelers zonder team_rank achteraan toe (nieuw toegevoegde spelers)
+    foreach ($allPlayerIds as $pid) {
+        if (!in_array($pid, $overallRanking)) {
+            $overallRanking[] = $pid;
         }
     }
 
-    // Om te voorkomen dat database eindeloos groeit bij spelen met ranking-dashboard
-    // WISSEN we de manueel gegenereerde scores van VANDAAG, en vervangen we die met de nieuwe.
+    // Doelmannen uit overall ranking filteren (hun score wordt apart bepaald via gk_scores)
+    $overallRanking = array_values(array_filter($overallRanking, fn($pid) => !($isDoelman[$pid] ?? false)));
+
+    // ── 3. Positie rankings + exclude-lijst ophalen ───────────────────────
+    // Assigned = staat in position_rankings tabel → gesleept naar de "Rank" bak
+    // Excluded = veldspeler die NIET in de ranking staat → "Speelt hier NOOIT" bak
+    $stmtPR = $pdo->prepare("
+        SELECT position_id, player_id
+        FROM position_rankings pr
+        JOIN players p ON pr.player_id = p.id
+        WHERE p.team_id = ?
+          AND p.deleted_at IS NULL
+        ORDER BY position_id ASC, pos_rank ASC
+    ");
+    $stmtPR->execute([$teamId]);
+    $posRankRows = $stmtPR->fetchAll(PDO::FETCH_ASSOC);
+
+    // Groepeer per positie
+    $assignedPerPos = []; // [posId => [pid, pid, ...]]  (best → worst)
+    foreach ($posRankRows as $row) {
+        $assignedPerPos[$row['position_id']][] = $row['player_id'];
+    }
+
+    // Stel de veldspelers-IDs vast (niet-doelmannen)
+    $fieldPlayerIds = array_values(array_filter($allPlayerIds, fn($pid) => !($isDoelman[$pid] ?? false)));
+
+    // Bouw $positionRankings op met exclude-lijst voor de generator
+    // Positie 1 (keeper) wordt volledig apart afgehandeld via gk_scores → niet in generator
+    $positionRankings = [];
+    foreach ($assignedPerPos as $posId => $rankedPlayers) {
+        if ((int)$posId === 1) continue; // Keeper positie → apart
+
+        // Exclude = veldspelers die NIET in de assigned list staan voor deze positie
+        $excludeList = array_values(array_diff($fieldPlayerIds, $rankedPlayers));
+
+        $positionRankings[$posId] = [
+            'ranking' => $rankedPlayers,
+            'exclude' => $excludeList,
+        ];
+    }
+
+    // ── 4. Generator aanroepen ────────────────────────────────────────────
+    $generator = new PlayerScoreMatrixGenerator(
+        overallRanking:    $overallRanking,
+        positionRankings:  $positionRankings,
+        favoritePositions: $favoritePositions,
+    );
+
+    // Optioneel: gewichten aanpassen (defaults zijn goed, maar hier aanpasbaar)
+    // $generator->setDropFactorPerRank(0.18);   // sterkte van interne variantie
+    // $generator->setMaxOverallBonus(10.0);      // lage impact overall kwaliteit
+    // $generator->setBaseTopScore(85.0);
+    // $generator->setBaseBottomScore(40.0);
+
+    $matrix = $generator->generateMatrix();
+
+    // ── 5. Doelmannen-scores ophalen (aparte logica, ongewijzigd) ──────────
+    $gkScores = $pdo->prepare("SELECT player_id, score FROM gk_scores WHERE player_id IN (
+        SELECT id FROM players WHERE team_id = ? AND deleted_at IS NULL
+    )");
+    $gkScores->execute([$teamId]);
+    $gkScoreMap = $gkScores->fetchAll(PDO::FETCH_KEY_PAIR);
+
+    // ── 6. Alle bekende posities bepalen ──────────────────────────────────
+    $allPositions = array_map('intval', array_keys($assignedPerPos));
+    if (!in_array(1, $allPositions)) $allPositions[] = 1; // Altijd positie 1 meenemen
+    sort($allPositions);
+
+    // ── 7. Scores wegschrijven naar DB ────────────────────────────────────
+    $pdo->beginTransaction();
+
+    // Verwijder de scores van vandaag (zelfde dag-overschrijf logica als voorheen)
     $pdo->exec("DELETE FROM player_scores WHERE DATE(score_date) = CURDATE()");
-    
-    // Voeg nieuwe matrix data in
-    $stmt = $pdo->prepare("INSERT INTO player_scores (player_id, position, score, score_date) VALUES (?, ?, ?, NOW())");
-    
-    // Haal een complete lijst van alle unieke posities op die geselecteerd waren of bestaan
-    $all_known_positions = array_keys($positions);
 
-    // Fetch Goalie Slider Scores
-    $gk_scores = $pdo->query("SELECT player_id, score FROM gk_scores")->fetchAll(PDO::FETCH_KEY_PAIR);
+    $insertStmt = $pdo->prepare("
+        INSERT INTO player_scores (player_id, position, score, score_date)
+        VALUES (?, ?, ?, NOW())
+    ");
 
-    foreach ($players_data as $pid => $player) {
-        foreach ($all_known_positions as $posId) {
-            // Basis score uit field-player algoritme
-            $score = $new_scores[$pid][$posId] ?? 0;
-            
-            // Overrule score voor Positie 1 met de slider value
-            if ($posId == 1) {
-                if (isset($gk_scores[$pid])) {
-                    $score = (int)$gk_scores[$pid];
-                } elseif (isset($player['is_doelman']) && $player['is_doelman'] == 1) {
-                    $score = 95; // Standaardwaarde als nog niet opgeslagen
+    foreach ($allPlayerIds as $pid) {
+        foreach ($allPositions as $posId) {
+
+            if ($posId === 1) {
+                // ── Keeper positie: altijd via gk_scores ─────────────────
+                if ($isDoelman[$pid] ?? false) {
+                    $score = isset($gkScoreMap[$pid]) ? (int)$gkScoreMap[$pid] : 95;
                 } else {
-                    $score = 0; // Veldspeler zonder "extra handschoen" slider krijgt 0
+                    // Veldspeler: 0 tenzij hij als backup keeper aangeduid is
+                    $score = isset($gkScoreMap[$pid]) ? (int)$gkScoreMap[$pid] : 0;
                 }
+            } elseif ($isDoelman[$pid] ?? false) {
+                // ── Doelmannen krijgen 0 op alle veldposities ─────────────
+                $score = 0;
+            } else {
+                // ── Veldspeler: gebruik de generator-output ───────────────
+                $score = (int)round($matrix[$pid][$posId] ?? 0);
             }
 
-            $stmt->execute([$pid, $posId, $score]);
+            $insertStmt->execute([$pid, $posId, $score]);
         }
     }
 

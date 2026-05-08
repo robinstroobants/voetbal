@@ -19,28 +19,31 @@ class PlayerScoreMatrixGenerator
     /**
      * Maximale bonus voor de algeheel beste speler (0 = slechtste).
      * De bonus schaalt lineair: beste speler = MAX_OVERALL_BONUS, slechtste = 0.
-     * LAGE IMPACT: stel laag in zodat positioneel profiel dominant blijft.
+     * Iets verhoogd zodat de beste speler op zijn favoriete positie 100 benadert.
      */
-    private float $maxOverallBonus = 10.0;
+    private float $maxOverallBonus = 15.0;
 
     /**
      * Basisscores per positie-rang:
      *   rang 1 (beste) → BASE_TOP_SCORE
      *   rang N (slechtste) → BASE_BOTTOM_SCORE
      * Tussenliggende rangen worden lineair geïnterpoleerd.
+     *
+     * Verhoogd zodat topspelers op hun favoriete positie richting 95-100 gaan.
+     * De variabiliteit wordt gehandhaafd via de drop-off curve (zie dropFactorPerRank).
      */
-    private float $baseTopScore    = 85.0;
-    private float $baseBottomScore = 40.0;
+    private float $baseTopScore    = 92.0;
+    private float $baseBottomScore = 55.0;
 
     /**
      * Interne variantie: hoeveel "drop-off" een speler krijgt voor posities
      * die NIET in zijn favorietenlijst staan.
      *
-     * DROP_FACTOR_PER_RANK: percentage-reductie per stap weg van favoriete positie.
-     * Bv. 0.18 = elke stap verder van favoriet → -18% van de huidige score.
+     * Licht verhoogd (0.18 → 0.20) om variabiliteit te bewaren ondanks hogere basis.
+     * Bv. 0.20 = elke stap verder van favoriet → -20% van de huidige score.
      * HOGE IMPACT: hogere waarde = grotere kloof tussen beste en slechtste positie.
      */
-    private float $dropFactorPerRank = 0.18;
+    private float $dropFactorPerRank = 0.20;
 
     /**
      * Maximale reductie als gevolg van de drop-off curve (0–1).

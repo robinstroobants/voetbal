@@ -89,6 +89,7 @@ $routes = [
     '/settings' => ['target' => 'settings.php', 'auth' => true, 'permission' => Permissions::PERM_MANAGE_TEAM_SETTINGS],
     '/settings/periods' => ['target' => 'manage_periods.php', 'auth' => true, 'permission' => Permissions::PERM_MANAGE_TEAM_SETTINGS],
     '/privacy'          => ['target' => 'privacy.php',        'auth' => false],
+    '/landing'          => ['target' => 'landing.php',        'auth' => false],
 ];
 
 if (isset($routes[$path])) {

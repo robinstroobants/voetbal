@@ -557,6 +557,8 @@ require_once dirname(__DIR__, 2) . '/header.php';
           $next_bench_keys = array();
         
           $game_block_labels = json_decode($matchData['game']['block_labels'] ?? '[]', true) ?: [];
+          $running_block_idx = 0; // Tracks absolute block index across all games and parts
+          $is_tournament = !empty($matchData['game']['is_tournament']);
         
           foreach ($lineup->game_parts as $game_counter => $game_parts){
             if ($game_counter == 40) {
@@ -565,6 +567,8 @@ require_once dirname(__DIR__, 2) . '/header.php';
             if ($game_counter == 50) {
              ?><hr style="margin-top: 30px" class="<?php echo $lineup->available_players > 5 ? "new-print-page":"";?>"><?php
             }
+
+            // Render ONE header per game/wedstrijd, then open a single row for all helften
             echo "<div class='row'>";
             echo "<div class='col-12'>";
 
@@ -572,17 +576,28 @@ require_once dirname(__DIR__, 2) . '/header.php';
               if ($game_counter == 5) {
                ?><hr style="margin-top: 30px" class="new-print-page"><?php
               }
-              echo "<h5>Wedstrijd $game_counter &middot; " . $game_titles[$wedstrijd][$game_counter]["title"] . " <small>(" . $game_titles[$wedstrijd][$game_counter]["info"] . ")</small></h5>";  
+              echo "<h5>Wedstrijd $game_counter &middot; " . $game_titles[$wedstrijd][$game_counter]["title"] . " <small>(" . $game_titles[$wedstrijd][$game_counter]["info"] . ")</small></h5>";
+            } elseif (!empty($game_block_labels)) {
+              // Use the first block's label for this game, strip " (Helft X)" suffix
+              $first_label = $game_block_labels[$running_block_idx] ?? '';
+              $base_label = preg_replace('/\s*\(Helft\s*\d+\)\s*$/i', '', $first_label);
+              echo "<h5>" . htmlspecialchars($base_label ?: "Wedstrijd $game_counter") . "</h5>";
             } else {
-              $block_idx = $game_counter - 1;
-              if (!empty($game_block_labels[$block_idx])) {
-                  echo "<h5>" . htmlspecialchars($game_block_labels[$block_idx]) . "</h5>";
-              } else {
-                  echo "<h5>Wedstrijd $game_counter</h5>";
-              }
+              echo "<h5>Wedstrijd $game_counter</h5>";
             }
             echo "</div>";
+
+            $game_start_min = null; // Reset per game_counter for tournament relative timing
+
             foreach ($game_parts as $game_idx){
+              // Track block index (for any future per-block label needs)
+              $running_block_idx++;
+
+              // For tournaments: first block of this game sets the baseline
+              if ($is_tournament && $game_start_min === null) {
+                  $game_start_min = $lineup->events[$game_idx]['start'] ?? 0;
+              }
+
               $part_score = 0;
               $part_max = 0;
               // Score voor dit partje berekenen:
@@ -625,13 +640,22 @@ require_once dirname(__DIR__, 2) . '/header.php';
               //$col_width = 12/$nr_of_parts;  
               $col_width = 6;
             
-              ?>
+                ?>
               <div class="col-<?php echo $smcol_width ?> col-md-<?php echo $col_width ?> p-2">
                  <div class="border border-secondary p-2 h-100 bg-white text-dark">
                 <table width="100%">
                   <tr>  
                     <td align="left" valign="top" rowspan="6">
-                      <h4 class="mb-1"><small><?php echo $game["start"]; ?></small></h4>
+                      <?php
+                      if ($is_tournament) {
+                          $rel_start = ($game['start'] ?? 0) - ($game_start_min ?? 0);
+                          if ($rel_start > 0) {
+                              echo '<h4 class="mb-1"><small>' . $rel_start . '</small></h4>';
+                          }
+                      } else {
+                          echo '<h4 class="mb-1"><small>' . $game['start'] . '</small></h4>';
+                      }
+                      ?>
                       <?php
                       if (array_key_exists("subs",$game) || array_key_exists("positions",$game)){
                         echo "<strong>Wissels:</strong><br/>";

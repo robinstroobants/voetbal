@@ -49,7 +49,21 @@ $gameRow = $stmtTour->fetch(PDO::FETCH_ASSOC);
 $isTournament = !empty($gameRow['is_tournament']);
 $teamName = htmlspecialchars($gameRow['team_name'] ?? 'Ons team');
 $gameOpponent = htmlspecialchars($gameRow['opponent'] ?? '');
-$gameBlockLabels = json_decode($gameRow['block_labels'] ?? '[]', true) ?: [];
+$rawBlockLabels = json_decode($gameRow['block_labels'] ?? '[]', true) ?: [];
+// block_labels bevat 2 entries per wedstrijd (Helft 1 + Helft 2).
+// Normaliseer naar 1 label per wedstrijd (strip suffix) zodat gameBlockLabels[gc-1] klopt.
+$gameBlockLabels = [];
+if (!empty($rawBlockLabels)) {
+    $looksPerHelft = count($rawBlockLabels) % 2 === 0 &&
+                     preg_match('/\(Helft\s*\d+\)/i', $rawBlockLabels[0] ?? '');
+    if ($looksPerHelft) {
+        for ($i = 0; $i < count($rawBlockLabels); $i += 2) {
+            $gameBlockLabels[] = trim(preg_replace('/\s*\(Helft\s*\d+\)\s*$/i', '', $rawBlockLabels[$i]));
+        }
+    } else {
+        $gameBlockLabels = $rawBlockLabels;
+    }
+}
 $teamTimezone = $gameRow['timezone'] ?? 'Europe/Brussels';
 $showLineupToParents = !empty($gameRow['show_lineup_to_parents']);
 
@@ -78,58 +92,59 @@ if (isset($lineup) && isset($lineup->game_parts)) {
 }
 
 if (isset($lineup) && isset($lineup->events)) {
+    // Groepeer per game_counter: 1 shift per wedstrijd (niet per helft)
+    $grouped = [];
     foreach($lineup->events as $idx => $ev) {
-        $duration_seconds = (float)($ev['duration'] ?? 0);
-        $duration_minutes = $duration_seconds / 60.0;
-        
-        $pitch_with_pos = [];
-        foreach (($ev['lineup'] ?? []) as $pos => $pid) {
-            $pitch_with_pos[] = ['id' => $pid, 'pos' => $pos];
-        }
-        
-        $current_game_counter = $event_to_game[$idx] ?? 1;
-        if ($isTournament) {
-            if (!isset($game_start_mins[$current_game_counter])) {
-                $game_start_mins[$current_game_counter] = 0;
+        $gc = $event_to_game[$idx] ?? 1;
+        if (!isset($grouped[$gc])) {
+            $grouped[$gc] = [
+                'game_counter' => $gc,
+                'duration'     => 0,
+                'start_minute' => 0,
+                'pitch'        => [],
+                'bench'        => [],
+                'is_first'     => true,
+            ];
+            // Startminuut = cumulatief voor niet-tornooien, 0 per wedstrijd voor tornooien
+            if ($isTournament) {
+                $grouped[$gc]['start_minute'] = 0;
+            } else {
+                $grouped[$gc]['start_minute'] = $cumulative_min;
             }
-            $start_minute = $game_start_mins[$current_game_counter];
-            $game_start_mins[$current_game_counter] += $duration_minutes;
-        } else {
-            $start_minute = $cumulative_min;
-            $cumulative_min += $duration_minutes;
         }
-        
-        $title = "Blok " . ($idx + 1);
-        $total_parts = $event_total_parts[$idx] ?? 1;
-        $part = $event_to_part[$idx] ?? 1;
-        
-        $game_prefix = "Wedstrijd $current_game_counter";
-        $game_block_labels = json_decode($matchData['game']['block_labels'] ?? '[]', true) ?: [];
-        if (!empty($game_block_labels[$current_game_counter - 1])) {
-            $game_prefix = $game_block_labels[$current_game_counter - 1];
+        $duration_minutes = (float)($ev['duration'] ?? 0) / 60.0;
+        $grouped[$gc]['duration'] += $duration_minutes;
+        if (!$isTournament) $cumulative_min += $duration_minutes;
+
+        // Alleen de EERSTE helft bepaalt pitch/bench voor de shift
+        if ($grouped[$gc]['is_first']) {
+            foreach (($ev['lineup'] ?? []) as $pos => $pid) {
+                $grouped[$gc]['pitch'][] = ['id' => $pid, 'pos' => $pos];
+            }
+            foreach ($ev['bench'] ?? [] as $bid) {
+                $grouped[$gc]['bench'][] = ['id' => $bid, 'pos' => 'bank'];
+            }
+            $grouped[$gc]['is_first'] = false;
         }
-        
-        if ($total_parts == 1) {
-            $title = $game_prefix;
-        } elseif ($total_parts == 2) {
-            $title = $game_prefix . ", Helft " . $part;
-        } else {
-            $title = $game_prefix . ", Deel " . $part;
-        }
-        
-        $bench_with_pos = [];
-        foreach ($ev['bench'] ?? [] as $bid) {
-            $bench_with_pos[] = ['id' => $bid, 'pos' => 'bank'];
-        }
+    }
+
+    $game_block_labels = json_decode($matchData['game']['block_labels'] ?? '[]', true) ?: [];
+    foreach ($grouped as $gc => $g) {
+        // Label: gebruik block_labels geïndexeerd per wedstrijd (strip Helft X suffix)
+        $raw_label = $game_block_labels[($gc - 1) * 2] // elke wedstrijd heeft 2 helften in het array
+                  ?? $game_block_labels[$gc - 1]         // fallback: direct geïndexeerd
+                  ?? '';
+        $base_label = preg_replace('/\s*\(Helft\s*\d+\)\s*$/i', '', $raw_label);
+        $title = $base_label ?: "Wedstrijd $gc";
 
         $shifts_data[] = [
-            'index' => $idx + 1,
-            'title' => $title,
-            'game_counter' => $current_game_counter,
-            'duration' => $duration_minutes,
-            'start_minute' => $start_minute,
-            'bench' => $bench_with_pos,
-            'pitch' => $pitch_with_pos
+            'index'        => $gc,
+            'title'        => $title,
+            'game_counter' => $gc,
+            'duration'     => $g['duration'],
+            'start_minute' => $g['start_minute'],
+            'bench'        => $g['bench'],
+            'pitch'        => $g['pitch'],
         ];
     }
     $totalBlocksCount = count($shifts_data);
@@ -141,13 +156,13 @@ if (isset($lineup) && isset($lineup->events)) {
     }
     
     $shifts_data[] = [
-        'index' => 1,
-        'title' => 'Wedstrijd 1',
+        'index'        => 1,
+        'title'        => 'Wedstrijd 1',
         'game_counter' => 1,
-        'duration' => 45,
+        'duration'     => 45,
         'start_minute' => 0,
-        'bench' => [],
-        'pitch' => $fallback_pitch
+        'bench'        => [],
+        'pitch'        => $fallback_pitch
     ];
 }
 
@@ -183,14 +198,10 @@ foreach ($shifts_data as $s) {
 $currentGameCounter = max(1, count($blockEvents)); // 1-based, minimum 1
 if ($currentGameCounter > $totalGames) $currentGameCounter = $totalGames;
 
-// Zoek de EERSTE shift van het huidige game_counter (voor lineup-data)
-$currentShiftIndex = 0;
-foreach ($shifts_data as $idx => $shift) {
-    if (($shift['game_counter'] ?? 1) === $currentGameCounter) {
-        $currentShiftIndex = $idx;
-        break;
-    }
-}
+// shifts_data heeft nu 1 entry per game_counter → currentShiftIndex = currentGameCounter - 1
+$currentShiftIndex = $currentGameCounter - 1;
+if ($currentShiftIndex >= count($shifts_data)) $currentShiftIndex = count($shifts_data) - 1;
+if ($currentShiftIndex < 0) $currentShiftIndex = 0;
 
 $stmtLastStatus = $pdo->prepare("SELECT event_type, created_at FROM game_events WHERE game_id = ? AND event_type IN ('match_start', 'period_start', 'period_end') AND is_deleted = 0 ORDER BY id DESC LIMIT 1");
 $stmtLastStatus->execute([$gameId]);
@@ -426,8 +437,8 @@ document.addEventListener("DOMContentLoaded", function() {
                 </select>
             </div>
         </div>
-        
-        <!-- Wissel Menu -->
+
+
         <div id="wisselMenu" class="mb-3" style="display:none;">
             
             <div id="wisselBlockActionsContainer" class="card mb-3 border-success">
@@ -892,6 +903,7 @@ document.addEventListener("DOMContentLoaded", function() {
             document.getElementById('goalPlayerSelectLabel').innerText = 'Wie heeft er gescoord?';
             document.getElementById('assistSection').style.display = 'block';
             document.getElementById('wisselMenu').style.display = 'none';
+
             // Bouw de spelerlijst op: first own-goal option, then all players sorted
             const goalSel = document.getElementById('goalPlayerId');
             goalSel.innerHTML = '<option value="">Selecteer een speler...</option><option value="own_goal_opp">⚽ Own-goal (tegenstander)</option>';
@@ -920,23 +932,17 @@ document.addEventListener("DOMContentLoaded", function() {
             
             if (currentShiftIndex < shiftsData.length - 1) {
                 document.getElementById('wisselBlockActionsContainer').style.display = 'block';
-                const cShift = shiftsData[currentShiftIndex];
                 const nShift = shiftsData[currentShiftIndex + 1];
-                const shiftTitle = nShift.title || ('Blok ' + nShift.index);
+                const shiftTitle = nShift.title || ('Wedstrijd ' + nShift.game_counter);
                 
-                wisselBody.innerHTML = `<h6 class="fw-bold mb-1">Schema Opvolgen</h6>`;
+                wisselBody.innerHTML = `<h6 class="fw-bold mb-1">Volgende Wedstrijd</h6>`;
                 
                 if (isPaused) {
-                    wisselBody.innerHTML += `<p class="small text-muted mb-2">De wedstrijd is gepauzeerd. Bevestig dat het volgende deel gestart is.</p>`;
-                    wisselBody.innerHTML += `<button class="btn btn-success btn-sm fw-bold w-100" onclick="submitNextBlock()">▶ Start ${shiftTitle}</button>`;
+                    wisselBody.innerHTML += `<p class="small text-muted mb-2">Klaar voor de volgende wedstrijd?</p>`;
+                    wisselBody.innerHTML += `<button class="btn btn-success btn-sm fw-bold w-100" onclick="sendStartGame(${nShift.game_counter})">▶ Start ${shiftTitle}</button>`;
                 } else {
-                    if (cShift.game_counter === nShift.game_counter) {
-                        wisselBody.innerHTML += `<p class="small text-muted mb-2">Wissels doorgevoerd? Bevestig de start van de volgende shift (vliegende wissel).</p>`;
-                        wisselBody.innerHTML += `<button class="btn btn-success btn-sm fw-bold w-100" onclick="submitNextBlock()">▶ Start ${shiftTitle}</button>`;
-                    } else {
-                        wisselBody.innerHTML += `<p class="small text-muted mb-2">Het huidige wedstrijdje zit erop. Fluit af voor de rust/nieuwe opstelling.</p>`;
-                        wisselBody.innerHTML += `<button class="btn btn-warning btn-sm fw-bold w-100 mb-2 text-dark" onclick="submitPauseBlock()">⏹ Fluit af (Pauzeer Timer)</button>`;
-                    }
+                    wisselBody.innerHTML += `<p class="small text-muted mb-2">Huidige wedstrijd nog bezig. Fluit af voor je de volgende start.</p>`;
+                    wisselBody.innerHTML += `<button class="btn btn-warning btn-sm fw-bold w-100 mb-2 text-dark" onclick="submitPauseBlock()">⏹ Fluit af</button>`;
                 }
             } else {
                 document.getElementById('wisselBlockActionsContainer').style.display = 'block';
@@ -968,10 +974,6 @@ document.addEventListener("DOMContentLoaded", function() {
         updateMinuteDisplay();
     }
 
-    function toggleOwnGoalPlayer() {
-        const checked = document.getElementById('ownGoalCheck').checked;
-        document.getElementById('ownGoalPlayerSection').style.display = checked ? 'block' : 'none';
-    }
 
     function onGoalPlayerChange() {
         const pid = document.getElementById('goalPlayerId').value;
@@ -1010,13 +1012,7 @@ document.addEventListener("DOMContentLoaded", function() {
                 if (assistPid) { payload.player_out_id = assistPid; }
             }
         } else if (type === 'opp_goal') {
-            // Check of het een eigen doelpunt is
-            const isOwnGoal = document.getElementById('ownGoalCheck').checked;
-            if (isOwnGoal) {
-                payload.event_type = 'own_goal';
-                const ownPid = document.getElementById('ownGoalPlayerId').value;
-                if (ownPid) payload.player_id = ownPid;
-            }
+            // Tegengoal: gewoon loggen, geen extra info nodig
         } else if (type === 'wissel') {
             const pIn = document.getElementById('wisselPlayerInId').value;
             const pOut = document.getElementById('wisselPlayerOutId').value;
@@ -1273,24 +1269,26 @@ document.addEventListener("DOMContentLoaded", function() {
 
             // Bereken de matchminuut:
             // Strategie: gebruik de NOMINALE start_minute van de eerste shift van de huidige wedstrijd
-            // als cumulatieve offset, plus de werkelijk verstreken tijd binnen die wedstrijd.
-            // Bv. wedstrijd 3 start op nominale minuut 30, goal na 60s reëel → 30 + 1 = 31'
-            // Dit werkt voor zowel tornooi (isTournament=true) als meerdere wedstrijden (false).
-            let relMin = e.event_minute || 0; // fallback
-            if (!isStatusEvent && e.created_at) {
-                const gc = e._blockIndex; // game_counter van dit event
-                const baseTs = window.gameStartCreatedAt[gc]; // start-timestamp van die wedstrijd
-                // Nominale startminuut = start_minute van de eerste shift van deze game_counter
+            // Gebruik event_minute (handmatig ingesteld door de gebruiker) als primary source.
+            // Val enkel terug op timestamp-berekening als event_minute = 0 (bv. auto-events).
+            let relMin;
+            if (!isStatusEvent && parseInt(e.event_minute) > 0) {
+                // Gebruiker heeft de minuut ingesteld (of aangepast) → neem die over
+                relMin = parseInt(e.event_minute);
+            } else if (!isStatusEvent && e.created_at) {
+                const gc = e._blockIndex;
+                const baseTs = window.gameStartCreatedAt[gc];
                 const firstShiftOfGc = shiftsData.find(s => s.game_counter === gc);
                 const nominalStartMin = firstShiftOfGc ? firstShiftOfGc.start_minute : 0;
-
+                relMin = 0;
                 if (baseTs) {
-                    // +Z forceert UTC interpretatie — anders behandelt browser als lokale tijd
                     const bStart = new Date(baseTs.replace(' ', 'T') + 'Z').getTime();
                     const eTime  = new Date(e.created_at.replace(' ', 'T') + 'Z').getTime();
                     const diffSec = (eTime - bStart) / 1000;
                     if (diffSec >= 0) relMin = Math.round(nominalStartMin) + Math.floor(diffSec / 60) + 1;
                 }
+            } else {
+                relMin = 0;
             }
             
             let text = isStatusEvent

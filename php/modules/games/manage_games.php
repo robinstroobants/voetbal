@@ -44,7 +44,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($isTournament && isset($_POST['block_labels']) && is_array($_POST['block_labels'])) {
             $labels = array_map('trim', $_POST['block_labels']);
             if (count(array_filter($labels)) > 0) {
-                $blockLabels = json_encode($labels);
+                // Bepaal het aantal helften per wedstrijd vanuit het formaat
+                $partsStr = $_POST['game_parts'] ?? '4x15';
+                if ($partsStr === 'custom') {
+                    $partsStr = preg_replace('/[^0-9xX]/', '', trim($_POST['custom_parts'] ?? '4x15'));
+                }
+                // Helften per wedstrijd = altijd 2 (half-patroon is standaard voor tornooien)
+                // Maar correct: nr_of_games = eerste deel, minuten = tweede deel
+                // We weten niet welk patroon gekozen is, maar het formulier heeft 1 label per wedstrijd.
+                // Sla ze op als per-game labels met " (Helft 1)" en " (Helft 2)" suffixen.
+                preg_match('/^(\d+)x(\d+)$/i', $partsStr, $pm);
+                $nr_games = isset($pm[1]) ? (int)$pm[1] : count($labels);
+                $helften_per_game = ($nr_games > 0 && count($labels) > 0) ? max(1, (int)round($nr_games / count($labels))) : 2;
+                // Standaard: elk formulier-label = 1 wedstrijd, expand naar helften
+                $expanded = [];
+                foreach ($labels as $gameLabel) {
+                    if ($gameLabel === '') { $expanded[] = ''; $expanded[] = ''; continue; }
+                    $expanded[] = $gameLabel . ' (Helft 1)';
+                    $expanded[] = $gameLabel . ' (Helft 2)';
+                }
+                $blockLabels = json_encode($expanded);
             }
         }
         
@@ -780,10 +799,18 @@ document.addEventListener("DOMContentLoaded", function() {
             col.className = 'col-md-6';
             
             let val = '';
-            if (currentValues[i] !== undefined) {
+            if (currentValues[i] !== undefined && currentValues[i] !== '') {
                 val = currentValues[i]; // behoud wat net getypt werd
-            } else if (window.existingTournamentLabels && window.existingTournamentLabels[i]) {
-                val = window.existingTournamentLabels[i]; // behoud wat uit de db kwam
+            } else if (window.existingTournamentLabels && window.existingTournamentLabels.length > 0) {
+                // Als er meer labels zijn dan numBlocks, zijn het per-helft labels (bv. 8 voor 4 wedstrijden)
+                // In dat geval: neem label op index i*helftenPerGame en strip " (Helft X)"
+                const storedCount = window.existingTournamentLabels.length;
+                const ratio = storedCount > numBlocks ? Math.round(storedCount / numBlocks) : 1;
+                const srcIdx = i * ratio;
+                let srcLabel = window.existingTournamentLabels[srcIdx] || '';
+                // Strip " (Helft X)" suffix
+                srcLabel = srcLabel.replace(/\s*\(Helft\s*\d+\)\s*$/i, '').trim();
+                val = srcLabel;
             }
             val = val.replace(/"/g, '&quot;');
             

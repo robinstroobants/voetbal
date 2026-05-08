@@ -486,7 +486,7 @@ while ($g = $stmtGK->fetch(PDO::FETCH_ASSOC)) {
             .then(data => {
                 if(data.success) {
                     alert("Matrix succesvol en wiskundig accuraat gegenereerd!");
-                    window.location.href = 'edit_scores.php';
+                    window.location.href = '/scores';
                 } else {
                     alert("Er ging iets mis: " + data.error);
                     btn.innerHTML = '<i class="fa-solid fa-calculator text-warning me-2"></i>Genereer Scores Matrix';

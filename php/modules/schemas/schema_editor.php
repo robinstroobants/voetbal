@@ -20,6 +20,28 @@ $selectie = $matchData['selectie'] ?? '';
 $gk_arr = array_filter(array_map('trim', explode(',', $doelmannen)));
 $sel_arr = array_filter(array_map('trim', explode(',', $selectie)));
 $squad = array_merge($gk_arr, $sel_arr);
+
+// Override squad order from preview (saved lineup) or volgorde (query param)
+if (isset($_GET['preview']) && (int)$_GET['preview'] > 0) {
+    $stmtOrder = $pdo->prepare("SELECT player_order FROM game_lineups WHERE id = ?");
+    $stmtOrder->execute([(int)$_GET['preview']]);
+    $savedOrder = $stmtOrder->fetchColumn();
+    if ($savedOrder) {
+        $orderArr = array_filter(array_map('trim', explode(',', $savedOrder)));
+        if (!empty($orderArr)) {
+            $squad = $orderArr;
+            // Re-derive GK count from the saved order vs known GKs
+            $gk_arr = array_values(array_intersect($orderArr, $gk_arr));
+        }
+    }
+} elseif (isset($_GET['volgorde']) && !empty($_GET['volgorde'])) {
+    $orderArr = array_filter(array_map('trim', explode(',', $_GET['volgorde'])));
+    if (!empty($orderArr)) {
+        $squad = $orderArr;
+        $gk_arr = array_values(array_intersect($orderArr, $gk_arr));
+    }
+}
+
 $aantal = count($squad);
 $gk_count = count($gk_arr);
 

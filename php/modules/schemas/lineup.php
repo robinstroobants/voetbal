@@ -516,7 +516,7 @@ require_once dirname(__DIR__, 2) . '/header.php';
               <?php endif; ?>
               
               <?php if (Permissions::hasPermission(Permissions::PERM_USE_THEORY_WIZARD)): ?>
-                  <a href="/schema_editor?game_id=<?= $gameId ?>&schema_id=<?= $selected['ws_id'] ?>&volgorde=<?= urlencode(implode(',', array_keys($lineup->playerindex))) ?>" class="btn btn-sm btn-outline-warning ms-2 shadow-sm">
+                  <a href="/games/<?= $gameId ?>/editor?schema_id=<?= $selected['ws_id'] ?>&volgorde=<?= urlencode(implode(',', array_keys($lineup->playerindex))) ?>" class="btn btn-sm btn-outline-warning ms-2 shadow-sm">
                       <i class="fa-solid fa-pen-ruler"></i> Bewerk <?= $shuffle_type !== 'coach' ? 'dit' : 'Huidig' ?> Schema
                   </a>
               <?php endif; ?>
